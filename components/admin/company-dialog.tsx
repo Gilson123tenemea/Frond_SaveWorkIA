@@ -36,10 +36,13 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
     telefono: "",
     correo: "",
     sector: "",
-    id_administrador_empresa: 1, // valor fijo por ahora (puedes enlazarlo luego al login del admin)
+    id_administrador_empresa: 0, // valor fijo por ahora (puedes enlazarlo luego al login del admin)
   })
 
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || "null")
+    const adminId = user?.id_administrador || parseInt(localStorage.getItem("adminId") || "0")
+
     if (empresa) {
       setFormData({
         nombreEmpresa: empresa.nombreEmpresa,
@@ -58,7 +61,7 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
         telefono: "",
         correo: "",
         sector: "",
-        id_administrador_empresa: 1,
+        id_administrador_empresa: adminId, 
       })
     }
   }, [empresa, open])
