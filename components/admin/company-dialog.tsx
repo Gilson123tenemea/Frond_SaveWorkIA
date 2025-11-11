@@ -13,9 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Building2, Loader2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-
-// Importa los servicios del backend
+import toast from "react-hot-toast" // ✅ nueva librería
 import { crearEmpresa, actualizarEmpresa } from "../../servicios/empresa"
 
 interface EmpresaDialogProps {
@@ -26,9 +24,7 @@ interface EmpresaDialogProps {
 }
 
 export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: EmpresaDialogProps) {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-
   const [formData, setFormData] = useState({
     nombreEmpresa: "",
     ruc: "",
@@ -36,7 +32,7 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
     telefono: "",
     correo: "",
     sector: "",
-    id_administrador_empresa: 0, // valor fijo por ahora (puedes enlazarlo luego al login del admin)
+    id_administrador_empresa: 0,
   })
 
   useEffect(() => {
@@ -61,42 +57,48 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
         telefono: "",
         correo: "",
         sector: "",
-        id_administrador_empresa: adminId, 
+        id_administrador_empresa: adminId,
       })
     }
   }, [empresa, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
 
-    try {
-      if (empresa) {
-        // Actualizar empresa
-        await actualizarEmpresa(empresa.id_Empresa, formData)
+    // 🎉 Usa toast.promise para mostrar carga → éxito → error con animaciones
+    const promise = empresa
+      ? actualizarEmpresa(empresa.id_Empresa, formData)
+      : crearEmpresa(formData)
 
-        toast({
-          title: "Empresa actualizada",
-          description: "La empresa se actualizó correctamente.",
-        })
-      } else {
-        // Crear empresa
-        await crearEmpresa(formData)
-
-        toast({
-          title: "Empresa registrada",
-          description: "La empresa fue registrada exitosamente.",
-        })
+    toast.promise(
+      promise,
+      {
+        loading: empresa ? "Actualizando empresa..." : "Registrando empresa...",
+        success: empresa
+          ? `Empresa "${formData.nombreEmpresa}" actualizada con éxito`
+          : `Empresa "${formData.nombreEmpresa}" registrada exitosamente`,
+        error: "❌ Ocurrió un error al guardar la empresa",
+      },
+      {
+        style: {
+          background: empresa ? "#2563eb" : "#16a34a",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+          boxShadow: "0 2px 20px rgba(0, 0, 0, 0.2)",
+        },
+        iconTheme: {
+          primary: "#fff",
+          secondary: empresa ? "#1e3a8a" : "#15803d",
+        },
       }
+    )
 
+    setLoading(true)
+    try {
+      await promise
       onSuccess()
       onOpenChange(false)
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Ocurrió un error al guardar la empresa",
-        variant: "destructive",
-      })
     } finally {
       setLoading(false)
     }
@@ -117,7 +119,6 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
-            {/* Nombre */}
             <div className="space-y-2">
               <Label htmlFor="nombreEmpresa">Nombre de la Empresa</Label>
               <Input
@@ -129,7 +130,6 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
               />
             </div>
 
-            {/* RUC */}
             <div className="space-y-2">
               <Label htmlFor="ruc">RUC</Label>
               <Input
@@ -141,7 +141,6 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
               />
             </div>
 
-            {/* Dirección */}
             <div className="space-y-2">
               <Label htmlFor="direccion">Dirección</Label>
               <Input
@@ -153,7 +152,6 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
               />
             </div>
 
-            {/* Teléfono */}
             <div className="space-y-2">
               <Label htmlFor="telefono">Teléfono</Label>
               <Input
@@ -165,7 +163,6 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
               />
             </div>
 
-            {/* Correo */}
             <div className="space-y-2">
               <Label htmlFor="correo">Correo Electrónico</Label>
               <Input
@@ -178,7 +175,6 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
               />
             </div>
 
-            {/* Sector */}
             <div className="space-y-2">
               <Label htmlFor="sector">Sector</Label>
               <Input
