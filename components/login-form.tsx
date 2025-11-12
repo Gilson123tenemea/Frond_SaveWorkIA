@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Shield, AlertTriangle } from "lucide-react"
-import { loginAdministrador } from "../servicios/login"
+import { loginAdministrador, loginSupervisor } from "../servicios/login"
 
 export function LoginForm() {
   const router = useRouter()
@@ -23,19 +23,50 @@ export function LoginForm() {
     setIsLoading(true)
 
     try {
-      const data = await loginAdministrador(email, password)
-      console.log("✅ Login exitoso:", data)
+      let userData = null
+      let role = ""
 
-      // ✅ Guardar toda la info del admin
-      localStorage.setItem("user", JSON.stringify(data))
+      // 🔹 Intentar ADMINISTRADOR
+      try {
+        userData = await loginAdministrador(email, password)
+        role = userData.role || "admin"
+        console.log("✅ Login administrador exitoso:", userData)
+      } catch (adminErr) {
+        console.warn("⚠️ No es administrador:", adminErr)
+      }
 
-      // ✅ (Opcional) guardar solo el id_administrador
-      localStorage.setItem("adminId", data.id_administrador)
+      // 🔹 Intentar SUPERVISOR si el admin falló
+      if (!userData) {
+        try {
+          userData = await loginSupervisor(email, password)
+          role = userData.rol || "supervisor"
+          console.log("✅ Login supervisor exitoso:", userData)
+        } catch (superErr) {
+          console.warn("⚠️ No es supervisor:", superErr)
+        }
+      }
 
-      // Redirigir al panel admin
-      router.push("/admin")
+      // ❌ Si sigue sin datos, lanzar error final
+      if (!userData) {
+        throw new Error("Correo o contraseña incorrectos")
+      }
+
+      // ✅ Guardar usuario en localStorage
+      const user = {
+        email: userData.correo,
+        name: userData.nombre,
+        role: role,
+      }
+      localStorage.setItem("user", JSON.stringify(user))
+
+      // ✅ Redirigir según el rol
+      if (role === "admin") router.push("/admin")
+      else if (role === "supervisor") router.push("/supervisor")
+      else if (role === "inspector") router.push("/inspector")
+      else throw new Error("Rol no reconocido")
+
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message || "Error al iniciar sesión")
+      if (err instanceof Error) setError(err.message)
       else setError("Error al iniciar sesión")
     } finally {
       setIsLoading(false)
