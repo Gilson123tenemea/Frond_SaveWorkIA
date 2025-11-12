@@ -22,7 +22,8 @@ import {
 } from "lucide-react"
 import { logout, getUser } from "@/lib/auth"
 import { CompaniesTable } from "./companies-table"
-import { UsersTable } from "./users-table"
+import { SupervisoresTable  } from "./users-table"
+
 import { CamerasTable } from "./cameras-table"
 import { StatsCards } from "./stats-cards"
 import { initializeStorage } from "@/lib/storage"
@@ -206,7 +207,7 @@ export function AdminDashboard() {
 
           {/* Users Tab */}
           <TabsContent value="users">
-            <UsersTable />
+            <SupervisoresTable  />
           </TabsContent>
 
           {/* Cameras Tab */}

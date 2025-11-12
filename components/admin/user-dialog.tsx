@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -16,97 +14,88 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Shield, Loader2 } from "lucide-react"
-import { saveUser, updateUser, getCompanies, type User } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
+import { registrarSupervisor } from "../../servicios/supervisor"
+import { listarEmpresas } from "../../servicios/empresa"
+import { useEffect } from "react"
 
 interface UserDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  user: User | null
   onSuccess: () => void
 }
 
-export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogProps) {
+export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [empresas, setEmpresas] = useState<any[]>([])
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "inspector" as "admin" | "supervisor" | "inspector",
-    companyId: "",
-    status: "active" as "active" | "inactive",
+
+    cedula: "",
+
+    nombre: "",
+    apellido: "",
+    telefono: "",
+    correo: "",
+    direccion: "",
+    genero: "",
+    fecha_nacimiento: "",
+    contrasena: "",
+    especialidad_seguridad: "",
+    experiencia: "",
+    id_empresa_supervisor: "",
   })
 
-  const companies = getCompanies()
-
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name,
-        email: user.email,
-        password: "",
-        role: user.role,
-        companyId: user.companyId?.toString() || "",
-        status: user.status,
-      })
-    } else {
-      setFormData({
-        name: "",
-        email: "",
-        password: "",
-        role: "inspector",
-        companyId: "",
-        status: "active",
-      })
+    if (open) {
+      cargarEmpresas()
     }
-  }, [user, open])
+  }, [open])
 
+  const cargarEmpresas = async () => {
+    try {
+      const data = await listarEmpresas()
+      const activas = data.filter((e: any) => e.borrado === true || e.borrado === 1)
+      setEmpresas(activas)
+    } catch (error) {
+      console.error("Error al cargar empresas:", error)
+    }
+  }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      const companyId = formData.companyId ? Number.parseInt(formData.companyId) : null
-      const company = companyId ? companies.find((c) => c.id === companyId)?.name || null : null
-
-      if (user) {
-        updateUser(user.id, {
-          name: formData.name,
-          email: formData.email,
-          ...(formData.password && { password: formData.password }),
-          role: formData.role,
-          companyId,
-          company,
-          status: formData.status,
-        })
-
-        toast({
-          title: "Usuario actualizado",
-          description: "El usuario se ha actualizado correctamente",
-        })
-      } else {
-        saveUser({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role,
-          companyId,
-          company,
-          status: formData.status,
-        })
-
-        toast({
-          title: "Usuario creado",
-          description: "El usuario se ha registrado correctamente",
-        })
+      const datosSupervisor = {
+        persona: {
+          cedula: formData.cedula,
+          nombre: formData.nombre,
+          apellido: formData.apellido,
+          telefono: formData.telefono,
+          correo: formData.correo,
+          direccion: formData.direccion,
+          genero: formData.genero,
+          fecha_nacimiento: formData.fecha_nacimiento,
+          contrasena: formData.contrasena,
+        },
+        especialidad_seguridad: formData.especialidad_seguridad,
+        experiencia: Number(formData.experiencia),
+        id_empresa_supervisor: Number(formData.id_empresa_supervisor),
       }
 
-      onSuccess()
-    } catch (error) {
+      await registrarSupervisor(datosSupervisor)
+
       toast({
-        title: "Error",
-        description: "Ocurrió un error al guardar el usuario",
+        title: "Supervisor registrado",
+        description: "El supervisor fue registrado correctamente.",
+      })
+
+      onSuccess()
+      onOpenChange(false)
+    } catch (error: any) {
+      toast({
+        title: "Error al registrar",
+        description: error.message || "Ocurrió un error al registrar el supervisor.",
         variant: "destructive",
       })
     } finally {
@@ -116,114 +105,188 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
-            {user ? "Editar Usuario" : "Crear Nuevo Usuario"}
+            Registrar Supervisor
           </DialogTitle>
           <DialogDescription>
-            {user ? "Actualiza los datos del usuario" : "Registra un nuevo usuario en el sistema"}
+            Completa los datos personales y laborales del supervisor
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre Completo</Label>
-              <Input
-                id="name"
-                placeholder="Ej: Juan Pérez"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="usuario@ejemplo.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña {user && "(dejar vacío para mantener)"}</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required={!user}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="role">Rol</Label>
-                <Select value={formData.role} onValueChange={(value: any) => setFormData({ ...formData, role: value })}>
-                  <SelectTrigger id="role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="supervisor">Supervisor</SelectItem>
-                    <SelectItem value="inspector">Inspector</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status">Estado</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: any) => setFormData({ ...formData, status: value })}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Activo</SelectItem>
-                    <SelectItem value="inactive">Inactivo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="company">Empresa (opcional)</Label>
-              <Select
-                value={formData.companyId}
-                onValueChange={(value) => setFormData({ ...formData, companyId: value })}
-              >
-                <SelectTrigger id="company">
-                  <SelectValue placeholder="Seleccionar empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Ninguna</SelectItem>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id.toString()}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="cedula">Cédula</Label>
+            <Input
+              id="cedula"
+              placeholder="0102030405"
+              value={formData.cedula}
+              onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+              required
+            />
           </div>
 
-          <DialogFooter>
+          <div className="space-y-2">
+            <Label htmlFor="nombre">Nombre</Label>
+            <Input
+              id="nombre"
+              placeholder="David"
+              value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="apellido">Apellido</Label>
+            <Input
+              id="apellido"
+              placeholder="López"
+              value={formData.apellido}
+              onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="telefono">Teléfono</Label>
+            <Input
+              id="telefono"
+              placeholder="0991234567"
+              value={formData.telefono}
+              onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="correo">Correo</Label>
+            <Input
+              id="correo"
+              type="email"
+              placeholder="david@gmail.com"
+              value={formData.correo}
+              onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="direccion">Dirección</Label>
+            <Input
+              id="direccion"
+              placeholder="Av. Central"
+              value={formData.direccion}
+              onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="genero">Género</Label>
+            <Select
+              value={formData.genero}
+              onValueChange={(value) => setFormData({ ...formData, genero: value })}
+            >
+              <SelectTrigger id="genero">
+                <SelectValue placeholder="Seleccionar género" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Masculino">Masculino</SelectItem>
+                <SelectItem value="Femenino">Femenino</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fecha_nacimiento">Fecha de nacimiento</Label>
+            <Input
+              id="fecha_nacimiento"
+              type="date"
+              value={formData.fecha_nacimiento}
+              onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="contrasena">Contraseña</Label>
+            <Input
+              id="contrasena"
+              type="password"
+              placeholder="•••••••"
+              value={formData.contrasena}
+              onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
+              required
+            />
+          </div>
+
+          {/* 👇 Pega aquí */}
+          <div className="space-y-2">
+            <Label htmlFor="empresa">Empresa</Label>
+            <Select
+              value={formData.id_empresa_supervisor || ""}
+              onValueChange={(value) =>
+                setFormData({ ...formData, id_empresa_supervisor: value })
+              }
+            >
+              <SelectTrigger id="empresa">
+                <SelectValue placeholder="Seleccionar empresa" />
+              </SelectTrigger>
+              <SelectContent>
+                {empresas.length > 0 ? (
+                  empresas.map((empresa) => (
+                    <SelectItem
+                      key={empresa.id_Empresa}
+                      value={empresa.id_Empresa.toString()}
+                    >
+                      {empresa.nombreEmpresa}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem disabled value="">
+                    No hay empresas activas
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="especialidad_seguridad">Especialidad</Label>
+            <Input
+              id="especialidad_seguridad"
+              placeholder="Prevención de Riesgos Laborales"
+              value={formData.especialidad_seguridad}
+              onChange={(e) => setFormData({ ...formData, especialidad_seguridad: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="experiencia">Años de experiencia</Label>
+            <Input
+              id="experiencia"
+              type="number"
+              placeholder="5"
+              value={formData.experiencia}
+              onChange={(e) => setFormData({ ...formData, experiencia: e.target.value })}
+              required
+            />
+          </div>
+
+
+
+
+          <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {user ? "Actualizar" : "Crear"}
+              Registrar
             </Button>
           </DialogFooter>
         </form>
