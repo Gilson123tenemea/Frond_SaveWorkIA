@@ -1,4 +1,3 @@
-// src/services/empresa.js
 import { BASE_URL } from "./api";
 
 const EMPRESA_URL = `${BASE_URL}/empresas`;
@@ -29,7 +28,7 @@ export async function crearEmpresa(empresaData) {
 }
 
 // ============================
-// 📌 Obtener todas las empresas
+// 📌 Listar todas las empresas
 // ============================
 export async function listarEmpresas() {
   try {
@@ -41,10 +40,29 @@ export async function listarEmpresas() {
       throw new Error("Error al obtener las empresas");
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    // 🧠 Normaliza los nombres para que sirvan tanto en tabla como en combo
+    return data.map((empresa) => ({
+      // IDs compatibles
+      id_empresa: empresa.id_empresa ?? empresa.id_Empresa ?? empresa.id,
+      id_Empresa: empresa.id_Empresa ?? empresa.id_empresa ?? empresa.id,
+
+      // Nombres compatibles
+      nombre: empresa.nombre ?? empresa.nombreEmpresa ?? empresa.name ?? "",
+      nombreEmpresa: empresa.nombreEmpresa ?? empresa.nombre ?? empresa.name ?? "",
+
+      // Otros campos
+      direccion: empresa.direccion ?? empresa.direccionEmpresa ?? "",
+      telefono: empresa.telefono ?? "",
+      correo: empresa.correo ?? "",
+      sector: empresa.sector ?? "",
+      ruc: empresa.ruc ?? "",
+      borrado: empresa.borrado ?? true,
+    }));
   } catch (error) {
     console.error("❌ Error en listarEmpresas:", error);
-    throw error;
+    return [];
   }
 }
 
@@ -64,26 +82,6 @@ export async function obtenerEmpresaPorId(id) {
     return await response.json();
   } catch (error) {
     console.error("❌ Error en obtenerEmpresaPorId:", error);
-    throw error;
-  }
-}
-
-// ============================
-// 📌 Obtener empresa por RUC
-// ============================
-export async function obtenerEmpresaPorRuc(ruc) {
-  try {
-    const response = await fetch(`${EMPRESA_URL}/ruc/${ruc}`, {
-      method: "GET",
-    });
-
-    if (!response.ok) {
-      throw new Error("Empresa no encontrada");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Error en obtenerEmpresaPorRuc:", error);
     throw error;
   }
 }
@@ -129,26 +127,6 @@ export async function eliminarEmpresa(id) {
     return await response.json();
   } catch (error) {
     console.error("❌ Error en eliminarEmpresa:", error);
-    throw error;
-  }
-}
-
-// ============================
-// ⚠️ Eliminar empresa permanente
-// ============================
-export async function eliminarEmpresaPermanente(id) {
-  try {
-    const response = await fetch(`${EMPRESA_URL}/${id}/permanente`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error("Error al eliminar la empresa permanentemente");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Error en eliminarEmpresaPermanente:", error);
     throw error;
   }
 }

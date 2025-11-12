@@ -28,11 +28,11 @@ export function CompaniesTable() {
     loadCompanies()
   }, [])
 
+  // 🔹 Cargar empresas desde backend
   const loadCompanies = async () => {
     try {
       setLoading(true)
       const data = await listarEmpresas()
-      // ✅ Solo mostramos las empresas activas (borrado = true o 1)
       const activas = data.filter((empresa: any) => empresa.borrado === true || empresa.borrado === 1)
       setCompanies(activas)
     } catch (error: any) {
@@ -42,33 +42,43 @@ export function CompaniesTable() {
     }
   }
 
+  // 🔍 Filtro de búsqueda
   const filteredCompanies = companies.filter((empresa) =>
-    empresa.nombreEmpresa.toLowerCase().includes(search.toLowerCase())
+    (empresa.nombreEmpresa ?? "").toLowerCase().includes(search.toLowerCase())
   )
 
+  // 🧩 Abrir modal de registro
   const handleAdd = () => {
     setEditingCompany(null)
     setIsDialogOpen(true)
   }
 
+  // ✏️ Editar empresa
   const handleEdit = (empresa: any) => {
     setEditingCompany(empresa)
     setIsDialogOpen(true)
   }
 
+  // ✅ Al guardar o editar correctamente
   const handleSuccess = () => {
     loadCompanies()
     setIsDialogOpen(false)
     setEditingCompany(null)
   }
 
-  const handleViewZones = (empresaId: number) => {
+  // 📍 Ver zonas de una empresa (manejo seguro del ID)
+  const handleViewZones = (empresa: any) => {
+    const empresaId = empresa.id_Empresa ?? empresa.id_empresa ?? empresa.id ?? null
+    if (!empresaId) {
+      toast.error("❌ No se pudo identificar la empresa seleccionada")
+      return
+    }
+    console.log("📡 Abriendo zonas para empresa ID:", empresaId)
     setZonesCompanyId(empresaId)
   }
 
-  // 🔹 Eliminar empresa con confirmación visual (centrado, rápido y con toast rojo)
+  // 🗑️ Eliminar empresa (confirmación visual)
   const handleDelete = async (empresaId: number, nombreEmpresa: string) => {
-    // Crear fondo semitransparente (overlay)
     const overlay = document.createElement("div")
     overlay.style.position = "fixed"
     overlay.style.top = "0"
@@ -80,8 +90,7 @@ export function CompaniesTable() {
     overlay.style.transition = "opacity 0.3s ease"
     document.body.appendChild(overlay)
 
-    // Mostrar confirmación
-    const confirmToast = toast(
+    toast(
       (t) => (
         <div className="flex flex-col gap-4 p-2 text-center">
           <p className="text-base font-semibold text-gray-800">
@@ -115,7 +124,7 @@ export function CompaniesTable() {
                   },
                   {
                     style: {
-                      background: "#dc2626", 
+                      background: "#dc2626",
                       color: "#fff",
                       borderRadius: "8px",
                       fontWeight: 500,
@@ -166,7 +175,6 @@ export function CompaniesTable() {
     }, 8000)
   }
 
-
   return (
     <>
       <Card>
@@ -184,6 +192,7 @@ export function CompaniesTable() {
         </CardHeader>
 
         <CardContent>
+          {/* 🔍 Barra de búsqueda */}
           <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -196,6 +205,7 @@ export function CompaniesTable() {
             </div>
           </div>
 
+          {/* 📋 Tabla de empresas */}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
@@ -211,8 +221,8 @@ export function CompaniesTable() {
               </TableHeader>
 
               <TableBody>
-                {filteredCompanies.map((empresa) => (
-                  <TableRow key={empresa.id_Empresa}>
+                {filteredCompanies.map((empresa, index) => (
+                  <TableRow key={empresa.id_Empresa ?? `empresa-${index}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -220,7 +230,9 @@ export function CompaniesTable() {
                         </div>
                         <div>
                           <p className="font-medium">{empresa.nombreEmpresa}</p>
-                          <p className="text-xs text-muted-foreground">ID: {empresa.id_Empresa}</p>
+                          <p className="text-xs text-muted-foreground">
+                            ID: {empresa.id_Empresa ?? empresa.id_empresa ?? "?"}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
@@ -235,7 +247,7 @@ export function CompaniesTable() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleViewZones(empresa.id_Empresa)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleViewZones(empresa)}>
                           <MapPin className="w-4 h-4 mr-2" />
                           Zonas
                         </Button>
@@ -246,7 +258,12 @@ export function CompaniesTable() {
                           variant="ghost"
                           size="sm"
                           className="text-red-600 hover:bg-red-50"
-                          onClick={() => handleDelete(empresa.id_Empresa, empresa.nombreEmpresa)}
+                          onClick={() =>
+                            handleDelete(
+                              empresa.id_Empresa ?? empresa.id_empresa ?? 0,
+                              empresa.nombreEmpresa
+                            )
+                          }
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -256,7 +273,7 @@ export function CompaniesTable() {
                 ))}
 
                 {filteredCompanies.length === 0 && (
-                  <TableRow>
+                  <TableRow key="no-companies">
                     <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                       {loading ? "Cargando empresas..." : "No se encontraron empresas registradas"}
                     </TableCell>
@@ -268,7 +285,7 @@ export function CompaniesTable() {
         </CardContent>
       </Card>
 
-      {/* Modal de registro / edición */}
+      {/* 🟩 Modal de registro / edición */}
       <EmpresaDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
@@ -276,7 +293,7 @@ export function CompaniesTable() {
         onSuccess={handleSuccess}
       />
 
-      {/* Modal de zonas */}
+      {/* 🟨 Modal de zonas */}
       <ZonesDialog
         open={zonesCompanyId !== null}
         onOpenChange={(open) => !open && setZonesCompanyId(null)}

@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { MapPin, Loader2 } from "lucide-react"
 import toast from "react-hot-toast"
 import { crearZona, actualizarZona } from "@/servicios/zona"
-import { GoogleMapsPicker } from "@/components/maps/google-maps-picker"
+import { MapPicker } from "@/components/maps/google-maps-picker" // ✅ corregido
 
 interface ZoneFormDialogProps {
   open: boolean
@@ -160,7 +160,7 @@ export function ZoneFormDialog({ open, onOpenChange, zone, companyId, onSuccess 
               <p className="text-sm text-muted-foreground">
                 Haz clic en el mapa para seleccionar la ubicación de la zona
               </p>
-              <GoogleMapsPicker
+              <MapPicker
                 latitude={formData.latitud ? parseFloat(formData.latitud) : -2.2038}
                 longitude={formData.longitud ? parseFloat(formData.longitud) : -79.8975}
                 onLocationSelect={handleLocationSelect}

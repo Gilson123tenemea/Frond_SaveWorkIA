@@ -1,70 +1,111 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Pencil, Trash2 } from "lucide-react"
-import { getCameras, getZones, deleteCamera, type Camera } from "@/lib/storage"
-import { CameraFormDialog } from "./camera-form-dialog"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus, Search, Pencil, Trash2, Camera } from "lucide-react";
+import toast from "react-hot-toast";
+import { listarCamarasPorZona, eliminarCamara } from "@/servicios/camara";
+import { CameraFormDialog } from "./camera-form-dialog";
 
 interface CamerasDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  zoneId: number | null
-  onSuccess: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  zoneId: number | null;
+  zoneName?: string
+  onSuccess: () => void;
 }
 
-export function CamerasDialog({ open, onOpenChange, zoneId, onSuccess }: CamerasDialogProps) {
-  const [search, setSearch] = useState("")
-  const [cameras, setCameras] = useState<Camera[]>([])
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingCamera, setEditingCamera] = useState<Camera | null>(null)
-  const zone = getZones().find((z) => z.id === zoneId)
+export function CamerasDialog({
+  open,
+  onOpenChange,
+  zoneId,
+  onSuccess,
+}: CamerasDialogProps) {
+  const [search, setSearch] = useState("");
+  const [cameras, setCameras] = useState<any[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingCamera, setEditingCamera] = useState<any | null>(null);
+  const [zoneName, setZoneName] = useState<string>("");
+
+  // 🔹 Cargar cámaras
+  const loadCameras = async () => {
+    if (!zoneId) {
+      console.warn("⚠️ No se recibió un zoneId válido");
+      return;
+    }
+    try {
+      const data = await listarCamarasPorZona(zoneId);
+      setCameras(data);
+    } catch {
+      toast.error("❌ Error al obtener las cámaras");
+    }
+  };
 
   useEffect(() => {
-    if (zoneId) {
-      loadCameras()
+    if (zoneId && open) {
+      console.log("📡 Cargando cámaras para zona:", zoneId);
+      loadCameras();
     }
-  }, [zoneId])
-
-  const loadCameras = () => {
-    const allCameras = getCameras()
-    setCameras(allCameras.filter((c) => c.zoneId === zoneId))
-  }
+  }, [zoneId, open]);
 
   const filteredCameras = cameras.filter(
     (camera) =>
-      camera.name.toLowerCase().includes(search.toLowerCase()) ||
-      camera.location.toLowerCase().includes(search.toLowerCase()),
-  )
+      camera.codigo?.toLowerCase().includes(search.toLowerCase()) ||
+      camera.ipAddress?.toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleAdd = () => {
-    setEditingCamera(null)
-    setIsFormOpen(true)
-  }
-
-  const handleEdit = (camera: Camera) => {
-    setEditingCamera(camera)
-    setIsFormOpen(true)
-  }
-
-  const handleDelete = (id: number) => {
-    if (confirm("¿Estás seguro de eliminar esta cámara?")) {
-      deleteCamera(id)
-      loadCameras()
-      onSuccess()
+    if (!zoneId) {
+      toast.error("❌ Zona no identificada, no se puede agregar cámara");
+      return;
     }
-  }
+    setEditingCamera(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (camera: any) => {
+    setEditingCamera(camera);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (id: number, codigo: string) => {
+    if (!zoneId) return;
+    const confirmDelete = confirm(`¿Eliminar cámara ${codigo}?`);
+    if (!confirmDelete) return;
+    const promise = eliminarCamara(id);
+    toast.promise(promise, {
+      loading: "Eliminando cámara...",
+      success: `Cámara "${codigo}" eliminada`,
+      error: "❌ Error al eliminar",
+    });
+    await promise;
+    loadCameras();
+    onSuccess();
+  };
 
   const handleFormSuccess = () => {
-    loadCameras()
-    setIsFormOpen(false)
-    setEditingCamera(null)
-    onSuccess()
-  }
+    loadCameras();
+    setIsFormOpen(false);
+    setEditingCamera(null);
+    onSuccess();
+  };
 
   return (
     <>
@@ -72,10 +113,18 @@ export function CamerasDialog({ open, onOpenChange, zoneId, onSuccess }: Cameras
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <img src="path/to/camera-icon.svg" alt="Camera" className="w-5 h-5" />
-              Cámaras de {zone?.name}
-            </DialogTitle>
-            <DialogDescription>Gestiona las cámaras de esta zona</DialogDescription>
+  <Camera className="w-5 h-5" />
+  {zoneId ? (
+    <span>
+      Cámaras de la Zona <strong>{zoneName ?? `#${zoneId}`}</strong>
+    </span>
+  ) : (
+    <span className="text-red-500 font-semibold">Zona no identificada</span>
+  )}
+</DialogTitle>
+            <DialogDescription>
+              Gestiona las cámaras asociadas a esta zona.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -89,7 +138,7 @@ export function CamerasDialog({ open, onOpenChange, zoneId, onSuccess }: Cameras
                   className="pl-9"
                 />
               </div>
-              <Button onClick={handleAdd}>
+              <Button onClick={handleAdd} disabled={!zoneId}>
                 <Plus className="w-4 h-4 mr-2" />
                 Agregar Cámara
               </Button>
@@ -99,9 +148,9 @@ export function CamerasDialog({ open, onOpenChange, zoneId, onSuccess }: Cameras
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cámara</TableHead>
-                    <TableHead>Ubicación</TableHead>
-                    <TableHead>Resolución</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>IP</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -109,75 +158,47 @@ export function CamerasDialog({ open, onOpenChange, zoneId, onSuccess }: Cameras
                 <TableBody>
                   {filteredCameras.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell
+                        colSpan={5}
+                        className="text-center text-muted-foreground py-8"
+                      >
                         No hay cámaras registradas
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredCameras.map((camera) => (
-                      <TableRow key={camera.id}>
+                      <TableRow key={camera.id_camara}>
+                        <TableCell>{camera.codigo}</TableCell>
+                        <TableCell>{camera.ipAddress}</TableCell>
+                        <TableCell>{camera.tipo}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                camera.status === "online"
-                                  ? "bg-success/10"
-                                  : camera.status === "maintenance"
-                                    ? "bg-yellow-500/10"
-                                    : "bg-destructive/10"
-                              }`}
-                            >
-                              <img
-                                src="path/to/camera-icon.svg"
-                                alt="Camera"
-                                className={`w-5 h-5 ${
-                                  camera.status === "online"
-                                    ? "text-success"
-                                    : camera.status === "maintenance"
-                                      ? "text-yellow-600"
-                                      : "text-destructive"
-                                }`}
-                              />
-                            </div>
-                            <div>
-                              <p className="font-medium">{camera.name}</p>
-                              <p className="text-xs text-muted-foreground">ID: {camera.id}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{camera.location}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{camera.resolution}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-2 h-2 rounded-full ${
-                                camera.status === "online"
-                                  ? "bg-success animate-pulse"
-                                  : camera.status === "maintenance"
-                                    ? "bg-yellow-500"
-                                    : "bg-destructive"
-                              }`}
-                            />
-                            <span className="text-sm">
-                              {camera.status === "online"
-                                ? "En línea"
-                                : camera.status === "maintenance"
-                                  ? "Mantenimiento"
-                                  : "Fuera de línea"}
-                            </span>
-                          </div>
+                          <Badge
+                            variant={
+                              camera.estado === "activa"
+                                ? "default"
+                                : "outline"
+                            }
+                          >
+                            {camera.estado}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(camera)}>
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(camera.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(camera)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleDelete(camera.id_camara, camera.codigo)
+                            }
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -189,6 +210,7 @@ export function CamerasDialog({ open, onOpenChange, zoneId, onSuccess }: Cameras
         </DialogContent>
       </Dialog>
 
+      {/* 📸 Modal de formulario para agregar o editar cámara */}
       <CameraFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
@@ -197,5 +219,5 @@ export function CamerasDialog({ open, onOpenChange, zoneId, onSuccess }: Cameras
         onSuccess={handleFormSuccess}
       />
     </>
-  )
+  );
 }

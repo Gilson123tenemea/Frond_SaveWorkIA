@@ -1,4 +1,3 @@
-// src/servicios/zona.js
 import { BASE_URL } from "./api";
 
 const ZONA_URL = `${BASE_URL}/zonas`;
@@ -33,23 +32,35 @@ export async function crearZona(zonaData) {
 // ============================
 export async function listarZonas() {
   try {
-    const response = await fetch(`${ZONA_URL}/`, {
-      method: "GET",
-    });
+    const response = await fetch(`${ZONA_URL}/`, { method: "GET" });
 
-    if (!response.ok) {
-      throw new Error("Error al obtener las zonas");
-    }
+    if (!response.ok) throw new Error("Error al obtener las zonas");
 
-    return await response.json();
+    const data = await response.json();
+
+    return data.map((zona) => ({
+      // IDs compatibles
+      id_zona: zona.id_zona ?? zona.id_Zona ?? zona.id,
+      id_Zona: zona.id_Zona ?? zona.id_zona ?? zona.id,
+
+      // Nombres compatibles
+      nombre: zona.nombre ?? zona.nombreZona ?? zona.name ?? "",
+      nombreZona: zona.nombreZona ?? zona.nombre ?? zona.name ?? "",
+
+      // Otros campos
+      latitud: zona.latitud ?? "",
+      longitud: zona.longitud ?? "",
+      id_empresa_zona:
+        zona.id_empresa_zona ?? zona.id_empresa ?? zona.empresa_id ?? null,
+      borrado: zona.borrado ?? true,
+    }));
   } catch (error) {
     console.error("❌ Error en listarZonas:", error);
-    throw error;
+    return [];
   }
 }
-
 // ============================
-// 📌 Listar zonas por empresa
+// 📌 Listar zonas por empresa (CORREGIDO)
 // ============================
 export async function listarZonasPorEmpresa(empresaId) {
   try {
@@ -61,52 +72,27 @@ export async function listarZonasPorEmpresa(empresaId) {
       throw new Error("Error al obtener las zonas de la empresa");
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    // ✅ Normaliza correctamente el ID y otros campos
+    return data.map((zona) => ({
+      id_Zona: zona.id_Zona ?? zona.id_zona ?? zona.id, // 👈 aquí el fix
+      nombreZona: zona.nombreZona ?? zona.nombre ?? zona.name ?? "",
+      latitud: zona.latitud ?? "",
+      longitud: zona.longitud ?? "",
+      borrado: zona.borrado ?? true,
+      id_empresa_zona:
+        zona.id_empresa_zona ?? zona.id_empresa ?? zona.empresa_id ?? null,
+      id_administrador_zona:
+        zona.id_administrador_zona ?? zona.administrador_id ?? null,
+      cameras: zona.cameras ?? 0,
+    }));
   } catch (error) {
     console.error("❌ Error en listarZonasPorEmpresa:", error);
-    throw error;
+    return [];
   }
 }
 
-// ============================
-// 📌 Listar zonas por administrador
-// ============================
-export async function listarZonasPorAdministrador(administradorId) {
-  try {
-    const response = await fetch(`${ZONA_URL}/administrador/${administradorId}`, {
-      method: "GET",
-    });
-
-    if (!response.ok) {
-      throw new Error("Error al obtener las zonas del administrador");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Error en listarZonasPorAdministrador:", error);
-    throw error;
-  }
-}
-
-// ============================
-// 📌 Obtener zona por ID
-// ============================
-export async function obtenerZonaPorId(id) {
-  try {
-    const response = await fetch(`${ZONA_URL}/${id}`, {
-      method: "GET",
-    });
-
-    if (!response.ok) {
-      throw new Error("Zona no encontrada");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Error en obtenerZonaPorId:", error);
-    throw error;
-  }
-}
 
 // ============================
 // 📌 Actualizar zona
@@ -149,26 +135,6 @@ export async function eliminarZona(id) {
     return await response.json();
   } catch (error) {
     console.error("❌ Error en eliminarZona:", error);
-    throw error;
-  }
-}
-
-// ============================
-// ⚠️ Eliminar zona permanente
-// ============================
-export async function eliminarZonaPermanente(id) {
-  try {
-    const response = await fetch(`${ZONA_URL}/${id}/permanente`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error("Error al eliminar la zona permanentemente");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Error en eliminarZonaPermanente:", error);
     throw error;
   }
 }

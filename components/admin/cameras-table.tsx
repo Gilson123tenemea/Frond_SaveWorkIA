@@ -1,40 +1,80 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Camera, MapPin, Trash2 } from "lucide-react"
-import { getCameras, deleteCamera, type Camera as CameraType } from "@/lib/storage"
-import { AllCamerasDialog } from "./all-cameras-dialog"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus, Search, Camera, MapPin, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
+import { listarCamaras, eliminarCamara } from "@/servicios/camara";
+import { AllCamerasDialog } from "./all-cameras-dialog";
 
 export function CamerasTable() {
-  const [search, setSearch] = useState("")
-  const [cameras, setCameras] = useState<CameraType[]>([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [search, setSearch] = useState("");
+  const [cameras, setCameras] = useState<any[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // 🔹 Cargar cámaras desde backend
+  const loadCameras = async () => {
+    setLoading(true);
+    try {
+      const data = await listarCamaras();
+      setCameras(data);
+    } catch (error) {
+      toast.error("❌ Error al obtener las cámaras");
+      console.error("Error al obtener cámaras:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    loadCameras()
-  }, [])
+    loadCameras();
+  }, []);
 
-  const loadCameras = () => {
-    setCameras(getCameras())
-  }
+  // 🔍 Filtro de búsqueda (ahora incluye zona y empresa)
+  const filteredCameras = cameras.filter((camera) => {
+    const codigo = camera.codigo?.toLowerCase() ?? "";
+    const ip = camera.ipAddress?.toLowerCase() ?? "";
+    const zona = camera.zona?.nombreZona?.toLowerCase() ?? "";
+    const empresa = camera.zona?.empresa?.nombreEmpresa?.toLowerCase() ?? "";
+    const searchLower = search.toLowerCase();
+    return (
+      codigo.includes(searchLower) ||
+      ip.includes(searchLower) ||
+      zona.includes(searchLower) ||
+      empresa.includes(searchLower)
+    );
+  });
 
-  const filteredCameras = cameras.filter(
-    (camera) =>
-      camera.name.toLowerCase().includes(search.toLowerCase()) ||
-      camera.location.toLowerCase().includes(search.toLowerCase()),
-  )
-
-  const handleDelete = (id: number) => {
-    if (confirm("¿Estás seguro de eliminar esta cámara?")) {
-      deleteCamera(id)
-      loadCameras()
-    }
-  }
+  // 🗑️ Eliminar cámara
+  const handleDelete = async (id: number, codigo: string) => {
+    if (!confirm(`¿Estás seguro de eliminar la cámara ${codigo}?`)) return;
+    const promise = eliminarCamara(id);
+    toast.promise(promise, {
+      loading: "Eliminando cámara...",
+      success: `Cámara "${codigo}" eliminada correctamente`,
+      error: "❌ No se pudo eliminar la cámara",
+    });
+    await promise;
+    loadCameras();
+  };
 
   return (
     <>
@@ -43,7 +83,9 @@ export function CamerasTable() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Cámaras del Sistema</CardTitle>
-              <CardDescription>Monitorea todas las cámaras registradas</CardDescription>
+              <CardDescription>
+                Monitorea todas las cámaras registradas con su zona y empresa.
+              </CardDescription>
             </div>
             <Button onClick={() => setIsDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
@@ -51,12 +93,14 @@ export function CamerasTable() {
             </Button>
           </div>
         </CardHeader>
+
         <CardContent>
+          {/* 🔍 Búsqueda */}
           <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar cámara..."
+                placeholder="Buscar cámara, IP, zona o empresa..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -64,94 +108,140 @@ export function CamerasTable() {
             </div>
           </div>
 
+          {/* 🧾 Tabla */}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Cámara</TableHead>
-                  <TableHead>Ubicación</TableHead>
+                  <TableHead>IP</TableHead>
                   <TableHead>Zona</TableHead>
                   <TableHead>Empresa</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Resolución</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
-                {filteredCameras.map((camera) => (
-                  <TableRow key={camera.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            camera.status === "online"
-                              ? "bg-success/10"
-                              : camera.status === "maintenance"
-                                ? "bg-yellow-500/10"
-                                : "bg-destructive/10"
-                          }`}
-                        >
-                          <Camera
-                            className={`w-5 h-5 ${
-                              camera.status === "online"
-                                ? "text-success"
-                                : camera.status === "maintenance"
-                                  ? "text-yellow-600"
-                                  : "text-destructive"
-                            }`}
-                          />
-                        </div>
-                        <div>
-                          <p className="font-medium">{camera.name}</p>
-                          <p className="text-xs text-muted-foreground">ID: {camera.id}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{camera.location}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{camera.zone}</TableCell>
-                    <TableCell>{camera.company}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{camera.resolution}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            camera.status === "online"
-                              ? "bg-success animate-pulse"
-                              : camera.status === "maintenance"
-                                ? "bg-yellow-500"
-                                : "bg-destructive"
-                          }`}
-                        />
-                        <span className="text-sm">
-                          {camera.status === "online"
-                            ? "En línea"
-                            : camera.status === "maintenance"
-                              ? "Mantenimiento"
-                              : "Fuera de línea"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(camera.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      Cargando cámaras...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredCameras.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      No hay cámaras registradas
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCameras.map((camera) => (
+                    <TableRow key={camera.id_camara}>
+                      {/* Cámara */}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              camera.estado === "activa"
+                                ? "bg-green-100"
+                                : camera.estado === "mantenimiento"
+                                ? "bg-yellow-100"
+                                : "bg-red-100"
+                            }`}
+                          >
+                            <Camera
+                              className={`w-5 h-5 ${
+                                camera.estado === "activa"
+                                  ? "text-green-600"
+                                  : camera.estado === "mantenimiento"
+                                  ? "text-yellow-600"
+                                  : "text-red-600"
+                              }`}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-medium">{camera.codigo}</p>
+                            <p className="text-xs text-muted-foreground">
+                              ID: {camera.id_camara}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* IP */}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                          <span>{camera.ipAddress}</span>
+                        </div>
+                      </TableCell>
+
+                      {/* Zona */}
+                      <TableCell>{camera.zona?.nombreZona ?? "—"}</TableCell>
+
+                      {/* Empresa */}
+                      <TableCell>
+                        {camera.zona?.empresa?.nombreEmpresa ?? "—"}
+                      </TableCell>
+
+                      {/* Tipo */}
+                      <TableCell>{camera.tipo}</TableCell>
+
+                      {/* Resolución */}
+                      <TableCell>
+                        <Badge variant="outline">
+                          {camera.resolucion || "1080p"}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Estado */}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              camera.estado === "activa"
+                                ? "bg-green-500 animate-pulse"
+                                : camera.estado === "mantenimiento"
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                            }`}
+                          />
+                          <span className="text-sm capitalize">
+                            {camera.estado}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      {/* Acciones */}
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleDelete(camera.id_camara, camera.codigo)
+                          }
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
 
-      <AllCamerasDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onSuccess={loadCameras} />
+      {/* 📋 Modal de registro */}
+      <AllCamerasDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onSuccess={loadCameras}
+      />
     </>
-  )
+  );
 }

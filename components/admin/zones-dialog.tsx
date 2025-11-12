@@ -1,7 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -18,7 +25,7 @@ interface Zona {
   latitud: string
   longitud: string
   id_empresa_zona: number
-  id_administrador_zona: number
+  id_administrador_zona?: number
   borrado: boolean
   cameras?: number
 }
@@ -35,7 +42,14 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
   const [zones, setZones] = useState<Zona[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingZone, setEditingZone] = useState<Zona | null>(null)
-  const [camerasZoneId, setCamerasZoneId] = useState<number | null>(null)
+
+  // 🔹 Estado para manejar el modal de cámaras
+  const [camerasDialog, setCamerasDialog] = useState<{
+    open: boolean
+    id: number | null
+    nombre: string
+  }>({ open: false, id: null, nombre: "" })
+
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id?: number; nombre?: string }>({
     open: false,
   })
@@ -45,23 +59,20 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
     if (!companyId) return
     try {
       const data = await listarZonasPorEmpresa(companyId)
-      setZones(
-        data.map((z: Zona) => ({
-          ...z,
-          cameras: z.cameras ?? 0,
-        }))
-      )
-    } catch {
-      toast.error("❌ Error al cargar las zonas")
+      setZones(data.map((z: Zona) => ({ ...z, cameras: z.cameras ?? 0 })))
+    } catch (error) {
+      console.error("❌ Error al cargar las zonas:", error)
+      toast.error("❌ Error al cargar las zonas desde el servidor")
     }
   }
 
   useEffect(() => {
-    if (companyId) loadZones()
-  }, [companyId])
+    if (open && companyId) loadZones()
+  }, [open, companyId])
 
+  // 🔍 Filtro de búsqueda
   const filteredZones = zones.filter((zone) =>
-    zone.nombreZona.toLowerCase().includes(search.toLowerCase())
+    (zone.nombreZona ?? "").toLowerCase().includes(search.toLowerCase())
   )
 
   const handleAdd = () => {
@@ -74,42 +85,51 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
     setIsFormOpen(true)
   }
 
-  // 🔹 Eliminar zona (con toast y confirm dialog)
+ // 📸 Abrir cámaras
+const handleViewCameras = (zone: Zona) => {
+  console.log("📸 Zona seleccionada:", zone); // 👀 Verifica qué llega
+
+  // ✅ Usa exactamente el nombre que devuelve tu backend
+  const zoneId = zone.id_Zona;
+
+  if (!zoneId || zoneId <= 0) {
+    toast.error("❌ No se pudo identificar la zona seleccionada");
+    return;
+  }
+
+  setCamerasDialog({
+    open: true,
+    id: zoneId,
+    nombre: zone.nombreZona,
+  });
+};
+
+
+  // 🗑️ Confirmar eliminación
   const confirmDelete = (id: number, nombre: string) => {
     setDeleteDialog({ open: true, id, nombre })
   }
 
   const handleConfirmDelete = async () => {
     if (!deleteDialog.id) return
-    const { id, nombre } = deleteDialog
-
-    const promise = eliminarZona(id)
+    const promise = eliminarZona(deleteDialog.id)
 
     toast.promise(
       promise,
       {
         loading: "Eliminando zona...",
-        success: `🗑️ Zona "${nombre}" eliminada correctamente`,
+        success: `Zona "${deleteDialog.nombre}" eliminada correctamente`,
         error: "❌ No se pudo eliminar la zona",
       },
       {
-        style: {
-          background: "#dc2626",
-          color: "#fff",
-          borderRadius: "8px",
-          fontWeight: 500,
-          boxShadow: "0 2px 20px rgba(0, 0, 0, 0.2)",
-        },
-        iconTheme: {
-          primary: "#fff",
-          secondary: "#7f1d1d",
-        },
+        style: { background: "#dc2626", color: "#fff" },
+        iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
       }
     )
 
     try {
       await promise
-      loadZones()
+      await loadZones()
       onSuccess()
     } finally {
       setDeleteDialog({ open: false })
@@ -123,10 +143,6 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
     onSuccess()
   }
 
-  const handleViewCameras = (zoneId: number) => {
-    setCamerasZoneId(zoneId)
-  }
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,15 +150,19 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="w-5 h-5" />
-              Zonas de la Empresa {companyId}
+              {companyId ? (
+                <>Zonas de la Empresa {companyId}</>
+              ) : (
+                <span className="text-red-500">Empresa no identificada</span>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Gestiona las zonas de trabajo de la empresa, agrega nuevas o edita las existentes
+              Gestiona las zonas de trabajo de la empresa, agrega nuevas o edita las existentes.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Barra de búsqueda y botón agregar */}
           <div className="space-y-4 py-4">
+            {/* 🔍 Búsqueda y botón agregar */}
             <div className="flex items-center justify-between gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -159,7 +179,7 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
               </Button>
             </div>
 
-            {/* Tabla de zonas */}
+            {/* 📋 Tabla */}
             <div className="border rounded-lg shadow-sm">
               <Table>
                 <TableHeader>
@@ -173,14 +193,17 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
                 </TableHeader>
                 <TableBody>
                   {filteredZones.length === 0 ? (
-                    <TableRow>
+                    <TableRow key="no-zones">
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                         No hay zonas registradas
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredZones.map((zone) => (
-                      <TableRow key={zone.id_Zona} className="hover:bg-muted/50 transition">
+                      <TableRow
+                        key={zone.id_Zona ?? `zona-${zone.nombreZona}`}
+                        className="hover:bg-muted/50 transition"
+                      >
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -209,7 +232,11 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleViewCameras(zone.id_Zona)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewCameras(zone)}
+                            >
                               <Camera className="w-4 h-4 mr-2" />
                               Cámaras
                             </Button>
@@ -235,28 +262,29 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
         </DialogContent>
       </Dialog>
 
-      {/* 🟥 Modal de confirmación de eliminación */}
+      {/* 🔴 Confirmación de eliminación */}
       <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open })}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>¿Estás seguro de eliminar la zona <strong>{deleteDialog.nombre}</strong>?</DialogTitle>
-            <DialogDescription>Se eliminarán todas las cámaras asociadas a esta zona.</DialogDescription>
+            <DialogTitle>
+              ¿Estás seguro de eliminar la zona <strong>{deleteDialog.nombre}</strong>?
+            </DialogTitle>
+            <DialogDescription>
+              Se eliminarán todas las cámaras asociadas a esta zona.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialog({ open: false })}>
               Cancelar
             </Button>
-            <Button
-              className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={handleConfirmDelete}
-            >
+            <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleConfirmDelete}>
               Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialogo para crear o editar zona */}
+      {/* 🟩 Formulario de zona */}
       <ZoneFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
@@ -265,11 +293,14 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
         onSuccess={handleFormSuccess}
       />
 
-      {/* Dialogo de cámaras */}
+      {/* 📸 Modal de cámaras */}
       <CamerasDialog
-        open={camerasZoneId !== null}
-        onOpenChange={(open) => !open && setCamerasZoneId(null)}
-        zoneId={camerasZoneId}
+        open={camerasDialog.open}
+        onOpenChange={(open) =>
+          setCamerasDialog((prev) => ({ ...prev, open, id: open ? prev.id : null }))
+        }
+        zoneId={camerasDialog.id ?? 0}
+        zoneName={camerasDialog.nombre}
         onSuccess={() => {
           loadZones()
           onSuccess()
