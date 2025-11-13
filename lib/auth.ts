@@ -1,10 +1,14 @@
 export type UserRole = "admin" | "supervisor" | "inspector"
 
 export interface User {
-  email: string
-  name: string
-  role: UserRole
+  id: number | null;               
+  id_administrador?: number | null;
+  id_supervisor?: number | null;
+  email: string;
+  name: string;
+  role: UserRole;
 }
+
 
 export function getUser(): User | null {
   if (typeof window === "undefined") return null

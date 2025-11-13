@@ -1,66 +1,166 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Pencil, Trash2, Phone, Mail } from "lucide-react"
-import { getInspectors, deleteInspector, getUsers, type Inspector } from "@/lib/storage"
-import { getUser } from "@/lib/auth"
-import { InspectorDialog } from "./inspector-dialog"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Search, Plus, Pencil, Trash2, Phone, Mail } from "lucide-react";
+import { toast } from "react-hot-toast";
+
+import {
+  listarInspectores,
+  eliminarInspector,
+} from "../../servicios/inspector";
+
+import { InspectorDialog } from "./inspector-dialog";
 
 export function InspectorsTable() {
-  const currentUser = getUser()
-  const [inspectors, setInspectors] = useState<Inspector[]>([])
-  const [search, setSearch] = useState("")
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingInspector, setEditingInspector] = useState<Inspector | null>(null)
+  const [inspectors, setInspectors] = useState([]);
+  const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingInspector, setEditingInspector] = useState(null);
 
-  const loadInspectors = () => {
-    const users = getUsers()
-    const supervisorUser = users.find((u) => u.email === currentUser?.email)
-    if (supervisorUser?.companyId) {
-      const allInspectors = getInspectors()
-      const companyInspectors = allInspectors.filter((i) => i.companyId === supervisorUser.companyId)
-      setInspectors(companyInspectors)
+  // 🟦 Cargar inspectores desde el backend
+  const loadInspectors = async () => {
+    try {
+      const data = await listarInspectores();
+      setInspectors(data);
+    } catch (error) {
+      console.error(error);
+      toast.error("❌ Error al cargar inspectores");
     }
-  }
+  };
 
   useEffect(() => {
-    loadInspectors()
-  }, [currentUser])
+    loadInspectors();
+  }, []);
 
+  // 🟦 Filtrar por nombre o correo
   const filteredInspectors = inspectors.filter(
-    (inspector) =>
-      inspector.name.toLowerCase().includes(search.toLowerCase()) ||
-      inspector.email.toLowerCase().includes(search.toLowerCase()),
-  )
+    (i: any) =>
+      `${i.nombre} ${i.apellido}`.toLowerCase().includes(search.toLowerCase()) ||
+      i.correo.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const handleDelete = (id: number) => {
-    if (confirm("¿Está seguro de eliminar este inspector?")) {
-      deleteInspector(id)
-      loadInspectors()
-    }
-  }
+  // 🟦 Abrir modal para editar
+  const handleEdit = (inspector: any) => {
+    setEditingInspector(inspector);
+    setDialogOpen(true);
+  };
 
-  const handleEdit = (inspector: Inspector) => {
-    setEditingInspector(inspector)
-    setDialogOpen(true)
-  }
-
+  // 🟦 Abrir modal vacío (crear)
   const handleAdd = () => {
-    setEditingInspector(null)
-    setDialogOpen(true)
-  }
+    setEditingInspector(null);
+    setDialogOpen(true);
+  };
 
+  // 🟦 Cierre del modal
   const handleDialogClose = () => {
-    setDialogOpen(false)
-    setEditingInspector(null)
-    loadInspectors()
-  }
+    setDialogOpen(false);
+    setEditingInspector(null);
+    loadInspectors();
+  };
+
+  // 🟥 ELIMINAR — con confirmación PRO (igual al módulo de supervisores)
+  const handleDelete = async (id: number, nombreCompleto: string) => {
+    // Crear overlay oscuro
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100vw";
+    overlay.style.height = "100vh";
+    overlay.style.background = "rgba(0,0,0,0.4)";
+    overlay.style.zIndex = "999";
+    overlay.style.transition = "opacity 0.3s ease";
+    document.body.appendChild(overlay);
+
+    // Mostrar confirmación
+    const confirmToast = toast(
+      (t) => (
+        <div className="flex flex-col gap-4 p-2 text-center">
+          <p className="text-base font-semibold text-gray-800">
+            ¿Eliminar al inspector <b>{nombreCompleto}</b>?
+          </p>
+
+          <div className="flex justify-center gap-3">
+            {/* Cancelar */}
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                document.body.removeChild(overlay);
+              }}
+              className="px-4 py-2 text-sm font-medium bg-white border rounded-md hover:bg-gray-100 text-black"
+            >
+              Cancelar
+            </button>
+
+
+            {/* Eliminar */}
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id);
+                document.body.removeChild(overlay);
+
+                const promise = eliminarInspector(id);
+
+                toast.promise(promise, {
+                  loading: "Eliminando inspector...",
+                  success: `Inspector "${nombreCompleto}" eliminado correctamente`,
+                  error: "❌ Error al eliminar el inspector",
+                });
+
+                try {
+                  await promise;
+                  await loadInspectors();
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: 8000,
+        position: "top-center",
+        style: {
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.3)",
+          borderRadius: "12px",
+          padding: "20px",
+          width: "380px",
+        },
+      }
+    );
+
+    setTimeout(() => {
+      overlay.style.opacity = "0";
+      setTimeout(() => {
+        if (document.body.contains(overlay)) document.body.removeChild(overlay);
+      }, 300);
+    }, 8000);
+  };
 
   return (
     <>
@@ -69,7 +169,7 @@ export function InspectorsTable() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Inspectores Registrados</CardTitle>
-              <CardDescription>Personal de inspección asignado a tu empresa</CardDescription>
+              <CardDescription>Listado de inspectores activos</CardDescription>
             </div>
             <Button onClick={handleAdd}>
               <Plus className="w-4 h-4 mr-2" />
@@ -77,19 +177,20 @@ export function InspectorsTable() {
             </Button>
           </div>
         </CardHeader>
+
         <CardContent>
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar inspector..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+          {/* 🔍 Buscador */}
+          <div className="mb-4 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar inspector..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
           </div>
 
+          {/* 📄 Tabla */}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
@@ -97,55 +198,76 @@ export function InspectorsTable() {
                   <TableHead>Inspector</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Teléfono</TableHead>
+                  <TableHead>Zona</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
                 {filteredInspectors.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No hay inspectores registrados
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredInspectors.map((inspector) => (
-                    <TableRow key={inspector.id}>
+                  filteredInspectors.map((i: any) => (
+                    <TableRow key={i.id_inspector}>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar>
-                            <AvatarFallback>{inspector.name.charAt(0)}</AvatarFallback>
+                            <AvatarFallback>{i.nombre.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium">{inspector.name}</p>
-                            <p className="text-xs text-muted-foreground">ID: {inspector.id}</p>
+                            <p className="font-medium">
+                              {i.nombre} {i.apellido}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Cédula: {i.cedula}</p>
                           </div>
                         </div>
                       </TableCell>
+
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Mail className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm">{inspector.email}</span>
+                          {i.correo}
                         </div>
                       </TableCell>
+
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm">{inspector.phone}</span>
+                          {i.telefono}
                         </div>
                       </TableCell>
+
+                      <TableCell>{i.zona_asignada}</TableCell>
+
                       <TableCell>
-                        <Badge variant={inspector.status === "active" ? "default" : "outline"}>
-                          {inspector.status === "active" ? "Activo" : "Inactivo"}
+                        <Badge variant={i.borrado ? "default" : "outline"}>
+                          {i.borrado ? "Activo" : "Inactivo"}
                         </Badge>
                       </TableCell>
+
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(inspector)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(i)}
+                          >
                             <Pencil className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(inspector.id)}>
-                            <Trash2 className="w-4 h-4 text-destructive" />
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleDelete(i.id_inspector, `${i.nombre} ${i.apellido}`)
+                            }
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
                           </Button>
                         </div>
                       </TableCell>
@@ -158,7 +280,12 @@ export function InspectorsTable() {
         </CardContent>
       </Card>
 
-      <InspectorDialog open={dialogOpen} onClose={handleDialogClose} inspector={editingInspector} />
+      {/* 🟦 Modal */}
+      <InspectorDialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        inspector={editingInspector}
+      />
     </>
-  )
+  );
 }

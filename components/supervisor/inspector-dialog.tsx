@@ -1,8 +1,7 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import type React from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,143 +9,269 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { saveInspector, updateInspector, getUsers, getCompanies, type Inspector } from "@/lib/storage"
-import { getUser } from "@/lib/auth"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getUser } from "@/lib/auth";
+import { toast } from "react-hot-toast";
+import { registrarInspector, editarInspector } from "../../servicios/inspector";
 
 interface InspectorDialogProps {
-  open: boolean
-  onClose: () => void
-  inspector: Inspector | null
+  open: boolean;
+  onClose: () => void;
+  inspector: any | null;
 }
 
 export function InspectorDialog({ open, onClose, inspector }: InspectorDialogProps) {
-  const currentUser = getUser()
+  const currentUser = getUser();
+  const isEditing = Boolean(inspector);
+
+  // 📋 Estado del formulario
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    status: "active" as "active" | "inactive",
-  })
+    cedula: "",
+    nombre: "",
+    apellido: "",
+    telefono: "",
+    correo: "",
+    direccion: "",
+    genero: "Masculino",
+    fecha_nacimiento: "",
+    contrasena: "",
+    zona_asignada: "",
+    frecuenciaVisita: "",
+  });
 
   useEffect(() => {
-    if (inspector) {
+    if (isEditing) {
       setFormData({
-        name: inspector.name,
-        email: inspector.email,
-        phone: inspector.phone,
-        status: inspector.status,
-      })
+        cedula: inspector.cedula || "",
+        nombre: inspector.nombre || "",
+        apellido: inspector.apellido || "",
+        telefono: inspector.telefono || "",
+        correo: inspector.correo || "",
+        direccion: inspector.direccion || "",
+        genero: inspector.genero || "Masculino",
+        fecha_nacimiento: inspector.fecha_nacimiento || "",
+        contrasena: "", 
+        zona_asignada: inspector.zona_asignada || "",
+        frecuenciaVisita: inspector.frecuenciaVisita || "",
+      });
     } else {
       setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        status: "active",
-      })
+        cedula: "",
+        nombre: "",
+        apellido: "",
+        telefono: "",
+        correo: "",
+        direccion: "",
+        genero: "Masculino",
+        fecha_nacimiento: "",
+        contrasena: "",
+        zona_asignada: "",
+        frecuenciaVisita: "",
+      });
     }
-  }, [inspector])
+  }, [inspector, isEditing]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  // 🧠 Guardar datos en backend
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    // Get supervisor's company
-    const users = getUsers()
-    const supervisorUser = users.find((u) => u.email === currentUser?.email)
-    if (!supervisorUser?.companyId) {
-      alert("No se pudo obtener la empresa del supervisor")
-      return
+    try {
+      const supervisorId = currentUser?.id;
+
+      const datosInspector: any = {
+        persona: {
+          cedula: formData.cedula,
+          nombre: formData.nombre,
+          apellido: formData.apellido,
+          telefono: formData.telefono,
+          correo: formData.correo,
+          direccion: formData.direccion,
+          genero: formData.genero,
+          fecha_nacimiento: formData.fecha_nacimiento,
+          contrasena: formData.contrasena, 
+        },
+        zona_asignada: formData.zona_asignada,
+        frecuenciaVisita: formData.frecuenciaVisita,
+        id_supervisor_registro: supervisorId,
+      };
+
+      if (isEditing) {
+        await editarInspector(inspector.id_inspector, datosInspector);
+        toast.success("✔ Datos actualizados correctamente");
+      } else {
+        await registrarInspector(datosInspector);
+        toast.success("✔ Inspector registrado correctamente");
+      }
+
+      onClose();
+    } catch (error: any) {
+      console.error("❌ Error al guardar inspector:", error);
+      toast.error(error.message || "Error al guardar el inspector");
     }
-
-    const companies = getCompanies()
-    const company = companies.find((c) => c.id === supervisorUser.companyId)
-
-    if (inspector) {
-      updateInspector(inspector.id, formData)
-    } else {
-      saveInspector({
-        ...formData,
-        companyId: supervisorUser.companyId,
-        company: company?.name || "",
-      })
-    }
-
-    onClose()
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{inspector ? "Editar Inspector" : "Agregar Inspector"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Editar Inspector" : "Registrar Inspector"}
+          </DialogTitle>
           <DialogDescription>
-            {inspector ? "Modifica los datos del inspector" : "Completa los datos para registrar un nuevo inspector"}
+            {isEditing
+              ? "Modifica la información del inspector"
+              : "Completa los datos para registrar un nuevo inspector"}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nombre Completo</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Juan Pérez"
-              required
-            />
+          {/* Datos personales */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Cédula bloqueada al editar */}
+            <div>
+              <Label>Cédula</Label>
+              <Input
+                value={formData.cedula}
+                onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+                required
+                disabled={isEditing} // 🔥 BLOQUEADO
+              />
+            </div>
+
+            <div>
+              <Label>Teléfono</Label>
+              <Input
+                value={formData.telefono}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Nombre</Label>
+              <Input
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Apellido</Label>
+              <Input
+                value={formData.apellido}
+                onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Correo</Label>
+              <Input
+                type="email"
+                value={formData.correo}
+                onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Dirección</Label>
+              <Input
+                value={formData.direccion}
+                onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Fecha de nacimiento</Label>
+              <Input
+                type="date"
+                value={formData.fecha_nacimiento}
+                onChange={(e) =>
+                  setFormData({ ...formData, fecha_nacimiento: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            {/* Contraseña bloqueada al editar */}
+            <div>
+              <Label>Contraseña</Label>
+              <Input
+                type="password"
+                value={formData.contrasena}
+                onChange={(e) =>
+                  setFormData({ ...formData, contrasena: e.target.value })
+                }
+                required={!isEditing}   // 🔥 SOLO requerido al crear
+                disabled={isEditing}    // 🔥 BLOQUEADO al editar
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="inspector@empresa.com"
-              required
-            />
+          {/* Datos específicos */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label>Zona Asignada</Label>
+              <Input
+                value={formData.zona_asignada}
+                onChange={(e) =>
+                  setFormData({ ...formData, zona_asignada: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Frecuencia de Visita</Label>
+              <Input
+                value={formData.frecuenciaVisita}
+                onChange={(e) =>
+                  setFormData({ ...formData, frecuenciaVisita: e.target.value })
+                }
+              />
+            </div>
+
+            <div>
+              <Label>Género</Label>
+              <Select
+                value={formData.genero}
+                onValueChange={(value) => setFormData({ ...formData, genero: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un género" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Masculino">Masculino</SelectItem>
+                  <SelectItem value="Femenino">Femenino</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">Teléfono</Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+51 999 999 999"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Estado</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value: "active" | "inactive") => setFormData({ ...formData, status: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Activo</SelectItem>
-                <SelectItem value="inactive">Inactivo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
+          {/* Botones */}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit">{inspector ? "Guardar Cambios" : "Agregar Inspector"}</Button>
+            <Button type="submit">
+              {isEditing ? "Guardar Cambios" : "Registrar"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
