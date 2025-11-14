@@ -19,16 +19,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Camera, MapPin, Trash2 } from "lucide-react";
+import { Plus, Search, Camera, MapPin, Trash2, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import { listarCamaras, eliminarCamara } from "@/servicios/camara";
 import { AllCamerasDialog } from "./all-cameras-dialog";
+import { CameraFormDialog } from "./camera-form-dialog";
 
 export function CamerasTable() {
   const [search, setSearch] = useState("");
   const [cameras, setCameras] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingCamera, setEditingCamera] = useState<any | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   // 🔹 Cargar cámaras desde backend
   const loadCameras = async () => {
@@ -48,7 +51,7 @@ export function CamerasTable() {
     loadCameras();
   }, []);
 
-  // 🔍 Filtro de búsqueda (ahora incluye zona y empresa)
+  // 🔍 Filtro de búsqueda
   const filteredCameras = cameras.filter((camera) => {
     const codigo = camera.codigo?.toLowerCase() ?? "";
     const ip = camera.ipAddress?.toLowerCase() ?? "";
@@ -73,6 +76,18 @@ export function CamerasTable() {
       error: "❌ No se pudo eliminar la cámara",
     });
     await promise;
+    loadCameras();
+  };
+
+  // ✏️ Editar cámara
+  const handleEdit = (camera: any) => {
+    setEditingCamera(camera);
+    setIsFormOpen(true);
+  };
+
+  const handleFormSuccess = () => {
+    setIsFormOpen(false);
+    setEditingCamera(null);
     loadCameras();
   };
 
@@ -216,7 +231,14 @@ export function CamerasTable() {
                       </TableCell>
 
                       {/* Acciones */}
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(camera)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -241,6 +263,15 @@ export function CamerasTable() {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         onSuccess={loadCameras}
+      />
+
+      {/* ✏️ Modal de edición */}
+      <CameraFormDialog
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        camera={editingCamera}
+        zoneId={editingCamera?.id_zona ?? null}
+        onSuccess={handleFormSuccess}
       />
     </>
   );

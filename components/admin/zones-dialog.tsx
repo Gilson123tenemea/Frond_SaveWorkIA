@@ -85,25 +85,23 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
     setIsFormOpen(true)
   }
 
- // 📸 Abrir cámaras
-const handleViewCameras = (zone: Zona) => {
-  console.log("📸 Zona seleccionada:", zone); // 👀 Verifica qué llega
+  // 📸 Abrir cámaras
+  const handleViewCameras = (zone: Zona) => {
+    console.log("📸 Zona seleccionada:", zone)
 
-  // ✅ Usa exactamente el nombre que devuelve tu backend
-  const zoneId = zone.id_Zona;
+    const zoneId = zone.id_Zona
 
-  if (!zoneId || zoneId <= 0) {
-    toast.error("❌ No se pudo identificar la zona seleccionada");
-    return;
+    if (!zoneId || zoneId <= 0) {
+      toast.error("❌ No se pudo identificar la zona seleccionada")
+      return
+    }
+
+    setCamerasDialog({
+      open: true,
+      id: zoneId,
+      nombre: zone.nombreZona,
+    })
   }
-
-  setCamerasDialog({
-    open: true,
-    id: zoneId,
-    nombre: zone.nombreZona,
-  });
-};
-
 
   // 🗑️ Confirmar eliminación
   const confirmDelete = (id: number, nombre: string) => {
@@ -146,8 +144,8 @@ const handleViewCameras = (zone: Zona) => {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+<DialogContent className="max-w-[90vw] sm:!max-w-[90vw] w-full max-h-[95vh] overflow-y-auto">          
+  <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="w-5 h-5" />
               {companyId ? (
@@ -180,15 +178,15 @@ const handleViewCameras = (zone: Zona) => {
             </div>
 
             {/* 📋 Tabla */}
-            <div className="border rounded-lg shadow-sm">
+            <div className="border rounded-lg shadow-sm w-full">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Zona</TableHead>
-                    <TableHead>Coordenadas</TableHead>
-                    <TableHead>Cámaras</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
+                    <TableHead className="w-[25%]">Zona</TableHead>
+                    <TableHead className="w-[20%]">Coordenadas</TableHead>
+                    <TableHead className="w-[10%]">Cámaras</TableHead>
+                    <TableHead className="w-[10%]">Estado</TableHead>
+                    <TableHead className="w-[35%] text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
