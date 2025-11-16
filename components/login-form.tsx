@@ -64,11 +64,10 @@ export function LoginForm() {
 
       // 🟢 Normalizar el ID según el tipo de usuario
       const user = {
-        id:
-          userData.id_supervisor ||
-          userData.id_administrador ||
-          userData.id_inspector ||
-          null,
+        id: userData.id_supervisor || userData.id_administrador || userData.id_inspector || null,
+        id_supervisor: userData.id_supervisor || null,
+        id_administrador: userData.id_administrador || null,
+        id_inspector: userData.id_inspector || null,
         email: userData.correo,
         name: userData.nombre,
         role: role,

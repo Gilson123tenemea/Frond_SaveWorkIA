@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Building2, Loader2 } from "lucide-react"
 import toast from "react-hot-toast" // ✅ nueva librería
 import { crearEmpresa, actualizarEmpresa } from "../../servicios/empresa"
+import { getUser } from "@/lib/auth";
 
 interface EmpresaDialogProps {
   open: boolean
@@ -36,8 +37,9 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
   })
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "null")
-    const adminId = user?.id_administrador || parseInt(localStorage.getItem("adminId") || "0")
+    const user = getUser();
+    const adminId = user?.id_administrador;
+
 
     if (empresa) {
       setFormData({
@@ -57,7 +59,8 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
         telefono: "",
         correo: "",
         sector: "",
-        id_administrador_empresa: adminId,
+        id_administrador_empresa: adminId ?? 0,
+
       })
     }
   }, [empresa, open])
