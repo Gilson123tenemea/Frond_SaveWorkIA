@@ -22,9 +22,10 @@ import {
 } from "@/components/ui/table";
 import { Search, Plus, Pencil, Trash2, Phone, Mail } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { getUser } from "@/lib/auth";
 
 import {
-  listarInspectores,
+  listarInspectoresPorSupervisor,
   eliminarInspector,
 } from "../../servicios/inspector";
 
@@ -36,16 +37,26 @@ export function InspectorsTable() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingInspector, setEditingInspector] = useState(null);
 
-  // 🟦 Cargar inspectores desde el backend
+
   const loadInspectors = async () => {
     try {
-      const data = await listarInspectores();
+      const user = getUser();
+
+      if (!user || !user.id) {
+        console.error("⚠ No hay supervisor logueado");
+        toast.error("No se pudo obtener el supervisor actual");
+        return;
+      }
+
+      const data = await listarInspectoresPorSupervisor(user.id);
       setInspectors(data);
     } catch (error) {
       console.error(error);
       toast.error("❌ Error al cargar inspectores");
     }
   };
+
+
 
   useEffect(() => {
     loadInspectors();

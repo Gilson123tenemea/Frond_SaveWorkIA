@@ -94,3 +94,25 @@ export async function eliminarInspector(idInspector) {
     throw error;
   }
 }
+
+// ============================
+// 📌 Listar inspectores por SUPERVISOR
+// ============================
+export async function listarInspectoresPorSupervisor(idSupervisor) {
+  try {
+    const response = await fetch(`${INSPECTOR_URL}/supervisor/${idSupervisor}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("❌ Respuesta no OK listarInspectoresPorSupervisor:", errText);
+      throw new Error("Error al obtener inspectores del supervisor");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ Error en listarInspectoresPorSupervisor:", error);
+    throw error;
+  }
+}

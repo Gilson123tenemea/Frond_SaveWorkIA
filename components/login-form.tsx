@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Shield, AlertTriangle } from "lucide-react"
-import { loginAdministrador, loginSupervisor } from "../servicios/login"
+import { loginAdministrador, loginSupervisor, loginInspector } from "../servicios/login"
 
 export function LoginForm() {
   const router = useRouter()
@@ -46,20 +46,38 @@ export function LoginForm() {
         }
       }
 
-      // ❌ Si sigue sin datos, lanzar error final
+      // 🔹 Intentar INSPECTOR si también falló supervisor
+      if (!userData) {
+        try {
+          userData = await loginInspector(email, password)
+          role = userData.rol || "inspector"
+          console.log("✅ Login inspector exitoso:", userData)
+        } catch (inspErr) {
+          console.warn("⚠️ No es inspector:", inspErr)
+        }
+      }
+
+      // ❌ Si sigue sin datos → error real
       if (!userData) {
         throw new Error("Correo o contraseña incorrectos")
       }
 
-      // ✅ Guardar usuario en localStorage
+      // 🟢 Normalizar el ID según el tipo de usuario
       const user = {
+        id:
+          userData.id_supervisor ||
+          userData.id_administrador ||
+          userData.id_inspector ||
+          null,
         email: userData.correo,
         name: userData.nombre,
         role: role,
       }
+
+      // Guardar el usuario
       localStorage.setItem("user", JSON.stringify(user))
 
-      // ✅ Redirigir según el rol
+      // 🔀 Redirección por rol
       if (role === "admin") router.push("/admin")
       else if (role === "supervisor") router.push("/supervisor")
       else if (role === "inspector") router.push("/inspector")
@@ -72,6 +90,7 @@ export function LoginForm() {
       setIsLoading(false)
     }
   }
+
 
   return (
     <Card className="w-full max-w-md shadow-xl">
