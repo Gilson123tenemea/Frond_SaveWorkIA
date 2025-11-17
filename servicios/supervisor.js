@@ -94,3 +94,24 @@ export async function editarSupervisor(idSupervisor, datosSupervisor) {
     throw error;
   }
 }
+// ============================
+// 📌 Obtener empresa por ID del supervisor
+// ============================
+export async function obtenerEmpresaPorSupervisor(idSupervisor) {
+  try {
+    const response = await fetch(`${SUPERVISOR_URL}/empresa/${idSupervisor}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Respuesta no OK obtenerEmpresaPorSupervisor:", errorText);
+      throw new Error("Error al obtener la empresa del supervisor");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ Error en obtenerEmpresaPorSupervisor:", error);
+    throw error;
+  }
+}
