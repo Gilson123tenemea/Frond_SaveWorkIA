@@ -8,13 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { MapPin, UserCheck } from "lucide-react"
 import { getZones, getUsers, getInspectorsByZone, type Zone } from "@/lib/storage"
 import { getUser } from "@/lib/auth"
-import { ZoneAssignmentDialog } from "./zone-assignment-dialog"
+
+// 👇 AGREGAR IMPORT
+import { ZoneAssignForm } from "./zone-assignment-dialog"
 
 export function ZoneAssignmentsTable() {
   const currentUser = getUser()
   const [zones, setZones] = useState<Zone[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
 
   const loadData = () => {
     const users = getUsers()
@@ -30,17 +31,6 @@ export function ZoneAssignmentsTable() {
     loadData()
   }, [currentUser])
 
-  const handleAssign = (zone: Zone) => {
-    setSelectedZone(zone)
-    setDialogOpen(true)
-  }
-
-  const handleDialogClose = () => {
-    setDialogOpen(false)
-    setSelectedZone(null)
-    loadData()
-  }
-
   const getAssignedInspectors = (zoneId: number) => {
     return getInspectorsByZone(zoneId)
   }
@@ -52,7 +42,17 @@ export function ZoneAssignmentsTable() {
           <CardTitle>Asignación de Inspectores a Zonas</CardTitle>
           <CardDescription>Gestiona qué inspectores supervisan cada zona</CardDescription>
         </CardHeader>
+
         <CardContent>
+
+          {/* 🔵 BOTÓN QUE FALTABA */}
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => setDialogOpen(true)}>
+              Agregar Asignación
+            </Button>
+          </div>
+
+          {/* 🔵 TABLA */}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
@@ -110,7 +110,7 @@ export function ZoneAssignmentsTable() {
                           <Badge variant="outline">{zone.cameras} cámaras</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" onClick={() => handleAssign(zone)}>
+                          <Button variant="outline" size="sm">
                             <UserCheck className="w-4 h-4 mr-2" />
                             Asignar
                           </Button>
@@ -125,7 +125,11 @@ export function ZoneAssignmentsTable() {
         </CardContent>
       </Card>
 
-      <ZoneAssignmentDialog open={dialogOpen} onClose={handleDialogClose} zone={selectedZone} />
+      {/* 🔵 FORMULARIO QUE SE ABRE */}
+      <ZoneAssignForm 
+        open={dialogOpen} 
+        onClose={() => setDialogOpen(false)} 
+      />
     </>
   )
 }

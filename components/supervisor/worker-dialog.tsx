@@ -22,7 +22,7 @@ import { getUser } from "@/lib/auth";
 export function WorkerDialog({ open, onClose, worker }: any) {
   const { toast } = useToast();
   const currentUser = getUser();
-  const isEditing = Boolean(worker); // 🔥 Igual que inspector
+  const isEditing = Boolean(worker); 
 
   const [loading, setLoading] = useState(false);
 

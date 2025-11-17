@@ -4,158 +4,169 @@ import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import {
-  getInspectors,
-  getUsers,
-  getZoneInspectorAssignments,
-  saveZoneInspectorAssignment,
-  deleteZoneInspectorAssignment,
-  type Zone,
-  type Inspector,
-} from "@/lib/storage"
-import { getUser } from "@/lib/auth"
 
-interface ZoneAssignmentDialogProps {
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from "@/components/ui/select"
+
+import toast from "react-hot-toast"
+
+import { getUser } from "@/lib/auth"
+import { listarZonasPorEmpresa } from "@/servicios/zona"
+import { listarTrabajadoresPorSupervisor } from "@/servicios/trabajador"
+import { crearAsignacionInspectorZona } from "@/servicios/zona_inspector"
+
+interface ZoneAssignFormProps {
   open: boolean
   onClose: () => void
-  zone: Zone | null
 }
 
-export function ZoneAssignmentDialog({ open, onClose, zone }: ZoneAssignmentDialogProps) {
-  const currentUser = getUser()
-  const [inspectors, setInspectors] = useState<Inspector[]>([])
-  const [selectedInspectors, setSelectedInspectors] = useState<number[]>([])
-  const [selectAll, setSelectAll] = useState(false)
+export function ZoneAssignForm({ open, onClose }: ZoneAssignFormProps) {
+  const [zonas, setZonas] = useState<any[]>([])
+  const [trabajadores, setTrabajadores] = useState<any[]>([])
+
+  const [zonaSeleccionada, setZonaSeleccionada] = useState("")
+  const [trabajadorSeleccionado, setTrabajadorSeleccionado] = useState("")
 
   useEffect(() => {
-    if (zone && open) {
-      // Load inspectors from the same company
-      const users = getUsers()
-      const supervisorUser = users.find((u) => u.email === currentUser?.email)
-      if (supervisorUser?.companyId) {
-        const allInspectors = getInspectors()
-        const companyInspectors = allInspectors.filter(
-          (i) => i.companyId === supervisorUser.companyId && i.status === "active",
-        )
-        setInspectors(companyInspectors)
+    if (!open) return
 
-        // Load current assignments
-        const assignments = getZoneInspectorAssignments()
-        const zoneAssignments = assignments.filter((a) => a.zoneId === zone.id).map((a) => a.inspectorId)
-        setSelectedInspectors(zoneAssignments)
-        setSelectAll(zoneAssignments.length === companyInspectors.length && companyInspectors.length > 0)
-      }
+    const user = getUser()
+    const empresaId = user?.id_empresa_supervisor
+    const supervisorId = user?.id_supervisor
+
+    if (!empresaId || !supervisorId) {
+      console.error("⚠ Datos inválidos del usuario logueado")
+      return
     }
-  }, [zone, open, currentUser])
 
-  const handleToggleInspector = (inspectorId: number) => {
-    setSelectedInspectors((prev) => {
-      if (prev.includes(inspectorId)) {
-        return prev.filter((id) => id !== inspectorId)
-      } else {
-        return [...prev, inspectorId]
+    // 🔥 Cargar Zonas
+    listarZonasPorEmpresa(empresaId)
+      .then(setZonas)
+      .catch((err) => console.error("❌ Error cargando zonas:", err))
+
+    // 🔥 Cargar Trabajadores
+    listarTrabajadoresPorSupervisor(supervisorId)
+      .then(setTrabajadores)
+      .catch((err) => console.error("❌ Error cargando trabajadores:", err))
+
+  }, [open])
+
+  const handleSubmit = async () => {
+    try {
+      if (!zonaSeleccionada || !trabajadorSeleccionado) {
+        toast.error("Debe seleccionar zona y trabajador")
+        return
       }
-    })
-  }
 
-  const handleToggleAll = () => {
-    if (selectAll) {
-      setSelectedInspectors([])
-    } else {
-      setSelectedInspectors(inspectors.map((i) => i.id))
+      const payload = {
+        id_inspector_inspectorzona: trabajadorSeleccionado,
+        id_zona_inspectorzona: zonaSeleccionada
+      }
+
+      console.log("📤 Enviando asignación:", payload)
+
+      const response = await crearAsignacionInspectorZona(payload)
+
+      console.log("📥 Respuesta del backend:", response)
+
+      toast.success("Asignación creada correctamente")
+
+      // Resetear formulario
+      setZonaSeleccionada("")
+      setTrabajadorSeleccionado("")
+      onClose()
+
+    } catch (error) {
+      console.error("❌ Error al crear asignación:", error)
+      toast.error("No se pudo crear la asignación")
     }
-    setSelectAll(!selectAll)
-  }
-
-  const handleSubmit = () => {
-    if (!zone) return
-
-    const users = getUsers()
-    const supervisorUser = users.find((u) => u.email === currentUser?.email)
-    if (!supervisorUser?.companyId) return
-
-    // Remove all current assignments
-    const assignments = getZoneInspectorAssignments()
-    assignments
-      .filter((a) => a.zoneId === zone.id)
-      .forEach((a) => {
-        deleteZoneInspectorAssignment(zone.id, a.inspectorId)
-      })
-
-    // Add new assignments
-    selectedInspectors.forEach((inspectorId) => {
-      saveZoneInspectorAssignment({
-        zoneId: zone.id,
-        inspectorId,
-        companyId: supervisorUser.companyId!,
-      })
-    })
-
-    onClose()
   }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Asignar Inspectores</DialogTitle>
-          <DialogDescription>Selecciona los inspectores que supervisarán la zona: {zone?.name}</DialogDescription>
+          <DialogTitle>Asignar Trabajador a una Zona</DialogTitle>
+          <DialogDescription>
+            Selecciona la zona y el trabajador para continuar.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {inspectors.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No hay inspectores disponibles. Registra inspectores primero.
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center space-x-2 pb-3 border-b">
-                <Checkbox id="select-all" checked={selectAll} onCheckedChange={handleToggleAll} />
-                <Label htmlFor="select-all" className="font-semibold cursor-pointer">
-                  Seleccionar Todos
-                </Label>
-                <Badge variant="outline" className="ml-auto">
-                  {selectedInspectors.length} seleccionados
-                </Badge>
-              </div>
+        {/* SELECT DE ZONAS */}
+        <div className="space-y-2 mt-4">
+          <Label className="font-semibold">Zona</Label>
 
-              <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                {inspectors.map((inspector) => (
-                  <div
-                    key={inspector.id}
-                    className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <Checkbox
-                      id={`inspector-${inspector.id}`}
-                      checked={selectedInspectors.includes(inspector.id)}
-                      onCheckedChange={() => handleToggleInspector(inspector.id)}
-                    />
-                    <Label htmlFor={`inspector-${inspector.id}`} className="flex-1 cursor-pointer">
-                      <p className="font-medium">{inspector.name}</p>
-                      <p className="text-xs text-muted-foreground">{inspector.email}</p>
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+          <Select value={zonaSeleccionada} onValueChange={setZonaSeleccionada}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona una zona" />
+            </SelectTrigger>
+
+            <SelectContent>
+              {zonas.length === 0 ? (
+                <div className="text-muted-foreground p-3 text-center">
+                  No hay zonas registradas
+                </div>
+              ) : (
+                zonas.map((zona) => (
+                  <SelectItem key={zona.id_zona} value={String(zona.id_zona)}>
+                    {zona.nombreZona}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
         </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
+        {/* SELECT DE TRABAJADORES */}
+        <div className="space-y-2 mt-4">
+          <Label className="font-semibold">Trabajador</Label>
+
+          <Select
+            value={trabajadorSeleccionado}
+            onValueChange={setTrabajadorSeleccionado}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un trabajador" />
+            </SelectTrigger>
+
+            <SelectContent>
+              {trabajadores.length === 0 ? (
+                <div className="text-muted-foreground p-3 text-center">
+                  No hay trabajadores disponibles
+                </div>
+              ) : (
+                trabajadores.map((t) => (
+                  <SelectItem key={t.id_trabajador} value={String(t.id_trabajador)}>
+                    {t.persona?.nombre} {t.persona?.apellido}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <DialogFooter className="mt-6">
+          <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={inspectors.length === 0}>
-            Guardar Asignaciones
+
+          <Button
+            onClick={handleSubmit}
+            disabled={!zonaSeleccionada || !trabajadorSeleccionado}
+          >
+            Guardar Asignación
           </Button>
         </DialogFooter>
       </DialogContent>
