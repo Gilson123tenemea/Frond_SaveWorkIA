@@ -62,19 +62,25 @@ export function LoginForm() {
         throw new Error("Correo o contraseña incorrectos")
       }
 
-      // 🟢 Normalizar el ID según el tipo de usuario
-      const user = {
-        id: userData.id_supervisor || userData.id_administrador || userData.id_inspector || null,
-        id_supervisor: userData.id_supervisor || null,
-        id_administrador: userData.id_administrador || null,
-        id_inspector: userData.id_inspector || null,
-        email: userData.correo,
-        name: userData.nombre,
-        role: role,
-      }
+      // 🟢 Normalizar el usuario según el rol
+const user = {
+  id: userData.id_supervisor || userData.id_administrador || userData.id_inspector || null,
 
-      // Guardar el usuario
-      localStorage.setItem("user", JSON.stringify(user))
+  // IDs por tipo de usuario
+  id_supervisor: userData.id_supervisor || null,
+  id_administrador: userData.id_administrador || null,
+  id_inspector: userData.id_inspector || null,
+
+  // 🔹 AGREGAR ESTA LÍNEA PARA SUPERVISOR
+  id_empresa_supervisor: userData.id_empresa_supervisor || null,
+
+  email: userData.correo,
+  name: userData.nombre,
+  role: role,
+}
+
+// Guardar el usuario
+localStorage.setItem("user", JSON.stringify(user))
 
       // 🔀 Redirección por rol
       if (role === "admin") router.push("/admin")

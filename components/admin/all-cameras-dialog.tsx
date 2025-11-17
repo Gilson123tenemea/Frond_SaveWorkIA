@@ -111,16 +111,14 @@ export function AllCamerasDialog({
                       No hay empresas disponibles
                     </div>
                   ) : (
-                    companies.map((company, index) => {
-                      const id =
-                        company.id_empresa ?? company.id ?? index; // ✅ fallback seguro
-                      const nombre = company.nombre ?? company.name ?? "Sin nombre";
-                      return (
-                        <SelectItem key={id} value={String(id)}>
-                          {nombre}
-                        </SelectItem>
-                      );
-                    })
+                    companies.map((company) => (
+                      <SelectItem
+                        key={company.id_empresa}
+                        value={String(company.id_empresa)}
+                      >
+                        {company.nombreEmpresa}
+                      </SelectItem>
+                    ))
                   )}
                 </SelectContent>
               </Select>
@@ -143,15 +141,16 @@ export function AllCamerasDialog({
                         No hay zonas disponibles
                       </div>
                     ) : (
-                      zones.map((zone, index) => {
-                        const id = zone.id_zona ?? zone.id ?? index; // ✅ fallback
-                        const nombre = zone.nombre ?? zone.name ?? "Sin nombre";
-                        return (
-                          <SelectItem key={id} value={String(id)}>
-                            {nombre}
-                          </SelectItem>
-                        );
-                      })
+  zones.map((zone) => (
+  <SelectItem
+    key={zone.id_zona}
+    value={String(zone.id_zona)}
+  >
+    {zone.nombreZona}
+  </SelectItem>
+))
+
+
                     )}
                   </SelectContent>
                 </Select>

@@ -1,129 +1,83 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
-import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
-import iconUrl from "leaflet/dist/images/marker-icon.png";
-import shadowUrl from "leaflet/dist/images/marker-shadow.png";
-import { Loader2, AlertTriangle } from "lucide-react"
+import { useEffect, useRef, useState } from "react";
+import { listarZonasPorEmpresa } from "@/servicios/zona";
 
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl,
-  iconUrl,
-  shadowUrl,
-});
+// Leaflet solo se carga en cliente
+let L: any = null;
+if (typeof window !== "undefined") {
+  L = require("leaflet");
 
-interface Zone {
-  id: number
-  name: string
-  latitude: number
-  longitude: number
-  cameras: number
-  status: string
-  totalWorkers: number
-  nonCompliantWorkers: number
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.7/dist/images/marker-icon-2x.png",
+    iconUrl: "https://unpkg.com/leaflet@1.7/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.7/dist/images/marker-shadow.png",
+  });
 }
 
-interface ZonesMapViewerProps {
-  companyId: number
-  zones: Zone[]
-}
+export function ZonesMapViewer({ companyId }: { companyId: number }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const [zones, setZones] = useState<any[]>([]);
 
-export function ZonesMapViewer({ companyId, zones }: ZonesMapViewerProps) {
-  const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<L.Map | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const generarCuadrado = (lat: number, lng: number, dist = 40) => {
+    const delta = dist / 111320;
+    return [
+      [lat + delta, lng - delta],
+      [lat + delta, lng + delta],
+      [lat - delta, lng + delta],
+      [lat - delta, lng - delta],
+    ];
+  };
 
   useEffect(() => {
-    if (!mapRef.current || zones.length === 0) {
-      setError("No hay zonas registradas para esta empresa.")
-      setIsLoading(false)
-      return
-    }
+    const load = async () => {
+      const data = await listarZonasPorEmpresa(companyId);
+      setZones(data);
+    };
+    load();
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!mapRef.current || !L || zones.length === 0) return;
 
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove()
-      mapInstanceRef.current = null
+      mapInstanceRef.current.remove();
     }
 
-    const avgLat = zones.reduce((sum, z) => sum + z.latitude, 0) / zones.length
-    const avgLng = zones.reduce((sum, z) => sum + z.longitude, 0) / zones.length
+    const avgLat = zones.reduce((a, z) => a + parseFloat(z.latitud), 0) / zones.length;
+    const avgLng = zones.reduce((a, z) => a + parseFloat(z.longitud), 0) / zones.length;
 
-    const map = L.map(mapRef.current).setView([avgLat, avgLng], 14)
-    mapInstanceRef.current = map
+    const map = L.map(mapRef.current).setView([avgLat, avgLng], 15);
+    mapInstanceRef.current = map;
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-    }).addTo(map)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
     zones.forEach((zone) => {
-      const color = zone.nonCompliantWorkers > 0 ? "#ef4444" : "#22c55e"
+      const lat = parseFloat(zone.latitud);
+      const lng = parseFloat(zone.longitud);
 
-      const marker = L.circleMarker([zone.latitude, zone.longitude], {
-        radius: 10,
-        color: "#ffffff",
-        fillColor: color,
-        fillOpacity: 0.9,
+      L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: "#22c55e",
+        fillOpacity: 0.8,
+        color: "#fff",
         weight: 2,
-      }).addTo(map)
+      })
+        .addTo(map)
+        .bindPopup(`<strong>${zone.nombreZona}</strong>`);
 
-      const popupContent = `
-        <div style="min-width: 200px;">
-          <h3 style="margin: 0; font-size: 14px; font-weight: bold;">${zone.name}</h3>
-          <hr style="margin: 6px 0; border: none; border-top: 1px solid #e5e7eb;" />
-          <p style="margin: 4px 0; font-size: 13px;">📷 Cámaras: <strong>${zone.cameras}</strong></p>
-          <p style="margin: 4px 0; font-size: 13px;">👷‍♂️ Trabajadores: <strong>${zone.totalWorkers}</strong></p>
-          <p style="margin: 4px 0; font-size: 13px;">🚫 Incumplimientos: 
-            <strong style="color:${color};">${zone.nonCompliantWorkers}</strong>
-          </p>
-          <span style="display:inline-block;margin-top:6px;padding:2px 8px;border-radius:6px;font-size:12px;background-color:${zone.status === "active" ? "#dcfce7" : "#fee2e2"};color:${zone.status === "active" ? "#166534" : "#991b1b"};">
-            ${zone.status === "active" ? "Activa" : "Inactiva"}
-          </span>
-        </div>
-      `
+      const square = generarCuadrado(lat, lng);
+      L.polygon(square as any, {
+        color: "#0ea5e9",
+        fillColor: "#0ea5e9",
+        fillOpacity: 0.15,
+        weight: 2,
+      })
+        .addTo(map)
+        .bindTooltip(zone.nombreZona);
+    });
+  }, [zones]);
 
-      marker.bindPopup(popupContent)
-    })
-
-    setIsLoading(false)
-  }, [zones])
-
-  if (error) {
-    return (
-      <div className="w-full h-[500px] bg-muted rounded-lg flex items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">{error}</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="relative w-full h-[500px] bg-muted rounded-lg overflow-hidden border">
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        </div>
-      )}
-      <div ref={mapRef} className="w-full h-full" />
-
-      {/* Leyenda */}
-      <div className="absolute bottom-4 right-4 bg-card border rounded-lg shadow-lg p-3 z-10">
-        <p className="text-xs font-semibold mb-2">Leyenda</p>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="text-xs">Sin incumplimientos</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500" />
-            <span className="text-xs">Con incumplimientos</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  return <div ref={mapRef} className="w-full h-[500px] rounded-lg border shadow-sm" />;
 }

@@ -38,27 +38,27 @@ export async function listarZonas() {
 
     const data = await response.json();
 
-    return data.map((zona) => ({
-      // IDs compatibles
-      id_zona: zona.id_zona ?? zona.id_Zona ?? zona.id,
-      id_Zona: zona.id_Zona ?? zona.id_zona ?? zona.id,
+    return data.map((zona) => {
+      const id = zona.id_Zona ?? zona.id_zona ?? zona.id;
 
-      // Nombres compatibles
-      nombre: zona.nombre ?? zona.nombreZona ?? zona.name ?? "",
-      nombreZona: zona.nombreZona ?? zona.nombre ?? zona.name ?? "",
+      return {
+        id_zona: id,
+        id_Zona: id,
 
-      // Otros campos
-      latitud: zona.latitud ?? "",
-      longitud: zona.longitud ?? "",
-      id_empresa_zona:
-        zona.id_empresa_zona ?? zona.id_empresa ?? zona.empresa_id ?? null,
-      borrado: zona.borrado ?? true,
-    }));
+        nombreZona: zona.nombreZona ?? zona.nombre ?? "",
+        latitud: zona.latitud ?? "",
+        longitud: zona.longitud ?? "",
+        id_empresa_zona:
+          zona.id_empresa_zona ?? zona.id_empresa ?? zona.empresa_id ?? null,
+        borrado: zona.borrado ?? true,
+      };
+    });
   } catch (error) {
     console.error("❌ Error en listarZonas:", error);
     return [];
   }
 }
+
 // ============================
 // 📌 Listar zonas por empresa (CORREGIDO)
 // ============================
@@ -74,24 +74,27 @@ export async function listarZonasPorEmpresa(empresaId) {
 
     const data = await response.json();
 
-    // ✅ Normaliza correctamente el ID y otros campos
-    return data.map((zona) => ({
-      id_Zona: zona.id_Zona ?? zona.id_zona ?? zona.id, // 👈 aquí el fix
-      nombreZona: zona.nombreZona ?? zona.nombre ?? zona.name ?? "",
-      latitud: zona.latitud ?? "",
-      longitud: zona.longitud ?? "",
-      borrado: zona.borrado ?? true,
-      id_empresa_zona:
-        zona.id_empresa_zona ?? zona.id_empresa ?? zona.empresa_id ?? null,
-      id_administrador_zona:
-        zona.id_administrador_zona ?? zona.administrador_id ?? null,
-      cameras: zona.cameras ?? 0,
-    }));
+    return data.map((zona) => {
+      const id = zona.id_Zona ?? zona.id_zona ?? zona.id;
+
+      return {
+        id_zona: id,   // 👈 normalizado
+        id_Zona: id,   // 👈 normalizado
+        nombreZona: zona.nombreZona ?? zona.nombre ?? "",
+        latitud: zona.latitud ?? "",
+        longitud: zona.longitud ?? "",
+        borrado: zona.borrado ?? true,
+        id_empresa_zona: zona.id_empresa_zona ?? zona.id_empresa ?? null,
+        id_administrador_zona:
+          zona.id_administrador_zona ?? zona.administrador_id ?? null,
+      };
+    });
   } catch (error) {
     console.error("❌ Error en listarZonasPorEmpresa:", error);
     return [];
   }
 }
+
 
 
 // ============================
