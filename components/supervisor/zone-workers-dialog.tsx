@@ -15,53 +15,105 @@ import {
 } from "@/components/ui/select"
 import { Trash2, UserPlus, Users, MapPin } from "lucide-react"
 
-interface ZoneWorkersDialogProps {
-  open: boolean
-  onClose: () => void
-  zone: any | null
-}
+import { listarTrabajadoresNoAsignados } from "@/servicios/trabajador"
+import {
+  listarAsignacionesTrabajadorZona,
+  crearAsignacionTrabajadorZona,
+  eliminarAsignacionFisico,
+} from "@/servicios/trabajador_zona"
+import { getUser } from "@/lib/auth"
 
-export function ZoneWorkersDialog({ open, onClose, zone }: ZoneWorkersDialogProps) {
+export function ZoneWorkersDialog({ open, onClose, zone }: any) {
   const [assignedWorkers, setAssignedWorkers] = useState<any[]>([])
   const [availableWorkers, setAvailableWorkers] = useState<any[]>([])
   const [selectedWorkerId, setSelectedWorkerId] = useState("")
 
-  // MOCK DATA — evita errores y mantiene el diseño
-  const MOCK_WORKERS = [
-    { id: 1, name: "Luis Andrade", position: "Operario", shift: "Mañana", status: "active" },
-    { id: 2, name: "Andrea Pérez", position: "Técnico", shift: "Tarde", status: "active" },
-    { id: 3, name: "Carlos Molina", position: "Auxiliar", shift: "Noche", status: "inactive" },
-  ]
+
+  const loadRealWorkers = async () => {
+    const user = getUser()
+    if (!user || !user.id_supervisor) return
+
+    try {
+      const workers = await listarTrabajadoresNoAsignados(user.id_supervisor)
+
+      const formatted = workers.map((t: any) => ({
+        id: t.id_trabajador,
+        name: `${t.persona.nombre} ${t.persona.apellido}`,
+        cedula: t.persona.cedula,
+        position: t.cargo,
+      }))
+
+      setAvailableWorkers(formatted)
+    } catch (error) {
+      console.error("❌ Error cargando trabajadores no asignados:", error)
+    }
+  }
+
+ 
+  const loadAssignedWorkers = async () => {
+    if (!zone) return
+
+    try {
+      const asignaciones = await listarAsignacionesTrabajadorZona()
+
+      const filtered = asignaciones
+        .filter((a: any) => a.id_zona_trabajadorzona === zone.id_Zona)
+        .map((a: any) => ({
+          asignacionId: a.id_trabajador_zona,
+          id: a.trabajador.id_trabajador,
+          name: `${a.trabajador.persona.nombre} ${a.trabajador.persona.apellido}`,
+          cedula: a.trabajador.persona.cedula,
+          position: a.trabajador.cargo,
+        }))
+
+      setAssignedWorkers(filtered)
+    } catch (error) {
+      console.error("❌ Error cargando asignados:", error)
+    }
+  }
+
 
   useEffect(() => {
     if (zone && open) {
-      loadMockWorkers()
+      loadRealWorkers()
+      loadAssignedWorkers()
     }
   }, [zone, open])
 
-  const loadMockWorkers = () => {
-    // Mostrar un asignado y dos disponibles (solo diseño)
-    setAssignedWorkers([MOCK_WORKERS[0]])
-    setAvailableWorkers([MOCK_WORKERS[1], MOCK_WORKERS[2]])
-  }
 
-  const handleAssignWorker = () => {
+  const handleAssignWorker = async () => {
     if (!selectedWorkerId) return
 
-    const worker = availableWorkers.find((w) => w.id.toString() === selectedWorkerId)
-    if (!worker) return
+    const payload = {
+      id_trabajador_trabajadorzona: Number(selectedWorkerId),
+      id_zona_trabajadorzona: zone.id,
 
-    setAssignedWorkers((prev) => [...prev, worker])
-    setAvailableWorkers((prev) => prev.filter((w) => w.id !== worker.id))
-    setSelectedWorkerId("")
+    }
+
+    try {
+      await crearAsignacionTrabajadorZona(payload)
+
+      // refrescar
+      await loadRealWorkers()
+      await loadAssignedWorkers()
+      setSelectedWorkerId("")
+    } catch (error) {
+      console.error("❌ Error al asignar trabajador:", error)
+    }
   }
 
-  const handleRemoveWorker = (workerId: number) => {
-    const worker = assignedWorkers.find((w) => w.id === workerId)
-    if (!worker) return
+  // ============================================================
+  // 🔹 Eliminar asignación
+  // ============================================================
+  const handleDeleteAssigned = async (asignacionId: number) => {
+    try {
+      await eliminarAsignacionFisico(asignacionId)
 
-    setAssignedWorkers((prev) => prev.filter((w) => w.id !== workerId))
-    setAvailableWorkers((prev) => [...prev, worker])
+      await loadRealWorkers()
+      await loadAssignedWorkers()
+    } catch (error) {
+      console.error("❌ Error eliminando asignación:", error)
+    }
   }
 
   if (!zone) return null
@@ -78,7 +130,8 @@ export function ZoneWorkersDialog({ open, onClose, zone }: ZoneWorkersDialogProp
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Asignar trabajador */}
+
+          {/* Asignar Trabajador */}
           <Card>
             <CardContent className="pt-6">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -100,7 +153,7 @@ export function ZoneWorkersDialog({ open, onClose, zone }: ZoneWorkersDialogProp
                     ) : (
                       availableWorkers.map((worker) => (
                         <SelectItem key={worker.id} value={worker.id.toString()}>
-                          {worker.name} — {worker.position}
+                          {worker.name} — {worker.cedula}
                         </SelectItem>
                       ))
                     )}
@@ -115,7 +168,7 @@ export function ZoneWorkersDialog({ open, onClose, zone }: ZoneWorkersDialogProp
             </CardContent>
           </Card>
 
-          {/* Lista de trabajadores asignados */}
+          {/* Lista de asignados */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-4">
@@ -135,7 +188,7 @@ export function ZoneWorkersDialog({ open, onClose, zone }: ZoneWorkersDialogProp
                 <div className="space-y-3 max-h-[300px] overflow-y-auto">
                   {assignedWorkers.map((worker) => (
                     <div
-                      key={worker.id}
+                      key={worker.asignacionId}
                       className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
                     >
                       <div className="flex items-center gap-3">
@@ -152,9 +205,8 @@ export function ZoneWorkersDialog({ open, onClose, zone }: ZoneWorkersDialogProp
 
                         <div>
                           <p className="font-medium">{worker.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {worker.position} — {worker.shift}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{worker.position}</p>
+                          <p className="text-xs text-muted-foreground">{worker.cedula}</p>
                         </div>
                       </div>
 
@@ -162,7 +214,7 @@ export function ZoneWorkersDialog({ open, onClose, zone }: ZoneWorkersDialogProp
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:bg-destructive/10"
-                        onClick={() => handleRemoveWorker(worker.id)}
+                        onClick={() => handleDeleteAssigned(worker.asignacionId)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -172,6 +224,7 @@ export function ZoneWorkersDialog({ open, onClose, zone }: ZoneWorkersDialogProp
               )}
             </CardContent>
           </Card>
+
         </div>
       </DialogContent>
     </Dialog>

@@ -149,5 +149,31 @@ export async function listarTrabajadoresPorSupervisor(idSupervisor) {
     console.error("❌ Error en listarTrabajadoresPorSupervisor:", error);
     throw error;
   }
+} 
+
+// =======================================
+// 📌 Listar trabajadores NO asignados a zona por supervisor
+// =======================================
+export async function listarTrabajadoresNoAsignados(idSupervisor) {
+  try {
+    const response = await fetch(
+      `${TRABAJADOR_URL}/supervisor/${idSupervisor}/no-asignados`,
+      {
+        method: "GET",
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("❌ Respuesta no OK listarTrabajadoresNoAsignados:", errText);
+      throw new Error("Error al obtener trabajadores no asignados");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ Error en listarTrabajadoresNoAsignados:", error);
+    throw error;
+  }
 }
+
 
