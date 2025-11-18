@@ -1,57 +1,69 @@
 "use client"
 
 import { useState, useEffect } from "react"
-// </CHANGE>
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MapPin, Users, Camera, AlertTriangle, Settings } from "lucide-react"
-import { getZones, getUsers, getZoneWorkerStats, type Zone } from "@/lib/storage"
-import { getUser } from "@/lib/auth"
+import { MapPin, Users, Camera, UserCheck, Settings } from "lucide-react"
 import { ZoneDetailsDialog } from "./zone-details-dialog"
-// </CHANGE>
+import { ZoneWorkersDialog } from "./zone-workers-dialog"
+
+import { listarZonasDetallesPorSupervisor } from "@/servicios/trabajador_zona"
+import { getUser } from "@/lib/auth"
 
 export function ZonesGrid() {
-  const currentUser = getUser()
-  const [zones, setZones] = useState<Zone[]>([])
-  const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
+  const [zones, setZones] = useState<any[]>([])
+  const [selectedZone, setSelectedZone] = useState<any>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [workersOpen, setWorkersOpen] = useState(false)
 
+  // ================================
+  // 🔥 CARGAR ZONAS DEL BACKEND
+  // ================================
   useEffect(() => {
-    const users = getUsers()
-    const supervisorUser = users.find((u) => u.email === currentUser?.email)
-    if (supervisorUser?.companyId) {
-      const allZones = getZones()
-      const companyZones = allZones.filter((z) => z.companyId === supervisorUser.companyId)
-      setZones(companyZones)
-    }
-  }, [currentUser])
+    const user = getUser()
+    const idSupervisor = user?.id_supervisor
 
-  const getZoneStatus = (zoneId: number): "safe" | "alert" | "warning" => {
-    const stats = getZoneWorkerStats()
-    const zoneStat = stats.find((s) => s.zoneId === zoneId)
-    if (zoneStat && zoneStat.nonCompliantWorkers > 3) return "alert"
-    if (zoneStat && zoneStat.nonCompliantWorkers > 0) return "warning"
-    return "safe"
-  }
+    if (!idSupervisor) return
 
-  const getZoneAlerts = (zoneId: number): number => {
-    const stats = getZoneWorkerStats()
-    const zoneStat = stats.find((s) => s.zoneId === zoneId)
-    return zoneStat?.nonCompliantWorkers || 0
-  }
+    listarZonasDetallesPorSupervisor(idSupervisor)
+      .then((data) => {
+        const formatted = data.map((item: any) => ({
+          id: item.zona.id,
+          name: item.zona.nombre,
+          latitude: parseFloat(item.zona.latitud),
+          longitude: parseFloat(item.zona.longitud),
+          cameras: item.total_camaras,
+          workers: item.total_trabajadores,
 
-  const getZoneWorkers = (zoneId: number): number => {
-    const stats = getZoneWorkerStats()
-    const zoneStat = stats.find((s) => s.zoneId === zoneId)
-    return zoneStat?.totalWorkers || 0
-  }
+          inspector: {
+            name: `${item.inspector?.nombre || "Sin"} ${item.inspector?.apellido || "Inspector"}`,
+            email: item.inspector?.cedula || "N/A"
+          },
 
-  const handleViewDetails = (zone: Zone) => {
+          alerts: 0, // Puedes mejorar luego
+          status:
+            item.total_camaras === 0 && item.total_trabajadores === 0
+              ? "safe"
+              : item.total_camaras <= 1
+              ? "warning"
+              : "alert"
+        }))
+
+        setZones(formatted)
+      })
+      .catch((err) => console.error("Error cargando zonas:", err))
+  }, [])
+
+  const handleViewDetails = (zone: any) => {
     setSelectedZone(zone)
     setDetailsOpen(true)
   }
-  // </CHANGE>
+
+  const handleManageWorkers = (zone: any) => {
+    setSelectedZone(zone)
+    setWorkersOpen(true)
+  }
 
   return (
     <>
@@ -61,108 +73,99 @@ export function ZonesGrid() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Zonas de Trabajo</CardTitle>
-                <CardDescription>Áreas asignadas para supervisión</CardDescription>
+                <CardDescription>Gestiona las zonas de tu empresa</CardDescription>
               </div>
-              <Button>
-                <Settings className="w-4 h-4 mr-2" />
-                Configurar Zonas
-              </Button>
+              <Badge variant="outline">{zones.length} zonas</Badge>
             </div>
           </CardHeader>
-          <CardContent>
-            {zones.length === 0 ? (
-              <div className="text-center text-muted-foreground py-12">No hay zonas registradas para tu empresa</div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {zones.map((zone) => {
-                  const status = getZoneStatus(zone.id)
-                  const alerts = getZoneAlerts(zone.id)
-                  const workers = getZoneWorkers(zone.id)
 
-                  return (
-                    <Card
-                      key={zone.id}
-                      className={`${
-                        status === "alert"
-                          ? "border-destructive"
-                          : status === "warning"
-                            ? "border-yellow-500"
-                            : "border-border"
-                      }`}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`p-2 rounded-lg ${
-                                status === "alert"
-                                  ? "bg-destructive/10"
-                                  : status === "warning"
-                                    ? "bg-yellow-500/10"
-                                    : "bg-success/10"
-                              }`}
-                            >
-                              <MapPin
-                                className={`w-4 h-4 ${
-                                  status === "alert"
-                                    ? "text-destructive"
-                                    : status === "warning"
-                                      ? "text-yellow-600"
-                                      : "text-success"
-                                }`}
-                              />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold">{zone.name}</h3>
-                              <p className="text-xs text-muted-foreground">
-                                {zone.latitude.toFixed(4)}, {zone.longitude.toFixed(4)}
-                              </p>
-                            </div>
-                          </div>
-                          {alerts > 0 && (
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertTriangle className="w-3 h-3" />
-                              {alerts}
-                            </Badge>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Users className="w-4 h-4" />
-                            <span>Trabajadores</span>
-                          </div>
-                          <span className="font-semibold">{workers}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Camera className="w-4 h-4" />
-                            <span>Cámaras</span>
-                          </div>
-                          <span className="font-semibold">{zone.cameras}</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full mt-2 bg-transparent"
-                          onClick={() => handleViewDetails(zone)}
-                        >
-                          Ver Detalles
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-            {/* </CHANGE> */}
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {zones.map((zone) => (
+                <Card
+                  key={zone.id}
+                  className={`relative overflow-hidden hover:shadow-lg transition-all ${
+                    zone.status === "alert"
+                      ? "border-destructive/50 bg-destructive/5"
+                      : zone.status === "warning"
+                      ? "border-yellow-500/50 bg-yellow-500/10"
+                      : "border-border"
+                  }`}
+                >
+                  <div
+                    className={`absolute top-0 left-0 right-0 h-1 ${
+                      zone.status === "alert"
+                        ? "bg-destructive"
+                        : zone.status === "warning"
+                        ? "bg-yellow-500"
+                        : "bg-success"
+                    }`}
+                  />
+
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`p-3 rounded-xl ${
+                          zone.status === "alert"
+                            ? "bg-destructive/20 text-destructive"
+                            : zone.status === "warning"
+                            ? "bg-yellow-500/20 text-yellow-600"
+                            : "bg-success/20 text-success"
+                        }`}
+                      >
+                        <MapPin className="w-5 h-5" />
+                      </div>
+
+                      <div>
+                        <h3 className="font-semibold">{zone.name}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {zone.latitude.toFixed(4)}, {zone.longitude.toFixed(4)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    <div className="p-3 rounded-lg bg-muted/50 border">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Inspector</span>
+                      </div>
+                      <p className="font-medium text-sm">{zone.inspector.name}</p>
+                      <p className="text-xs text-muted-foreground">{zone.inspector.email}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg border">
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <p className="text-2xl font-bold">{zone.workers}</p>
+                      </div>
+                      <div className="p-3 rounded-lg border">
+                        <Camera className="w-4 h-4 text-muted-foreground" />
+                        <p className="text-2xl font-bold">{zone.cameras}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" onClick={() => handleManageWorkers(zone)}>
+                        <Settings className="w-4 h-4 mr-1" />
+                        Configurar
+                      </Button>
+
+                      <Button onClick={() => handleViewDetails(zone)}>
+                        Ver detalles
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
 
       <ZoneDetailsDialog open={detailsOpen} onClose={() => setDetailsOpen(false)} zone={selectedZone} />
-      {/* </CHANGE> */}
+      <ZoneWorkersDialog open={workersOpen} onClose={() => setWorkersOpen(false)} zone={selectedZone} />
     </>
   )
 }

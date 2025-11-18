@@ -5,31 +5,37 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { MapPin, Users, UserCheck, Camera } from "lucide-react"
-import { getZoneWorkerStats, getInspectorsByZone, type Zone } from "@/lib/storage"
+import { MapPin, Users, UserCheck, Camera, AlertTriangle, CheckCircle } from "lucide-react"
 
 interface ZoneDetailsDialogProps {
   open: boolean
   onClose: () => void
-  zone: Zone | null
+  zone: any | null
 }
 
 export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProps) {
-  const [stats, setStats] = useState<{
-    totalWorkers: number
-    compliantWorkers: number
-    nonCompliantWorkers: number
-  } | null>(null)
   const [inspectors, setInspectors] = useState<any[]>([])
+  const [stats, setStats] = useState({
+    totalWorkers: 0,
+    compliantWorkers: 0,
+    nonCompliantWorkers: 0,
+  })
+
+  const MOCK_INSPECTORS = [
+    { id: 1, name: "Carlos Ramírez", email: "carlos@savework.com" },
+    { id: 2, name: "María González", email: "maria@savework.com" },
+  ]
+
+  const MOCK_STATS = {
+    totalWorkers: 12,
+    compliantWorkers: 9,
+    nonCompliantWorkers: 3,
+  }
 
   useEffect(() => {
     if (zone && open) {
-      const allStats = getZoneWorkerStats()
-      const zoneStats = allStats.find((s) => s.zoneId === zone.id)
-      setStats(zoneStats || { totalWorkers: 0, compliantWorkers: 0, nonCompliantWorkers: 0 })
-
-      const assignedInspectors = getInspectorsByZone(zone.id)
-      setInspectors(assignedInspectors)
+      setInspectors(MOCK_INSPECTORS)
+      setStats(MOCK_STATS)
     }
   }, [zone, open])
 
@@ -37,13 +43,13 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="w-5 h-5" />
             {zone.name}
           </DialogTitle>
-          <DialogDescription>Detalles y estadísticas de la zona</DialogDescription>
+          <DialogDescription>Información detallada de la zona</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -52,42 +58,39 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
             <CardContent className="pt-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Latitud</p>
+                  <p className="text-sm text-muted-foreground mb-1">Latitud</p>
                   <p className="text-lg font-semibold">{zone.latitude.toFixed(6)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Longitud</p>
+                  <p className="text-sm text-muted-foreground mb-1">Longitud</p>
                   <p className="text-lg font-semibold">{zone.longitude.toFixed(6)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Inspectors Assigned */}
+          {/* Inspectors */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
                 <UserCheck className="w-4 h-4 text-muted-foreground" />
                 <h3 className="font-semibold">Inspectores Asignados</h3>
               </div>
-              {inspectors.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay inspectores asignados a esta zona</p>
-              ) : (
-                <div className="space-y-2">
-                  {inspectors.map((inspector) => (
-                    <div key={inspector.id} className="flex items-center gap-3 p-2 border rounded-lg">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="text-xs">{inspector.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{inspector.name}</p>
-                        <p className="text-xs text-muted-foreground">{inspector.email}</p>
-                      </div>
-                      <Badge variant="default">Activo</Badge>
-                    </div>
-                  ))}
+
+              {inspectors.map((inspector) => (
+                <div key={inspector.id} className="p-3 border rounded-lg flex items-center gap-3 bg-muted/20">
+                  <Avatar className="w-9 h-9">
+                    <AvatarFallback>
+                      {inspector.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="font-medium">{inspector.name}</p>
+                    <p className="text-xs text-muted-foreground">{inspector.email}</p>
+                  </div>
+                  <Badge className="bg-success">Activo</Badge>
                 </div>
-              )}
+              ))}
             </CardContent>
           </Card>
 
@@ -95,20 +98,24 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
-                <Users className="w-4 h-4 text-muted-foreground" />
+                <AlertTriangle className="w-4 h-4 text-muted-foreground" />
                 <h3 className="font-semibold">Estadísticas de Trabajadores</h3>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 border rounded-lg">
-                  <p className="text-2xl font-bold">{stats?.totalWorkers || 0}</p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-4 border rounded-lg bg-background">
+                  <Users className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-2xl font-bold">{stats.totalWorkers}</p>
                   <p className="text-xs text-muted-foreground mt-1">Total</p>
                 </div>
-                <div className="text-center p-3 border rounded-lg bg-success/5">
-                  <p className="text-2xl font-bold text-success">{stats?.compliantWorkers || 0}</p>
+                <div className="text-center p-4 border rounded-lg bg-success/10 border-success/20">
+                  <CheckCircle className="w-5 h-5 mx-auto mb-2 text-success" />
+                  <p className="text-2xl font-bold text-success">{stats.compliantWorkers}</p>
                   <p className="text-xs text-muted-foreground mt-1">Con EPP</p>
                 </div>
-                <div className="text-center p-3 border rounded-lg bg-destructive/5">
-                  <p className="text-2xl font-bold text-destructive">{stats?.nonCompliantWorkers || 0}</p>
+                <div className="text-center p-4 border rounded-lg bg-destructive/10 border-destructive/20">
+                  <AlertTriangle className="w-5 h-5 mx-auto mb-2 text-destructive" />
+                  <p className="text-2xl font-bold text-destructive">{stats.nonCompliantWorkers}</p>
                   <p className="text-xs text-muted-foreground mt-1">Sin EPP</p>
                 </div>
               </div>
@@ -121,9 +128,9 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Camera className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="font-semibold">Cámaras de Vigilancia</h3>
+                  <h3 className="font-semibold">Cámaras</h3>
                 </div>
-                <Badge variant="outline">{zone.cameras} cámaras</Badge>
+                <Badge variant="outline">{zone.cameras} cámaras activas</Badge>
               </div>
             </CardContent>
           </Card>
