@@ -4,10 +4,6 @@ import { BASE_URL } from "./api";
 
 const TRABAJADOR_ZONA_URL = `${BASE_URL}/trabajador_zonas`;
 
-
-// =========================================================
-// 📌 1. Listar ZONAS con detalles por SUPERVISOR
-// =========================================================
 export async function listarZonasDetallesPorSupervisor(idSupervisor) {
   try {
     const response = await fetch(`${TRABAJADOR_ZONA_URL}/supervisor/${idSupervisor}`, {
@@ -28,10 +24,6 @@ export async function listarZonasDetallesPorSupervisor(idSupervisor) {
 }
 
 
-
-// =========================================================
-// 📌 2. Crear asignación Trabajador → Zona
-// =========================================================
 export async function crearAsignacionTrabajadorZona(datos) {
   try {
     const response = await fetch(`${TRABAJADOR_ZONA_URL}/`, {
@@ -56,10 +48,6 @@ export async function crearAsignacionTrabajadorZona(datos) {
 }
 
 
-
-// =========================================================
-// 📌 3. Listar TODAS las asignaciones
-// =========================================================
 export async function listarAsignacionesTrabajadorZona() {
   try {
     const response = await fetch(`${TRABAJADOR_ZONA_URL}/`, {
@@ -79,11 +67,6 @@ export async function listarAsignacionesTrabajadorZona() {
   }
 }
 
-
-
-// =========================================================
-// 📌 4. Obtener UNA asignación por ID
-// =========================================================
 export async function obtenerAsignacionTrabajadorZona(idAsignacion) {
   try {
     const response = await fetch(`${TRABAJADOR_ZONA_URL}/${idAsignacion}`, {
@@ -103,11 +86,29 @@ export async function obtenerAsignacionTrabajadorZona(idAsignacion) {
   }
 }
 
+// =========================================================
+// 📌 7. Obtener listado DETALLADO trabajador ↔ zona
+// =========================================================
+export async function listarAsignacionesTrabajadorZonaDetalles() {
+  try {
+    const response = await fetch(`${TRABAJADOR_ZONA_URL}/detalles`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("❌ Error listarAsignacionesTrabajadorZonaDetalles:", errText);
+      throw new Error("Error al obtener detalles trabajador-zona");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ Error en listarAsignacionesTrabajadorZonaDetalles:", error);
+    throw error;
+  }
+}
 
 
-// =========================================================
-// 📌 5. Eliminación FÍSICA (DELETE)
-// =========================================================
 export async function eliminarAsignacionFisico(idAsignacion) {
   try {
     const response = await fetch(`${TRABAJADOR_ZONA_URL}/${idAsignacion}`, {
@@ -128,10 +129,6 @@ export async function eliminarAsignacionFisico(idAsignacion) {
 }
 
 
-
-// =========================================================
-// 📌 6. Eliminación LÓGICA (borrado = false)
-// =========================================================
 export async function eliminarAsignacionLogico(idAsignacion) {
   try {
     const response = await fetch(`${TRABAJADOR_ZONA_URL}/eliminar-logico/${idAsignacion}`, {

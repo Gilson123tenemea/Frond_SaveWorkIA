@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14,32 +13,11 @@ interface ZoneDetailsDialogProps {
 }
 
 export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProps) {
-  const [inspectors, setInspectors] = useState<any[]>([])
-  const [stats, setStats] = useState({
-    totalWorkers: 0,
-    compliantWorkers: 0,
-    nonCompliantWorkers: 0,
-  })
-
-  const MOCK_INSPECTORS = [
-    { id: 1, name: "Carlos Ramírez", email: "carlos@savework.com" },
-    { id: 2, name: "María González", email: "maria@savework.com" },
-  ]
-
-  const MOCK_STATS = {
-    totalWorkers: 12,
-    compliantWorkers: 9,
-    nonCompliantWorkers: 3,
-  }
-
-  useEffect(() => {
-    if (zone && open) {
-      setInspectors(MOCK_INSPECTORS)
-      setStats(MOCK_STATS)
-    }
-  }, [zone, open])
 
   if (!zone) return null
+
+  // Inspector asignado real
+  const inspector = zone.inspector
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -53,7 +31,8 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Location Info */}
+
+          {/* UBICACIÓN */}
           <Card>
             <CardContent className="pt-6">
               <div className="grid grid-cols-2 gap-4">
@@ -69,32 +48,34 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
             </CardContent>
           </Card>
 
-          {/* Inspectors */}
+          {/* INSPECTOR ASIGNADO */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
                 <UserCheck className="w-4 h-4 text-muted-foreground" />
-                <h3 className="font-semibold">Inspectores Asignados</h3>
+                <h3 className="font-semibold">Inspector Asignado</h3>
               </div>
 
-              {inspectors.map((inspector) => (
-                <div key={inspector.id} className="p-3 border rounded-lg flex items-center gap-3 bg-muted/20">
+              {!inspector?.name || inspector.name.includes("Sin") ? (
+                <p className="text-sm text-muted-foreground">No hay inspector asignado</p>
+              ) : (
+                <div className="p-3 border rounded-lg flex items-center gap-3 bg-muted/20">
                   <Avatar className="w-9 h-9">
                     <AvatarFallback>
-                      {inspector.name.charAt(0)}
+                      {inspector.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <p className="font-medium">{inspector.name}</p>
-                    <p className="text-xs text-muted-foreground">{inspector.email}</p>
+                    <p className="text-xs text-muted-foreground">Cédula: {inspector.email}</p>
                   </div>
                   <Badge className="bg-success">Activo</Badge>
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
 
-          {/* Worker Stats */}
+          {/* ESTADÍSTICAS DE TRABAJADORES */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
@@ -103,26 +84,31 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
               </div>
 
               <div className="grid grid-cols-3 gap-3">
+                {/* Total trabajadores reales */}
                 <div className="text-center p-4 border rounded-lg bg-background">
                   <Users className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-2xl font-bold">{stats.totalWorkers}</p>
+                  <p className="text-2xl font-bold">{zone.workers}</p>
                   <p className="text-xs text-muted-foreground mt-1">Total</p>
                 </div>
+
+                {/* Con EPP (mock temporal) */}
                 <div className="text-center p-4 border rounded-lg bg-success/10 border-success/20">
                   <CheckCircle className="w-5 h-5 mx-auto mb-2 text-success" />
-                  <p className="text-2xl font-bold text-success">{stats.compliantWorkers}</p>
+                  <p className="text-2xl font-bold text-success">0</p>
                   <p className="text-xs text-muted-foreground mt-1">Con EPP</p>
                 </div>
+
+                {/* Sin EPP (mock temporal) */}
                 <div className="text-center p-4 border rounded-lg bg-destructive/10 border-destructive/20">
                   <AlertTriangle className="w-5 h-5 mx-auto mb-2 text-destructive" />
-                  <p className="text-2xl font-bold text-destructive">{stats.nonCompliantWorkers}</p>
+                  <p className="text-2xl font-bold text-destructive">0</p>
                   <p className="text-xs text-muted-foreground mt-1">Sin EPP</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Cameras */}
+          {/* CÁMARAS */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -134,6 +120,7 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
               </div>
             </CardContent>
           </Card>
+
         </div>
       </DialogContent>
     </Dialog>
