@@ -111,3 +111,38 @@ export async function eliminarAsignacion(id) {
   }
 }
 
+export async function listarAsignacionesPorEmpresa(idEmpresa) {
+  try {
+    const response = await fetch(`${ZONA_INSPECTOR_URL}/empresa/${idEmpresa}`);
+
+    if (!response.ok) {
+      throw new Error("Error al obtener asignaciones por empresa");
+    }
+
+    const data = await response.json();
+
+    return data.map((item) => ({
+      id_inspector_zona: item.id_inspector_zona,
+      fecha_asignacion: item.fecha_asignacion,
+
+      // 🔥🔥🔥 EL VALOR QUE FALTABA 🔥🔥🔥
+      inspector_id: item.inspector?.id_inspector ?? "",
+
+      inspector_nombre: item.inspector?.nombre ?? "",
+      inspector_apellido: item.inspector?.apellido ?? "",
+      inspector_cedula: item.inspector?.cedula ?? "",
+
+      zona_nombre: item.zona?.nombreZona ?? "",
+      zona_id: item.zona?.id_zona ?? "",
+
+      borrado: item.borrado ?? true
+    }));
+
+  } catch (error) {
+    console.error("❌ Error en listarAsignacionesPorEmpresa:", error);
+    return [];
+  }
+}
+
+
+

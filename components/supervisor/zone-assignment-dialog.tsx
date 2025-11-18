@@ -1,158 +1,228 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog"
+  DialogFooter,
+} from "@/components/ui/dialog";
 
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
-} from "@/components/ui/select"
+  SelectItem,
+} from "@/components/ui/select";
 
-import toast from "react-hot-toast"
+import toast from "react-hot-toast";
 
-import { getUser } from "@/lib/auth"
-import { listarZonasPorEmpresa } from "@/servicios/zona"
-import { listarTrabajadoresPorSupervisor } from "@/servicios/trabajador"
-import { crearAsignacionInspectorZona } from "@/servicios/zona_inspector"
+import { getUser } from "@/lib/auth";
+import { listarZonasPorEmpresa } from "@/servicios/zona";
+import { listarInspectoresPorSupervisor } from "@/servicios/inspector";
+import {
+  crearAsignacionInspectorZona,
+  actualizarAsignacion,
+} from "@/servicios/zona_inspector";
 
 interface ZoneAssignFormProps {
-  open: boolean
-  onClose: () => void
+  open: boolean;
+  onClose: () => void;
+  editingItem?: any | null;
 }
 
-export function ZoneAssignForm({ open, onClose }: ZoneAssignFormProps) {
-  const [zonas, setZonas] = useState<any[]>([])
-  const [trabajadores, setTrabajadores] = useState<any[]>([])
+export function ZoneAssignForm({
+  open,
+  onClose,
+  editingItem,
+}: ZoneAssignFormProps) {
+  const [zonas, setZonas] = useState<any[]>([]);
+  const [inspectores, setInspectores] = useState<any[]>([]);
 
-  const [zonaSeleccionada, setZonaSeleccionada] = useState("")
-  const [trabajadorSeleccionado, setTrabajadorSeleccionado] = useState("")
+  const [zonaSeleccionada, setZonaSeleccionada] = useState("");
+  const [inspectorSeleccionado, setInspectorSeleccionado] = useState("");
 
+  // ===============================
+  // HELPERS PROFESIONALES
+  // ===============================
+
+  const extractInspectorId = (item: any) => {
+    if (!item) return "";
+
+    return (
+      item.inspector_id ?? // <-- El más importante (viene del mapper)
+      item.id_inspector_inspectorzona ??
+      item.id_inspector ??
+      item.inspector?.id_inspector ??
+      ""
+    );
+  };
+
+  const extractZonaId = (item: any) => {
+    if (!item) return "";
+
+    return (
+      item.zona_id ?? // <-- Viene del mapper
+      item.id_zona_inspectorzona ??
+      item.id_zona ??
+      item.zona?.id_zona ??
+      ""
+    );
+  };
+
+  // ===============================
+  // CARGAR DATOS AL ABRIR MODAL
+  // ===============================
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
 
-    const user = getUser()
-    const empresaId = user?.id_empresa_supervisor
-    const supervisorId = user?.id_supervisor
+    const user = getUser();
+    const supervisorId = user?.id;
+    const empresaId = user?.id_empresa_supervisor;
 
     if (!empresaId || !supervisorId) {
-      console.error("⚠ Datos inválidos del usuario logueado")
-      return
+      toast.error("No se pudo obtener datos del usuario");
+      return;
     }
 
-    // 🔥 Cargar Zonas
     listarZonasPorEmpresa(empresaId)
       .then(setZonas)
-      .catch((err) => console.error("❌ Error cargando zonas:", err))
+      .catch(() => toast.error("Error al cargar zonas"));
 
-    // 🔥 Cargar Trabajadores
-    listarTrabajadoresPorSupervisor(supervisorId)
-      .then(setTrabajadores)
-      .catch((err) => console.error("❌ Error cargando trabajadores:", err))
+    listarInspectoresPorSupervisor(supervisorId)
+      .then(setInspectores)
+      .catch(() => toast.error("Error al cargar inspectores"));
 
-  }, [open])
+    if (editingItem) {
+      setZonaSeleccionada(String(extractZonaId(editingItem)));
+    } else {
+      setZonaSeleccionada("");
+      setInspectorSeleccionado("");
+    }
+  }, [open, editingItem]);
 
+  // ===============================
+  // AUTOSELECCIÓN DEL INSPECTOR
+  // ===============================
+  useEffect(() => {
+    if (!editingItem || inspectores.length === 0) return;
+
+    const inspectorId = String(extractInspectorId(editingItem));
+
+    const existe = inspectores.some(
+      (i) => String(i.id_inspector) === inspectorId
+    );
+
+    if (existe) {
+      setInspectorSeleccionado(inspectorId);
+    } else {
+      console.warn("⚠ Inspector no encontrado en la lista:", inspectorId);
+    }
+  }, [inspectores, editingItem]);
+
+  // ===============================
+  // GUARDAR / EDITAR
+  // ===============================
   const handleSubmit = async () => {
     try {
-      if (!zonaSeleccionada || !trabajadorSeleccionado) {
-        toast.error("Debe seleccionar zona y trabajador")
-        return
+      if (!zonaSeleccionada || !inspectorSeleccionado) {
+        toast.error("Debe seleccionar zona e inspector");
+        return;
       }
 
       const payload = {
-        id_inspector_inspectorzona: trabajadorSeleccionado,
-        id_zona_inspectorzona: zonaSeleccionada
+        id_inspector_inspectorzona: Number(inspectorSeleccionado),
+        id_zona_inspectorzona: Number(zonaSeleccionada),
+      };
+
+      if (editingItem) {
+        const promise = actualizarAsignacion(
+          editingItem.id_inspector_zona,
+          payload
+        );
+
+        toast.promise(promise, {
+          loading: "Actualizando...",
+          success: "Asignación actualizada",
+          error: "Error al actualizar",
+        });
+
+        await promise;
+      } else {
+        const promise = crearAsignacionInspectorZona(payload);
+
+        toast.promise(promise, {
+          loading: "Guardando...",
+          success: "Asignación creada",
+          error: "Error al crear",
+        });
+
+        await promise;
       }
 
-      console.log("📤 Enviando asignación:", payload)
-
-      const response = await crearAsignacionInspectorZona(payload)
-
-      console.log("📥 Respuesta del backend:", response)
-
-      toast.success("Asignación creada correctamente")
-
-      // Resetear formulario
-      setZonaSeleccionada("")
-      setTrabajadorSeleccionado("")
-      onClose()
-
+      onClose();
     } catch (error) {
-      console.error("❌ Error al crear asignación:", error)
-      toast.error("No se pudo crear la asignación")
+      console.error(error);
+      toast.error("Error al guardar");
     }
-  }
+  };
 
+  // ===============================
+  // RENDER UI
+  // ===============================
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Asignar Trabajador a una Zona</DialogTitle>
+          <DialogTitle>
+            {editingItem ? "Editar Asignación" : "Asignar Inspector a Zona"}
+          </DialogTitle>
           <DialogDescription>
-            Selecciona la zona y el trabajador para continuar.
+            Selecciona la zona y el inspector para continuar.
           </DialogDescription>
         </DialogHeader>
 
-        {/* SELECT DE ZONAS */}
+        {/* ZONA */}
         <div className="space-y-2 mt-4">
-          <Label className="font-semibold">Zona</Label>
-
+          <Label>Zona</Label>
           <Select value={zonaSeleccionada} onValueChange={setZonaSeleccionada}>
             <SelectTrigger>
               <SelectValue placeholder="Selecciona una zona" />
             </SelectTrigger>
-
             <SelectContent>
-              {zonas.length === 0 ? (
-                <div className="text-muted-foreground p-3 text-center">
-                  No hay zonas registradas
-                </div>
-              ) : (
-                zonas.map((zona) => (
-                  <SelectItem key={zona.id_zona} value={String(zona.id_zona)}>
-                    {zona.nombreZona}
-                  </SelectItem>
-                ))
-              )}
+              {zonas.map((z) => (
+                <SelectItem key={z.id_zona} value={String(z.id_zona)}>
+                  {z.nombreZona}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* SELECT DE TRABAJADORES */}
+        {/* INSPECTOR */}
         <div className="space-y-2 mt-4">
-          <Label className="font-semibold">Trabajador</Label>
-
+          <Label>Inspector</Label>
           <Select
-            value={trabajadorSeleccionado}
-            onValueChange={setTrabajadorSeleccionado}
+            value={inspectorSeleccionado}
+            onValueChange={setInspectorSeleccionado}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Selecciona un trabajador" />
+              <SelectValue placeholder="Selecciona un inspector" />
             </SelectTrigger>
-
             <SelectContent>
-              {trabajadores.length === 0 ? (
-                <div className="text-muted-foreground p-3 text-center">
-                  No hay trabajadores disponibles
-                </div>
-              ) : (
-                trabajadores.map((t) => (
-                  <SelectItem key={t.id_trabajador} value={String(t.id_trabajador)}>
-                    {t.persona?.nombre} {t.persona?.apellido}
-                  </SelectItem>
-                ))
-              )}
+              {inspectores.map((i: any) => (
+                <SelectItem
+                  key={i.id_inspector}
+                  value={String(i.id_inspector)}
+                >
+                  {i.nombre} {i.apellido} – {i.cedula}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -161,15 +231,14 @@ export function ZoneAssignForm({ open, onClose }: ZoneAssignFormProps) {
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-
           <Button
             onClick={handleSubmit}
-            disabled={!zonaSeleccionada || !trabajadorSeleccionado}
+            disabled={!zonaSeleccionada || !inspectorSeleccionado}
           >
-            Guardar Asignación
+            {editingItem ? "Actualizar" : "Guardar"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
