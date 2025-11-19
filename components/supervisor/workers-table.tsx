@@ -23,8 +23,6 @@ import {
 import {
   Search,
   MapPin,
-  HardHat,
-  Shield,
   Plus,
   Pencil,
   Trash2,
@@ -40,11 +38,12 @@ import {
 } from "@/servicios/trabajador";
 
 import { WorkerDialog } from "./worker-dialog";
+import { AssignWorkerZonesDialog } from "./assign-worker-zones-dialog";
 
 // ===============================
 // 🔥 Tipo adaptado al backend real
 // ===============================
-interface WorkerAPI {
+export interface WorkerAPI {
   id_trabajador: number;
   codigo_trabajador: string;
   implementos_requeridos: string;
@@ -70,6 +69,11 @@ export function WorkersTable() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<WorkerAPI | null>(null);
+
+  // 👉 estado para el diálogo de zonas
+  const [zonesDialogOpen, setZonesDialogOpen] = useState(false);
+  const [selectedWorkerForZones, setSelectedWorkerForZones] =
+    useState<WorkerAPI | null>(null);
 
   // =======================================================
   // 🔥 Cargar trabajadores reales desde FastAPI
@@ -213,6 +217,12 @@ export function WorkersTable() {
     setDialogOpen(false);
     setEditingWorker(null);
     loadWorkers();
+  };
+
+  // 👉 abrir diálogo de zonas
+  const handleOpenZones = (worker: WorkerAPI) => {
+    setSelectedWorkerForZones(worker);
+    setZonesDialogOpen(true);
   };
 
   return (
@@ -363,8 +373,6 @@ export function WorkersTable() {
                               ? "bg-blue-900 text-white hover:bg-blue-950"
                               : "bg-red-800 text-white hover:bg-red-900"
                           }
-
-
                         >
                           {worker.estado ? "Activo" : "Inactivo"}
                         </Badge>
@@ -372,7 +380,12 @@ export function WorkersTable() {
 
                       {/* ✔ ZONAS BUTTON */}
                       <TableCell>
-                        <Button variant="ghost" size="sm" className="p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="p-2"
+                          onClick={() => handleOpenZones(worker)}
+                        >
                           <MapPin className="w-4 h-4 text-blue-700" />
                         </Button>
                       </TableCell>
@@ -416,6 +429,13 @@ export function WorkersTable() {
         open={dialogOpen}
         onClose={handleDialogClose}
         worker={editingWorker}
+      />
+
+      {/* Modal asignar zonas */}
+      <AssignWorkerZonesDialog
+        open={zonesDialogOpen}
+        onClose={() => setZonesDialogOpen(false)}
+        worker={selectedWorkerForZones}
       />
     </>
   );
