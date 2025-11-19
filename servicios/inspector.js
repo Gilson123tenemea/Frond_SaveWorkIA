@@ -116,3 +116,25 @@ export async function listarInspectoresPorSupervisor(idSupervisor) {
     throw error;
   }
 }
+
+// ============================
+// 📌 Obtener ZONAS asignadas a un inspector
+// ============================
+export async function obtenerZonasPorInspector(idInspector) {
+  try {
+    const response = await fetch(`${INSPECTOR_URL}/zonas/${idInspector}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const txt = await response.text();
+      console.error("❌ Error en obtenerZonasPorInspector:", txt);
+      throw new Error("Error obteniendo zonas del inspector");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ obtenerZonasPorInspector:", error);
+    throw error;
+  }
+}
