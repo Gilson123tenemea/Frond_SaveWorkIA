@@ -115,3 +115,23 @@ export async function obtenerEmpresaPorSupervisor(idSupervisor) {
     throw error;
   }
 }
+
+export async function obtenerPerfilSupervisor(idSupervisor) {
+  const response = await fetch(`${SUPERVISOR_URL}/perfil/${idSupervisor}`);
+  if (!response.ok) throw new Error("Error obteniendo perfil");
+  return response.json();
+}
+
+export async function actualizarPerfilSupervisor(id, data) {
+  const res = await fetch(`${SUPERVISOR_URL}/perfil/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) throw new Error("Error actualizando perfil");
+
+  return res.json();
+}
+
+
