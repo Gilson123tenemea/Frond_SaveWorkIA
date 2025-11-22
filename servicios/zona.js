@@ -60,7 +60,7 @@ export async function listarZonas() {
 }
 
 // ============================
-// 📌 Listar zonas por empresa (CORREGIDO)
+// 📌 Listar zonas por empresa (AHORA CON TOTAL_CAMARAS Y TOTAL_TRABAJADORES)
 // ============================
 export async function listarZonasPorEmpresa(empresaId) {
   try {
@@ -78,15 +78,28 @@ export async function listarZonasPorEmpresa(empresaId) {
       const id = zona.id_Zona ?? zona.id_zona ?? zona.id;
 
       return {
-        id_zona: id,   // 👈 normalizado
-        id_Zona: id,   // 👈 normalizado
+        id_zona: id,
+        id_Zona: id,
+
         nombreZona: zona.nombreZona ?? zona.nombre ?? "",
         latitud: zona.latitud ?? "",
         longitud: zona.longitud ?? "",
         borrado: zona.borrado ?? true,
-        id_empresa_zona: zona.id_empresa_zona ?? zona.id_empresa ?? null,
+
+        id_empresa_zona:
+          zona.id_empresa_zona ??
+          zona.id_empresa ??
+          zona.empresa_id ??
+          null,
+
         id_administrador_zona:
-          zona.id_administrador_zona ?? zona.administrador_id ?? null,
+          zona.id_administrador_zona ??
+          zona.administrador_id ??
+          null,
+
+        // 🔹 NUEVOS CAMPOS DEL BACKEND 🔥
+        total_camaras: zona.total_camaras ?? 0,
+        total_trabajadores: zona.total_trabajadores ?? 0,
       };
     });
   } catch (error) {
@@ -94,6 +107,7 @@ export async function listarZonasPorEmpresa(empresaId) {
     return [];
   }
 }
+
 
 
 
