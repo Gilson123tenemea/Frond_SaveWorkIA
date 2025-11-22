@@ -11,20 +11,53 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import toast from "react-hot-toast";
 
-import { registrarTrabajador, editarTrabajador } from "../../servicios/trabajador";
+// Servicios
+import {
+  registrarTrabajador,
+  editarTrabajador,
+  validarCedulaInstantanea,
+  validarCorreoInstantaneo,
+  validarCodigoInstantaneo,
+} from "../../servicios/trabajador";
+
+import {
+  validarCedulaEcuatoriana,
+  validarNombre,
+  validarApellido,
+  validarTelefono,
+  validarCorreo,
+  validarDireccion,
+  validarGenero,
+  validarFechaNacimiento,
+  validarCargo,
+  validarAreaTrabajo,
+  validarImplementos,
+  validarEstadoTrabajador,
+  validarCodigoTrabajador,
+  validarContrasena,
+} from "../validaciones/validaciones";
+
 import { obtenerEmpresaPorSupervisor } from "../../servicios/supervisor";
-
 import { getUser } from "@/lib/auth";
 
 export function WorkerDialog({ open, onClose, worker }: any) {
-  const { toast } = useToast();
   const currentUser = getUser();
-  const isEditing = Boolean(worker); 
+  const isEditing = Boolean(worker);
 
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<any>({});
+
+  // 👉 Tipo para evitar error TS7006
+  type FormDataType = typeof formData;
 
   const [formData, setFormData] = useState({
     cedula: "",
@@ -45,28 +78,121 @@ export function WorkerDialog({ open, onClose, worker }: any) {
     id_supervisor_trabajador: 0,
   });
 
-  // ===========================
-  // 🔵 PRE-CARGA DEL FORMULARIO
-  // ===========================
+  // -------------------------------------------------
+  // VALIDAR CAMPO
+  // -------------------------------------------------
+  const validateField = async (name: string, value: any) => {
+    let error = null;
+
+    switch (name) {
+      case "cedula":
+        error = validarCedulaEcuatoriana(value);
+        if (!error && !isEditing) {
+          const existe = await validarCedulaInstantanea(value);
+          if (existe) error = "Esta cédula ya está registrada";
+        }
+        break;
+
+      case "correo":
+        error = validarCorreo(value);
+        if (!error && !isEditing) {
+          const existe = await validarCorreoInstantaneo(value);
+          if (existe) error = "Este correo ya está registrado";
+        }
+        break;
+
+      case "nombre":
+        error = validarNombre(value);
+        break;
+
+      case "apellido":
+        error = validarApellido(value);
+        break;
+
+      case "telefono":
+        error = validarTelefono(value);
+        break;
+
+      case "direccion":
+        error = validarDireccion(value);
+        break;
+
+      case "genero":
+        error = validarGenero(value);
+        break;
+
+      case "fecha_nacimiento":
+        error = validarFechaNacimiento(value);
+        break;
+
+      case "contrasena":
+        if (!isEditing) error = validarContrasena(value);
+        break;
+
+      case "cargo":
+        error = validarCargo(value);
+        break;
+
+      case "area_trabajo":
+        error = validarAreaTrabajo(value);
+        break;
+
+      case "implementos_requeridos":
+        error = validarImplementos(value);
+        break;
+
+      case "estado":
+        error = validarEstadoTrabajador(value ? "activo" : "inactivo");
+        break;
+
+      case "codigo_trabajador":
+        error = validarCodigoTrabajador(value);
+
+        if (!error && !isEditing) {
+          const existe = await validarCodigoInstantaneo(value);
+          if (existe) error = "Este código ya está registrado";
+        }
+        break;
+
+    }
+
+    setErrors((prev: any) => ({ ...prev, [name]: error }));
+    return error;
+  };
+
+  // -------------------------------------------------
+  // VALIDAR TODO
+  // -------------------------------------------------
+  const validateAll = async () => {
+    const nuevosErrores: any = {};
+
+    for (const key in formData) {
+      const value = (formData as any)[key];
+      const err = await validateField(key, value);
+      nuevosErrores[key] = err;
+    }
+
+    setErrors(nuevosErrores);
+    return !Object.values(nuevosErrores).some((e) => e);
+  };
+
+  // -------------------------------------------------
+  // PRECARGA
+  // -------------------------------------------------
   useEffect(() => {
     async function cargarEmpresa() {
-      try {
-        if (currentUser?.id_supervisor) {
-          const empresa = await obtenerEmpresaPorSupervisor(currentUser.id_supervisor);
+      if (currentUser?.id_supervisor) {
+        const empresa = await obtenerEmpresaPorSupervisor(currentUser.id_supervisor);
 
-           setFormData((prev) => ({
-            ...prev,
-            id_empresa: empresa.id_Empresa,
-            id_supervisor_trabajador: currentUser?.id_supervisor ?? 0,
-          }));
-        }
-      } catch (err) {
-        console.error("Error cargando empresa:", err);
+        setFormData((prev: FormDataType) => ({
+          ...prev,
+          id_empresa: empresa.id_Empresa,
+          id_supervisor_trabajador: currentUser?.id_supervisor ?? 0,
+        }));
       }
     }
 
     if (isEditing) {
-      // 🔵 EDICIÓN
       setFormData({
         cedula: worker.persona.cedula,
         nombre: worker.persona.nombre,
@@ -86,9 +212,7 @@ export function WorkerDialog({ open, onClose, worker }: any) {
         id_supervisor_trabajador: worker.id_supervisor_trabajador,
       });
     } else {
-      // 🔵 NUEVO
-      setFormData((prev) => ({
-        ...prev,
+      setFormData({
         cedula: "",
         nombre: "",
         apellido: "",
@@ -105,17 +229,34 @@ export function WorkerDialog({ open, onClose, worker }: any) {
         codigo_trabajador: "",
         id_empresa: 0,
         id_supervisor_trabajador: 0,
-      }));
+      });
 
       cargarEmpresa();
     }
   }, [worker, open]);
 
-  // ===========================
-  // 🔵 ENVIAR FORMULARIO
-  // ===========================
-  const handleSubmit = async (e: React.FormEvent) => {
+  // -------------------------------------------------
+  // SUBMIT FINAL (CON TOAST.PROMISE)
+  // -------------------------------------------------
+  // -------------------------------------------------
+  // SUBMIT FINAL (CON TOAST.PROMISE STYLE)
+  // -------------------------------------------------
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
+
+    const esValido = await validateAll();
+    if (!esValido) {
+      toast.error("❌ Corrija los campos marcados en rojo", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+        },
+      });
+      return;
+    }
+
     setLoading(true);
 
     const body = {
@@ -128,7 +269,7 @@ export function WorkerDialog({ open, onClose, worker }: any) {
         direccion: formData.direccion,
         genero: formData.genero,
         fecha_nacimiento: formData.fecha_nacimiento,
-        contrasena: formData.contrasena, // 🔥 vacío si es edición
+        contrasena: formData.contrasena,
       },
       trabajador: {
         cargo: formData.cargo,
@@ -143,25 +284,115 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
     try {
       if (isEditing) {
-        await editarTrabajador(worker.id_trabajador, body);
-        toast({ title: "Trabajador actualizado" });
-      } else {
-        await registrarTrabajador(body);
-        toast({ title: "Trabajador registrado" });
-      }
+        // 🔵 ACTUALIZAR TRABAJADOR
+        const promise = editarTrabajador(worker.id_trabajador, body);
 
-      onClose();
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err?.message || "Error inesperado",
+        toast.loading("Actualizando trabajador...", {
+          id: "worker-update",
+          style: {
+            background: "#2563eb",
+            color: "#fff",
+            borderRadius: "8px",
+            fontWeight: 500,
+          },
+        });
+
+        try {
+          await promise;
+
+          toast.success(
+            `Trabajador "${formData.nombre} ${formData.apellido}" actualizado con éxito`,
+            {
+              id: "worker-update",
+              style: {
+                background: "#1d4ed8",
+                color: "#fff",
+                borderRadius: "8px",
+                fontWeight: 500,
+              },
+            }
+          );
+
+          onClose();
+        } catch {
+          toast.error("❌ No se pudo actualizar el trabajador", {
+            id: "worker-update",
+            style: {
+              background: "#dc2626",
+              color: "#fff",
+              borderRadius: "8px",
+              fontWeight: 500,
+            },
+          });
+        }
+      } else {
+        // 🟢 REGISTRAR TRABAJADOR
+        const promise = registrarTrabajador(body);
+
+        toast.loading("Registrando trabajador...", {
+          id: "worker-create",
+          style: {
+            background: "#16a34a",
+            color: "#fff",
+            borderRadius: "8px",
+            fontWeight: 500,
+          },
+        });
+
+        try {
+          await promise;
+
+          toast.success(
+            `Trabajador "${formData.nombre} ${formData.apellido}" registrado exitosamente`,
+            {
+              id: "worker-create",
+              style: {
+                background: "#15803d",
+                color: "#fff",
+                borderRadius: "8px",
+                fontWeight: 500,
+              },
+            }
+          );
+
+          onClose();
+        } catch {
+          toast.error("❌ No se pudo registrar el trabajador", {
+            id: "worker-create",
+            style: {
+              background: "#dc2626",
+              color: "#fff",
+              borderRadius: "8px",
+              fontWeight: 500,
+            },
+          });
+        }
+      }
+    } catch {
+      toast.error("❌ Error inesperado", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+        },
       });
     }
 
     setLoading(false);
   };
 
+
+
+  // -------------------------------------------------
+  // RENDER ERROR
+  // -------------------------------------------------
+  const renderError = (field: string) =>
+    errors[field] && <p className="text-red-500 text-xs mt-1">{errors[field]}</p>;
+
+  // -------------------------------------------------
+  // RENDER
+  // -------------------------------------------------
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-xl max-h-[75vh] overflow-y-auto rounded-xl">
@@ -172,15 +403,20 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 py-3">
 
-          {/* CÉDULA */} 
+          {/* CÉDULA */}
           <div>
             <Label>Cédula</Label>
             <Input
+              maxLength={10}
+              disabled={isEditing}
               value={formData.cedula}
-              disabled={isEditing}       // 🔥 BLOQUEADO
-              required
-              onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setFormData({ ...formData, cedula: value });
+                validateField("cedula", value);
+              }}
             />
+            {renderError("cedula")}
           </div>
 
           {/* NOMBRE */}
@@ -188,9 +424,13 @@ export function WorkerDialog({ open, onClose, worker }: any) {
             <Label>Nombre</Label>
             <Input
               value={formData.nombre}
-              required
-              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
+                setFormData({ ...formData, nombre: value });
+                validateField("nombre", value);
+              }}
             />
+            {renderError("nombre")}
           </div>
 
           {/* APELLIDO */}
@@ -198,29 +438,42 @@ export function WorkerDialog({ open, onClose, worker }: any) {
             <Label>Apellido</Label>
             <Input
               value={formData.apellido}
-              required
-              onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
+                setFormData({ ...formData, apellido: value });
+                validateField("apellido", value);
+              }}
             />
+            {renderError("apellido")}
           </div>
 
           {/* TELÉFONO */}
           <div>
             <Label>Teléfono</Label>
             <Input
+              maxLength={10}
               value={formData.telefono}
-              onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setFormData({ ...formData, telefono: value });
+                validateField("telefono", value);
+              }}
             />
+            {renderError("telefono")}
           </div>
 
           {/* CORREO */}
           <div>
             <Label>Correo</Label>
             <Input
-              type="email"
               value={formData.correo}
-              required
-              onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData({ ...formData, correo: value });
+                validateField("correo", value);
+              }}
             />
+            {renderError("correo")}
           </div>
 
           {/* DIRECCIÓN */}
@@ -228,8 +481,13 @@ export function WorkerDialog({ open, onClose, worker }: any) {
             <Label>Dirección</Label>
             <Input
               value={formData.direccion}
-              onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData({ ...formData, direccion: value });
+                validateField("direccion", value);
+              }}
             />
+            {renderError("direccion")}
           </div>
 
           {/* GÉNERO */}
@@ -237,38 +495,49 @@ export function WorkerDialog({ open, onClose, worker }: any) {
             <Label>Género</Label>
             <Select
               value={formData.genero}
-              onValueChange={(value) => setFormData({ ...formData, genero: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, genero: value });
+                validateField("genero", value);
+              }}
             >
               <SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Masculino">Masculino</SelectItem>
                 <SelectItem value="Femenino">Femenino</SelectItem>
-                <SelectItem value="Otro">Otro</SelectItem>
               </SelectContent>
             </Select>
+            {renderError("genero")}
           </div>
 
           {/* FECHA NACIMIENTO */}
           <div>
-            <Label>Fecha de nacimiento</Label>
+            <Label>Fecha nacimiento</Label>
             <Input
               type="date"
-              required
               value={formData.fecha_nacimiento}
-              onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData({ ...formData, fecha_nacimiento: value });
+                validateField("fecha_nacimiento", value);
+              }}
             />
+            {renderError("fecha_nacimiento")}
           </div>
 
-          {/* CONTRASEÑA — SOLO NUEVO */}
+          {/* CONTRASEÑA */}
           {!isEditing && (
             <div>
               <Label>Contraseña</Label>
               <Input
                 type="password"
-                required
                 value={formData.contrasena}
-                onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData({ ...formData, contrasena: value });
+                  validateField("contrasena", value);
+                }}
               />
+              {renderError("contrasena")}
             </div>
           )}
 
@@ -276,28 +545,39 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           <div>
             <Label>Cargo</Label>
             <Input
-              required
               value={formData.cargo}
-              onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
+                setFormData({ ...formData, cargo: value });
+                validateField("cargo", value);
+              }}
             />
+            {renderError("cargo")}
           </div>
 
-          {/* ÁREA */}
+          {/* ÁREA TRABAJO */}
           <div>
             <Label>Área de trabajo</Label>
             <Input
-              required
               value={formData.area_trabajo}
-              onChange={(e) => setFormData({ ...formData, area_trabajo: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ0-9 ]/g, "");
+                setFormData({ ...formData, area_trabajo: value });
+                validateField("area_trabajo", value);
+              }}
             />
+            {renderError("area_trabajo")}
           </div>
 
           {/* IMPLEMENTOS */}
           <div>
-            <Label>Implementos de seguridad</Label>
+            <Label>Implementos</Label>
             <Select
               value={formData.implementos_requeridos}
-              onValueChange={(value) => setFormData({ ...formData, implementos_requeridos: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, implementos_requeridos: value });
+                validateField("implementos_requeridos", value);
+              }}
             >
               <SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger>
               <SelectContent>
@@ -305,6 +585,7 @@ export function WorkerDialog({ open, onClose, worker }: any) {
                 <SelectItem value="No Entregado">No Entregado</SelectItem>
               </SelectContent>
             </Select>
+            {renderError("implementos_requeridos")}
           </div>
 
           {/* ESTADO */}
@@ -312,9 +593,11 @@ export function WorkerDialog({ open, onClose, worker }: any) {
             <Label>Estado</Label>
             <Select
               value={formData.estado ? "active" : "inactive"}
-              onValueChange={(value) =>
-                setFormData({ ...formData, estado: value === "active" })
-              }
+              onValueChange={(value) => {
+                const booleanValue = value === "active";
+                setFormData({ ...formData, estado: booleanValue });
+                validateField("estado", booleanValue);
+              }}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -322,16 +605,34 @@ export function WorkerDialog({ open, onClose, worker }: any) {
                 <SelectItem value="inactive">Inactivo</SelectItem>
               </SelectContent>
             </Select>
+            {renderError("estado")}
           </div>
 
           {/* CÓDIGO */}
           <div>
-            <Label>Código trabajador</Label>
+            <Label>Código (TRA-001)</Label>
             <Input
-              required
+              maxLength={7}
               value={formData.codigo_trabajador}
-              onChange={(e) => setFormData({ ...formData, codigo_trabajador: e.target.value })}
+              onChange={async (e) => {
+                let value = e.target.value.toUpperCase();
+
+                value = value.replace(/[^A-Z0-9-]/g, "").replace(/--+/g, "-");
+
+                setFormData((prev) => ({
+                  ...prev,
+                  codigo_trabajador: value,
+                }));
+
+                await validateField("codigo_trabajador", value);
+              }}
+
             />
+
+            {renderError("codigo_trabajador")}
+
+
+
           </div>
 
           {/* BOTONES */}
@@ -343,6 +644,7 @@ export function WorkerDialog({ open, onClose, worker }: any) {
               {loading ? "Guardando..." : isEditing ? "Guardar cambios" : "Registrar"}
             </Button>
           </div>
+
         </form>
       </DialogContent>
     </Dialog>

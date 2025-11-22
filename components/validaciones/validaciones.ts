@@ -199,3 +199,61 @@ export function validarFrecuenciaVisita(freq: string) {
 
   return null;
 }
+
+export function validarCargo(cargo: string) {
+  if (!cargo) return "El cargo es obligatorio";
+
+  const patron = /^[A-Za-zÁÉÍÓÚáéíóúñÑ ]{3,50}$/;
+
+  if (!patron.test(cargo)) {
+    return "El cargo solo puede contener letras y espacios (3–50 caracteres)";
+  }
+
+  return null;
+}
+
+export function validarAreaTrabajo(area: string) {
+  if (!area) return "El área de trabajo es obligatoria";
+
+  const patron = /^[A-Za-z0-9ÁÉÍÓÚáéíóúñÑ ]{3,50}$/;
+
+  if (!patron.test(area)) {
+    return "El área de trabajo solo puede contener letras, números y espacios (3–50 caracteres)";
+  }
+
+  return null;
+}
+
+export function validarImplementos(impl: string) {
+  if (!impl || impl.trim() === "") {
+    return "Los implementos de seguridad son obligatorios";
+  }
+
+  if (impl.length < 3) {
+    return "Los implementos deben tener mínimo 3 caracteres";
+  }
+
+  return null;
+}
+
+export function validarEstadoTrabajador(estado: string) {
+  if (!estado) return "El estado es obligatorio";
+
+  if (estado !== "activo" && estado !== "inactivo") {
+    return "El estado debe ser 'activo' o 'inactivo'";
+  }
+
+  return null;
+}
+
+export function validarCodigoTrabajador(codigo: string) {
+  if (!codigo) return "El código trabajador es obligatorio";
+
+  const patron = /^TRA-\d{3}$/;
+
+  if (!patron.test(codigo)) {
+    return "El código debe tener el formato TRA-001";
+  }
+
+  return null;
+}

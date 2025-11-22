@@ -3,6 +3,32 @@ import { BASE_URL } from "./api";
 const TRABAJADOR_URL = `${BASE_URL}/trabajadores`;
 
 
+export async function validarCedulaInstantanea(cedula) {
+  try {
+    const response = await fetch(`${TRABAJADOR_URL}/validar-cedula/${cedula}`, {
+      method: "GET",
+    });
+
+    const data = await response.json();
+    return data.existe; // true = ya existe, false = disponible
+  } catch (error) {
+    console.error("❌ Error validando cédula:", error);
+    return false;
+  }
+}
+
+export async function validarCodigoInstantaneo(codigo) {
+  try {
+    const response = await fetch(`${TRABAJADOR_URL}/validar-codigo/${codigo}`);
+    const data = await response.json();
+    return data.existe; // true = ya existe
+  } catch (error) {
+    console.error("❌ Error validando código:", error);
+    return false;
+  }
+}
+
+
 // =======================================
 // 📌 Registrar un nuevo TRABAJADOR
 export async function registrarTrabajador(datosTrabajador) {
@@ -176,4 +202,14 @@ export async function listarTrabajadoresNoAsignados(idSupervisor) {
   }
 }
 
+export async function validarCorreoInstantaneo(correo) {
+  try {
+    const response = await fetch(`${TRABAJADOR_URL}/validar-correo/${correo}`);
+    const data = await response.json();
+    return data.existe; // true = ya existe, false = disponible
+  } catch (error) {
+    console.error("❌ Error validando correo:", error);
+    return false;
+  }
+}
 

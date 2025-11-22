@@ -58,9 +58,7 @@ export interface WorkerAPI {
   cargo: string;
 }
 
-// ===============================
-// 🚀 Componente Principal
-// ===============================
+
 
 export function WorkersTable() {
   const currentUser = getUser();
@@ -75,9 +73,7 @@ export function WorkersTable() {
   const [selectedWorkerForZones, setSelectedWorkerForZones] =
     useState<WorkerAPI | null>(null);
 
-  // =======================================================
-  // 🔥 Cargar trabajadores reales desde FastAPI
-  // =======================================================
+
   const loadWorkers = async () => {
     try {
       const user = getUser();
@@ -101,9 +97,7 @@ export function WorkersTable() {
     loadWorkers();
   }, []);
 
-  // =======================================================
-  // 🔎 Filtros (nombre, apellido, cedula)
-  // =======================================================
+
   const filteredWorkers = workers.filter((worker) =>
     (
       worker.persona.nombre +
@@ -115,9 +109,7 @@ export function WorkersTable() {
     worker.persona.cedula.includes(search)
   );
 
-  // =======================================================
-  // 🟥 ELIMINAR — confirmación PRO (overlay + toast)
-  // =======================================================
+
   const handleDelete = async (id: number, nombreCompleto: string) => {
     // Crear overlay oscuro
     const overlay = document.createElement("div");
@@ -131,6 +123,7 @@ export function WorkersTable() {
     overlay.style.transition = "opacity 0.3s ease";
     document.body.appendChild(overlay);
 
+    // Mostrar confirmación
     toast(
       (t) => (
         <div className="flex flex-col gap-4 p-2 text-center">
@@ -139,6 +132,7 @@ export function WorkersTable() {
           </p>
 
           <div className="flex justify-center gap-3">
+
             {/* Cancelar */}
             <button
               onClick={() => {
@@ -158,11 +152,27 @@ export function WorkersTable() {
 
                 const promise = eliminarTrabajador(id);
 
-                toast.promise(promise, {
-                  loading: "Eliminando trabajador...",
-                  success: `Trabajador "${nombreCompleto}" eliminado correctamente`,
-                  error: "❌ Error al eliminar el trabajador",
-                });
+                toast.promise(
+                  promise,
+                  {
+                    loading: "Eliminando trabajador...",
+                    success: `Trabajador "${nombreCompleto}" eliminado correctamente`,
+                    error: "❌ Error al eliminar el trabajador",
+                  },
+                  {
+                    style: {
+                      background: "#dc2626",
+                      color: "#fff",
+                      borderRadius: "8px",
+                      fontWeight: 500,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                    },
+                    iconTheme: {
+                      primary: "#fff",
+                      secondary: "#b91c1c",
+                    },
+                  }
+                );
 
                 try {
                   await promise;
@@ -200,9 +210,7 @@ export function WorkersTable() {
     }, 8000);
   };
 
-  // =======================================================
-  // ✏️ Editar trabajador
-  // =======================================================
+
   const handleEdit = (worker: WorkerAPI) => {
     setEditingWorker(worker);
     setDialogOpen(true);
@@ -219,7 +227,6 @@ export function WorkersTable() {
     loadWorkers();
   };
 
-  // 👉 abrir diálogo de zonas
   const handleOpenZones = (worker: WorkerAPI) => {
     setSelectedWorkerForZones(worker);
     setZonesDialogOpen(true);
@@ -398,7 +405,7 @@ export function WorkersTable() {
                             size="sm"
                             onClick={() => handleEdit(worker)}
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-4 h-4 text-blue-500" />
                           </Button>
 
                           <Button
