@@ -2,6 +2,21 @@ import { BASE_URL } from "./api";
 
 const INSPECTOR_URL = `${BASE_URL}/inspectores`;
 
+
+
+export async function verificarCedula(cedula) {
+  try {
+    const res = await fetch(`${INSPECTOR_URL}/validar-cedula/${cedula}`);
+
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    return data.existe; // true = ya existe activa
+  } catch (err) {
+    console.error("❌ Error verificando cédula:", err);
+    return false;
+  }
+}
 // ============================
 // 📌 Registrar un nuevo inspector
 // ============================

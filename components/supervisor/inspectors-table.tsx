@@ -131,11 +131,28 @@ export function InspectorsTable() {
 
                 const promise = eliminarInspector(id);
 
-                toast.promise(promise, {
-                  loading: "Eliminando inspector...",
-                  success: `Inspector "${nombreCompleto}" eliminado correctamente`,
-                  error: "❌ Error al eliminar el inspector",
-                });
+                toast.promise(
+                  promise,
+                  {
+                    loading: "Eliminando inspector...",
+                    success: `Inspector "${nombreCompleto}" eliminado correctamente`,
+                    error: "❌ Error al eliminar el inspector",
+                  },
+                  {
+                    style: {
+                      background: "#dc2626",
+                      color: "#fff",
+                      borderRadius: "8px",
+                      fontWeight: 500,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                    },
+                    iconTheme: {
+                      primary: "#fff",
+                      secondary: "#b91c1c",
+                    },
+                  }
+                );
+
 
                 try {
                   await promise;
@@ -268,7 +285,7 @@ export function InspectorsTable() {
                             size="sm"
                             onClick={() => handleEdit(i)}
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-4 h-4 text-blue-500" />
                           </Button>
 
                           <Button

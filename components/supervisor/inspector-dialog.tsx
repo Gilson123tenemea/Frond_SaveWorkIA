@@ -20,9 +20,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import { getUser } from "@/lib/auth";
 import { toast } from "react-hot-toast";
-import { registrarInspector, editarInspector } from "../../servicios/inspector";
+
+// 🔥 VALIDACIONES
+import {
+  validarCedulaEcuatoriana,
+  validarNombre,
+  validarApellido,
+  validarTelefono,
+  validarCorreo,
+  validarDireccion,
+  validarGenero,
+  validarFechaNacimiento,
+  validarContrasena,
+  validarZonaAsignada,
+  validarFrecuenciaVisita,
+} from "../validaciones/validaciones"
+
+import {
+  registrarInspector,
+  editarInspector,
+  verificarCedula,
+} from "../../servicios/inspector";
 
 interface InspectorDialogProps {
   open: boolean;
@@ -34,6 +55,9 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
   const currentUser = getUser();
   const isEditing = Boolean(inspector);
 
+  const [errors, setErrors] = useState<any>({});
+  const [cedulaVerificada, setCedulaVerificada] = useState<boolean | null>(null);
+
   // 📋 Estado del formulario
   const [formData, setFormData] = useState({
     cedula: "",
@@ -42,7 +66,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
     telefono: "",
     correo: "",
     direccion: "",
-    genero: "Masculino",
+    genero: "",
     fecha_nacimiento: "",
     contrasena: "",
     zona_asignada: "",
@@ -50,40 +74,139 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
   });
 
   useEffect(() => {
-    if (isEditing) {
-      setFormData({
-        cedula: inspector.cedula || "",
-        nombre: inspector.nombre || "",
-        apellido: inspector.apellido || "",
-        telefono: inspector.telefono || "",
-        correo: inspector.correo || "",
-        direccion: inspector.direccion || "",
-        genero: inspector.genero || "Masculino",
-        fecha_nacimiento: inspector.fecha_nacimiento || "",
-        contrasena: "", 
-        zona_asignada: inspector.zona_asignada || "",
-        frecuenciaVisita: inspector.frecuenciaVisita || "",
-      });
-    } else {
-      setFormData({
-        cedula: "",
-        nombre: "",
-        apellido: "",
-        telefono: "",
-        correo: "",
-        direccion: "",
-        genero: "Masculino",
-        fecha_nacimiento: "",
-        contrasena: "",
-        zona_asignada: "",
-        frecuenciaVisita: "",
-      });
+    if (open) {
+      if (isEditing) {
+        setFormData({
+          cedula: inspector.cedula || "",
+          nombre: inspector.nombre || "",
+          apellido: inspector.apellido || "",
+          telefono: inspector.telefono || "",
+          correo: inspector.correo || "",
+          direccion: inspector.direccion || "",
+          genero: inspector.genero || "",
+          fecha_nacimiento: inspector.fecha_nacimiento || "",
+          contrasena: "",
+          zona_asignada: inspector.zona_asignada || "",
+          frecuenciaVisita: inspector.frecuenciaVisita || "",
+        });
+      } else {
+        setFormData({
+          cedula: "",
+          nombre: "",
+          apellido: "",
+          telefono: "",
+          correo: "",
+          direccion: "",
+          genero: "",
+          fecha_nacimiento: "",
+          contrasena: "",
+          zona_asignada: "",
+          frecuenciaVisita: "",
+        });
+      }
     }
-  }, [inspector, isEditing]);
+  }, [open, inspector, isEditing]);
 
-  // 🧠 Guardar datos en backend
+
+  // 🟦 Validación por campo
+  const onChange = async (field: string, value: string) => {
+    let formateado = value;
+
+    // Filtros
+    if (field === "cedula") formateado = value.replace(/[^0-9]/g, "").slice(0, 10);
+    if (field === "telefono") formateado = value.replace(/[^0-9]/g, "").slice(0, 10);
+    if (field === "nombre") formateado = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
+    if (field === "apellido") formateado = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
+    if (field === "direccion")
+      formateado = value.replace(/[^A-Za-z0-9ÁÉÍÓÚáéíóúñÑ #.,-]/g, "");
+
+    setFormData((prev) => ({ ...prev, [field]: formateado }));
+
+    // Validaciones individuales
+    let error = null;
+
+    if (field === "cedula") {
+      error = validarCedulaEcuatoriana(formateado);
+
+      // 🔥 Verificar cédula repetida SOLO al crear
+      if (!isEditing && formateado.length === 10 && !error) {
+        const existe = await verificarCedula(formateado);
+        if (existe) {
+          error = "Ya existe un inspector activo con esta cédula";
+          setCedulaVerificada(true);
+        } else {
+          setCedulaVerificada(false);
+        }
+      }
+    }
+
+    if (field === "nombre") error = validarNombre(formateado);
+    if (field === "apellido") error = validarApellido(formateado);
+    if (field === "telefono") error = validarTelefono(formateado);
+    if (field === "correo") error = validarCorreo(formateado);
+    if (field === "direccion") error = validarDireccion(formateado);
+    if (field === "genero") error = validarGenero(formateado);
+    if (field === "fecha_nacimiento") error = validarFechaNacimiento(formateado);
+    if (field === "contrasena" && !isEditing) error = validarContrasena(formateado);
+    if (field === "zona_asignada") error = validarZonaAsignada(formateado);
+    if (field === "frecuenciaVisita") error = validarFrecuenciaVisita(formateado);
+
+    setErrors((prev: any) => ({ ...prev, [field]: error }));
+  };
+
+  // 🟦 Validación general
+  const formularioValido = () => {
+    return Object.values(errors).every((e) => e === null) &&
+      (!isEditing ? !cedulaVerificada : true);
+  };
+  // 🔵 Validar todos los campos al enviar
+  const validarTodo = () => {
+    const nuevosErrores: any = {};
+
+    nuevosErrores.cedula = validarCedulaEcuatoriana(formData.cedula);
+    nuevosErrores.nombre = validarNombre(formData.nombre);
+    nuevosErrores.apellido = validarApellido(formData.apellido);
+    nuevosErrores.telefono = validarTelefono(formData.telefono);
+    nuevosErrores.correo = validarCorreo(formData.correo);
+    nuevosErrores.direccion = validarDireccion(formData.direccion);
+    nuevosErrores.genero = validarGenero(formData.genero);
+    nuevosErrores.fecha_nacimiento = validarFechaNacimiento(formData.fecha_nacimiento);
+
+    if (!isEditing) {
+      nuevosErrores.contrasena = validarContrasena(formData.contrasena);
+    }
+
+    nuevosErrores.zona_asignada = validarZonaAsignada(formData.zona_asignada);
+    nuevosErrores.frecuenciaVisita = validarFrecuenciaVisita(formData.frecuenciaVisita);
+
+    setErrors(nuevosErrores);
+
+    return Object.values(nuevosErrores).every((e) => e === null);
+  };
+
+  // 🟦 Guardar
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 🔥 Validación completa ANTES de enviar
+    const todoOk = validarTodo();
+    if (!todoOk) {
+      toast.error("❌ Debe completar todos los campos obligatorios");
+      return;
+    }
+
+    // 🔥 Verificar cédula repetida SOLO al crear
+    if (!isEditing && formData.cedula.length === 10) {
+      const existe = await verificarCedula(formData.cedula);
+      if (existe) {
+        setErrors((prev: any) => ({
+          ...prev,
+          cedula: "Ya existe un inspector activo con esta cédula",
+        }));
+        toast.error("❌ La cédula ya está registrada");
+        return;
+      }
+    }
 
     try {
       const supervisorId = currentUser?.id;
@@ -98,7 +221,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           direccion: formData.direccion,
           genero: formData.genero,
           fecha_nacimiento: formData.fecha_nacimiento,
-          contrasena: formData.contrasena, 
+          contrasena: formData.contrasena, // ✔ Solo válida en crear
         },
         zona_asignada: formData.zona_asignada,
         frecuenciaVisita: formData.frecuenciaVisita,
@@ -106,27 +229,75 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
       };
 
       if (isEditing) {
-        await editarInspector(inspector.id_inspector, datosInspector);
-        toast.success("✔ Datos actualizados correctamente");
+        const promise = editarInspector(inspector.id_inspector, datosInspector);
+
+        toast.promise(
+          promise,
+          {
+            loading: "Actualizando inspector...",
+            success: `Inspector "${formData.nombre} ${formData.apellido}" actualizado con éxito`,
+            error: "❌ Ocurrió un error al actualizar el inspector",
+          },
+          {
+            style: {
+              background: "#2563eb",
+              color: "#fff",
+              borderRadius: "8px",
+              fontWeight: 500,
+              boxShadow: "0 2px 20px rgba(0, 0, 0, 0.25)",
+            },
+            iconTheme: {
+              primary: "#fff",
+              secondary: "#1e3a8a",
+            },
+          }
+        );
+
+        await promise;
+
       } else {
-        await registrarInspector(datosInspector);
-        toast.success("✔ Inspector registrado correctamente");
+        const promise = registrarInspector(datosInspector);
+
+        toast.promise(
+          promise,
+          {
+            loading: "Registrando inspector...",
+            success: `Inspector "${formData.nombre} ${formData.apellido}" registrado exitosamente`,
+            error: "❌ Ocurrió un error al registrar el inspector",
+          },
+          {
+            style: {
+              background: "#16a34a",
+              color: "#fff",
+              borderRadius: "8px",
+              fontWeight: 500,
+              boxShadow: "0 2px 20px rgba(0, 0, 0, 0.2)",
+            },
+            iconTheme: {
+              primary: "#fff",
+              secondary: "#15803d",
+            },
+          }
+        );
+
+        await promise;
+
+
       }
 
       onClose();
     } catch (error: any) {
-      console.error("❌ Error al guardar inspector:", error);
-      toast.error(error.message || "Error al guardar el inspector");
+      console.error("❌ Error guardando inspector:", error);
+      toast.error(error.message || "Error al guardar");
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>
-            {isEditing ? "Editar Inspector" : "Registrar Inspector"}
-          </DialogTitle>
+          <DialogTitle>{isEditing ? "Editar Inspector" : "Registrar Inspector"}</DialogTitle>
           <DialogDescription>
             {isEditing
               ? "Modifica la información del inspector"
@@ -135,120 +306,128 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Datos personales */}
+
+          {/* GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Cédula bloqueada al editar */}
+
+            {/* CÉDULA */}
             <div>
               <Label>Cédula</Label>
               <Input
                 value={formData.cedula}
-                onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
-                required
-                disabled={isEditing} // 🔥 BLOQUEADO
+                disabled={isEditing}
+                onChange={(e) => onChange("cedula", e.target.value)}
               />
+              {errors.cedula && <p className="text-red-500 text-sm">{errors.cedula}</p>}
             </div>
 
+            {/* TELÉFONO */}
             <div>
               <Label>Teléfono</Label>
               <Input
                 value={formData.telefono}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                required
+                onChange={(e) => onChange("telefono", e.target.value)}
               />
+              {errors.telefono && <p className="text-red-500 text-sm">{errors.telefono}</p>}
             </div>
 
+            {/* NOMBRE */}
             <div>
               <Label>Nombre</Label>
               <Input
                 value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                required
+                onChange={(e) => onChange("nombre", e.target.value)}
               />
+              {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre}</p>}
             </div>
 
+            {/* APELLIDO */}
             <div>
               <Label>Apellido</Label>
               <Input
                 value={formData.apellido}
-                onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                required
+                onChange={(e) => onChange("apellido", e.target.value)}
               />
+              {errors.apellido && <p className="text-red-500 text-sm">{errors.apellido}</p>}
             </div>
 
+            {/* CORREO */}
             <div>
               <Label>Correo</Label>
               <Input
-                type="email"
                 value={formData.correo}
-                onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                required
+                onChange={(e) => onChange("correo", e.target.value)}
               />
+              {errors.correo && <p className="text-red-500 text-sm">{errors.correo}</p>}
             </div>
 
+            {/* DIRECCIÓN */}
             <div>
               <Label>Dirección</Label>
               <Input
                 value={formData.direccion}
-                onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                required
+                onChange={(e) => onChange("direccion", e.target.value)}
               />
+              {errors.direccion && <p className="text-red-500 text-sm">{errors.direccion}</p>}
             </div>
 
+            {/* FECHA NACIMIENTO */}
             <div>
-              <Label>Fecha de nacimiento</Label>
+              <Label>Fecha de Nacimiento</Label>
               <Input
                 type="date"
                 value={formData.fecha_nacimiento}
-                onChange={(e) =>
-                  setFormData({ ...formData, fecha_nacimiento: e.target.value })
-                }
-                required
+                onChange={(e) => onChange("fecha_nacimiento", e.target.value)}
               />
+              {errors.fecha_nacimiento && (
+                <p className="text-red-500 text-sm">{errors.fecha_nacimiento}</p>
+              )}
             </div>
 
-            {/* Contraseña bloqueada al editar */}
+            {/* CONTRASEÑA */}
             <div>
               <Label>Contraseña</Label>
               <Input
                 type="password"
+                disabled={isEditing}
                 value={formData.contrasena}
-                onChange={(e) =>
-                  setFormData({ ...formData, contrasena: e.target.value })
-                }
-                required={!isEditing}   // 🔥 SOLO requerido al crear
-                disabled={isEditing}    // 🔥 BLOQUEADO al editar
+                onChange={(e) => onChange("contrasena", e.target.value)}
               />
+              {!isEditing && errors.contrasena && (
+                <p className="text-red-500 text-sm">{errors.contrasena}</p>
+              )}
             </div>
-          </div>
 
-          {/* Datos específicos */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* ZONA ASIGNADA */}
             <div>
               <Label>Zona Asignada</Label>
               <Input
                 value={formData.zona_asignada}
-                onChange={(e) =>
-                  setFormData({ ...formData, zona_asignada: e.target.value })
-                }
-                required
+                onChange={(e) => onChange("zona_asignada", e.target.value)}
               />
+              {errors.zona_asignada && (
+                <p className="text-red-500 text-sm">{errors.zona_asignada}</p>
+              )}
             </div>
 
+            {/* FRECUENCIA VISITA */}
             <div>
               <Label>Frecuencia de Visita</Label>
               <Input
                 value={formData.frecuenciaVisita}
-                onChange={(e) =>
-                  setFormData({ ...formData, frecuenciaVisita: e.target.value })
-                }
+                onChange={(e) => onChange("frecuenciaVisita", e.target.value)}
               />
+              {errors.frecuenciaVisita && (
+                <p className="text-red-500 text-sm">{errors.frecuenciaVisita}</p>
+              )}
             </div>
 
+            {/* GÉNERO */}
             <div>
               <Label>Género</Label>
               <Select
                 value={formData.genero}
-                onValueChange={(value) => setFormData({ ...formData, genero: value })}
+                onValueChange={(v) => onChange("genero", v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccione un género" />
@@ -258,15 +437,21 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
                   <SelectItem value="Femenino">Femenino</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.genero && <p className="text-red-500 text-sm">{errors.genero}</p>}
             </div>
+
           </div>
 
-          {/* Botones */}
+          {/* BOTONES */}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button variant="outline" type="button" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit">
+
+            <Button
+              type="submit"
+              disabled={!formularioValido()}
+            >
               {isEditing ? "Guardar Cambios" : "Registrar"}
             </Button>
           </DialogFooter>

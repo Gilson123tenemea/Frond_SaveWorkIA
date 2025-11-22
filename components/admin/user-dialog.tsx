@@ -16,8 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Shield, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { registrarSupervisor } from "../../servicios/supervisor"
-import { listarEmpresas } from "../../servicios/empresa"
 import { useEffect } from "react"
+import { obtenerEmpresasDisponibles } from "../../servicios/supervisor"
 
 interface UserDialogProps {
   open: boolean
@@ -54,13 +54,14 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
 
   const cargarEmpresas = async () => {
     try {
-      const data = await listarEmpresas()
-      const activas = data.filter((e: any) => e.borrado === true || e.borrado === 1)
-      setEmpresas(activas)
+      const data = await obtenerEmpresasDisponibles();
+      setEmpresas(data);
     } catch (error) {
-      console.error("Error al cargar empresas:", error)
+      console.error("Error al cargar empresas disponibles:", error);
     }
-  }
+  };
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)

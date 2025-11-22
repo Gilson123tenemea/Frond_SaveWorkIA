@@ -2,6 +2,21 @@ import { BASE_URL } from "./api";
 
 const SUPERVISOR_URL = `${BASE_URL}/supervisores`;
 
+
+export async function verificarCedula(cedula) {
+  try {
+    const res = await fetch(`${SUPERVISOR_URL}/validar-cedula/${cedula}`);
+
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    return data.existe; // true = ya existe activa
+  } catch (err) {
+    console.error("❌ Error verificando cédula:", err);
+    return false;
+  }
+}
+
 // ============================
 // 📌 Registrar un nuevo supervisor
 // ============================
@@ -94,6 +109,30 @@ export async function editarSupervisor(idSupervisor, datosSupervisor) {
     throw error;
   }
 }
+
+// ============================
+// 📌 Obtener empresas disponibles (sin supervisor asignado)
+// ============================
+export async function obtenerEmpresasDisponibles() {
+  try {
+    const response = await fetch(`${SUPERVISOR_URL}/empresas-disponibles`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Error en obtenerEmpresasDisponibles:", errorText);
+      throw new Error("Error al obtener las empresas disponibles");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ obtenerEmpresasDisponibles:", error);
+    throw error;
+  }
+}
+
+
 // ============================
 // 📌 Obtener empresa por ID del supervisor
 // ============================
