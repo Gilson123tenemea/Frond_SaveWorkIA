@@ -141,36 +141,84 @@ export function ZoneAssignForm({
       };
 
       if (editingItem) {
+        // ===============================
+        // 🔵 ACTUALIZAR — DISEÑO PRO
+        // ===============================
         const promise = actualizarAsignacion(
           editingItem.id_inspector_zona,
           payload
         );
 
-        toast.promise(promise, {
-          loading: "Actualizando...",
-          success: "Asignación actualizada",
-          error: "Error al actualizar",
-        });
+        toast.promise(
+          promise,
+          {
+            loading: "Actualizando asignación...",
+            success: `Asignación actualizada correctamente`,
+            error: "❌ Error al actualizar la asignación",
+          },
+          {
+            style: {
+              background: "#2563eb",
+              color: "#fff",
+              borderRadius: "8px",
+              fontWeight: 500,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+            },
+            iconTheme: {
+              primary: "#fff",
+              secondary: "#1e3a8a",
+            },
+          }
+        );
 
         await promise;
+
       } else {
+        // ===============================
+        // 🟢 CREAR — DISEÑO PRO
+        // ===============================
         const promise = crearAsignacionInspectorZona(payload);
 
-        toast.promise(promise, {
-          loading: "Guardando...",
-          success: "Asignación creada",
-          error: "Error al crear",
-        });
+        toast.promise(
+          promise,
+          {
+            loading: "Guardando asignación...",
+            success: `Asignación creada exitosamente`,
+            error: "❌ Error al crear la asignación",
+          },
+          {
+            style: {
+              background: "#16a34a",
+              color: "#fff",
+              borderRadius: "8px",
+              fontWeight: 500,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+            },
+            iconTheme: {
+              primary: "#fff",
+              secondary: "#15803d",
+            },
+          }
+        );
 
         await promise;
       }
 
       onClose();
+
     } catch (error) {
       console.error(error);
-      toast.error("Error al guardar");
+      toast.error("Error al guardar", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+        },
+      });
     }
   };
+
 
   // ===============================
   // RENDER UI

@@ -84,11 +84,27 @@ export function ZoneAssignmentsTable() {
 
                 const promise = eliminarAsignacion(id);
 
-                toast.promise(promise, {
-                  loading: "Eliminando asignación...",
-                  success: "Asignación eliminada correctamente",
-                  error: "❌ Error al eliminar la asignación"
-                });
+                toast.promise(
+                  promise,
+                  {
+                    loading: "Eliminando asignación...",
+                    success: `Asignación eliminada correctamente`,
+                    error: "❌ Error al eliminar la asignación",
+                  },
+                  {
+                    style: {
+                      background: "#dc2626",
+                      color: "#fff",
+                      borderRadius: "8px",
+                      fontWeight: 500,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                    },
+                    iconTheme: {
+                      primary: "#fff",
+                      secondary: "#b91c1c",
+                    },
+                  }
+                );
 
                 await promise;
                 loadAsignaciones();
@@ -97,6 +113,7 @@ export function ZoneAssignmentsTable() {
             >
               Eliminar
             </button>
+
           </div>
         </div>
       ),
@@ -201,7 +218,7 @@ export function ZoneAssignmentsTable() {
                               setEditingItem(a);
                               setDialogOpen(true);
                             }}>
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-4 h-4 text-blue-500" />
                           </Button>
 
                           <Button variant="ghost" size="sm"
