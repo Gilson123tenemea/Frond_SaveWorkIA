@@ -14,10 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { crearEmpresa, actualizarEmpresa } from "../../servicios/empresa";
+import { crearEmpresa, actualizarEmpresa } from "@/servicios/empresa";
 import { getUser } from "@/lib/auth";
 
-// 🟦 Importar validaciones
 import {
   campoObligatorio,
   validarNombreEmpresa,
@@ -35,8 +34,6 @@ interface EmpresaDialogProps {
 
 export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: EmpresaDialogProps) {
   const [loading, setLoading] = useState(false);
-
-  // 🔴 errores por campo
   const [errors, setErrors] = useState<any>({});
 
   const [formData, setFormData] = useState({
@@ -49,9 +46,7 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
     id_administrador_empresa: 0,
   });
 
-  // ================================
-  // CARGA DE DATOS
-  // ================================
+  // CARGAR DATOS
   useEffect(() => {
     const user = getUser();
     const adminId = user?.id_administrador;
@@ -81,9 +76,7 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
     setErrors({});
   }, [empresa, open]);
 
-  // ================================
-  // VALIDACIÓN COMPLETA
-  // ================================
+  // VALIDACIONES
   const validateForm = () => {
     const newErrors: any = {};
 
@@ -92,11 +85,9 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
       validarNombreEmpresa(formData.nombreEmpresa);
 
     newErrors.ruc =
-      campoObligatorio(formData.ruc, "RUC") ||
-      validarRuc(formData.ruc);
+      campoObligatorio(formData.ruc, "RUC") || validarRuc(formData.ruc);
 
-    newErrors.direccion =
-      campoObligatorio(formData.direccion, "Dirección");
+    newErrors.direccion = campoObligatorio(formData.direccion, "Dirección");
 
     newErrors.telefono =
       campoObligatorio(formData.telefono, "Teléfono") ||
@@ -106,29 +97,36 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
       campoObligatorio(formData.correo, "Correo electrónico") ||
       validarCorreo(formData.correo);
 
-    newErrors.sector =
-      campoObligatorio(formData.sector, "Sector");
+    newErrors.sector = campoObligatorio(formData.sector, "Sector");
 
     setErrors(newErrors);
 
     return Object.values(newErrors).every((e) => e === null);
   };
 
-  // ================================
-  // GUARDAR / ACTUALIZAR
-  // ================================
+  // SUBMIT
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ❌ Si las validaciones fallan
     if (!validateForm()) {
       toast.error("⚠️ Corrige los campos marcados en rojo.");
       return;
     }
 
+    let payload: any = {
+      nombreEmpresa: formData.nombreEmpresa,
+      direccion: formData.direccion,
+      telefono: formData.telefono,
+      correo: formData.correo,
+      sector: formData.sector,
+      id_administrador_empresa: formData.id_administrador_empresa,
+    };
+
+    if (!empresa) payload.ruc = formData.ruc;
+
     const promise = empresa
-      ? actualizarEmpresa(empresa.id_Empresa, formData)
-      : crearEmpresa(formData);
+      ? actualizarEmpresa(empresa.id_Empresa, payload)
+      : crearEmpresa(payload);
 
     toast.promise(
       promise,
@@ -137,31 +135,63 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
         success: empresa
           ? `Empresa "${formData.nombreEmpresa}" actualizada con éxito`
           : `Empresa "${formData.nombreEmpresa}" registrada exitosamente`,
-        error: "❌ Ocurrió un error al guardar la empresa",
+        error: (err: any) => {
+          const backendMsg =
+            err?.response?.data?.detail ||
+            err?.detail ||
+            err?.message ||
+            "Ocurrió un error";
+          return `⚠️ ${backendMsg}`;
+        },
       },
       {
-        style: {
-          background: empresa ? "#2563eb" : "#16a34a",
-          color: "#fff",
-          borderRadius: "8px",
-          fontWeight: 500,
-          boxShadow: "0 2px 20px rgba(0, 0, 0, 0.2)",
+        // 🔵 LOADING
+        loading: {
+          style: {
+            background: "#2563eb",
+            color: "#fff",
+            borderRadius: "8px",
+            fontWeight: 500,
+          },
+          iconTheme: {
+            primary: "#fff",
+            secondary: "#1e3a8a",
+          },
         },
-        iconTheme: {
-          primary: "#fff",
-          secondary: empresa ? "#1e3a8a" : "#15803d",
+        // 🟢 SUCCESS
+        success: {
+          style: {
+            background: "#16a34a",
+            color: "#fff",
+            borderRadius: "8px",
+            fontWeight: 500,
+          },
+          iconTheme: {
+            primary: "#fff",
+            secondary: "#14532d",
+          },
+        },
+        // 🔴 ERROR
+        error: {
+          style: {
+            background: "#dc2626",
+            color: "#fff",
+            borderRadius: "8px",
+            fontWeight: 500,
+          },
+          iconTheme: {
+            primary: "#fff",
+            secondary: "#7f1d1d",
+          },
         },
       }
     );
 
-    setLoading(true);
     try {
       await promise;
       onSuccess();
       onOpenChange(false);
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
   };
 
   return (
@@ -173,18 +203,18 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             {empresa ? "Editar Empresa" : "Registrar Nueva Empresa"}
           </DialogTitle>
           <DialogDescription>
-            {empresa ? "Actualiza los datos de la empresa" : "Registra una nueva empresa en el sistema"}
+            {empresa
+              ? "Actualiza los datos de la empresa"
+              : "Registra una nueva empresa en el sistema"}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
-
             {/* Nombre */}
-            <div className="space-y-2">
-              <Label htmlFor="nombreEmpresa">Nombre de la Empresa</Label>
+            <div>
+              <Label>Nombre de la Empresa</Label>
               <Input
-                id="nombreEmpresa"
                 placeholder="Ej: Constructora ABC"
                 value={formData.nombreEmpresa}
                 onChange={(e) =>
@@ -197,10 +227,9 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             </div>
 
             {/* RUC */}
-            <div className="space-y-2">
-              <Label htmlFor="ruc">RUC</Label>
+            <div>
+              <Label>RUC</Label>
               <Input
-                id="ruc"
                 placeholder="Ej: 1790012345001"
                 value={formData.ruc}
                 disabled={!!empresa}
@@ -214,10 +243,9 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             </div>
 
             {/* Dirección */}
-            <div className="space-y-2">
-              <Label htmlFor="direccion">Dirección</Label>
+            <div>
+              <Label>Dirección</Label>
               <Input
-                id="direccion"
                 placeholder="Ej: Av. Loja y Remigio Crespo"
                 value={formData.direccion}
                 onChange={(e) =>
@@ -230,10 +258,9 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             </div>
 
             {/* Teléfono */}
-            <div className="space-y-2">
-              <Label htmlFor="telefono">Teléfono</Label>
+            <div>
+              <Label>Teléfono</Label>
               <Input
-                id="telefono"
                 placeholder="0998887766"
                 value={formData.telefono}
                 onChange={(e) =>
@@ -246,10 +273,9 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             </div>
 
             {/* Correo */}
-            <div className="space-y-2">
-              <Label htmlFor="correo">Correo Electrónico</Label>
+            <div>
+              <Label>Correo Electrónico</Label>
               <Input
-                id="correo"
                 type="email"
                 placeholder="contacto@empresa.com"
                 value={formData.correo}
@@ -263,10 +289,9 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             </div>
 
             {/* Sector */}
-            <div className="space-y-2">
-              <Label htmlFor="sector">Sector</Label>
+            <div>
+              <Label>Sector</Label>
               <Input
-                id="sector"
                 placeholder="Ej: Construcción / Tecnología / Legal"
                 value={formData.sector}
                 onChange={(e) =>
@@ -280,14 +305,10 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
+
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {empresa ? "Actualizar" : "Registrar"}

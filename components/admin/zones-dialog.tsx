@@ -55,16 +55,29 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
   })
 
   // 🔹 Cargar zonas desde el backend
-  const loadZones = async () => {
-    if (!companyId) return
-    try {
-      const data = await listarZonasPorEmpresa(companyId)
-      setZones(data.map((z: Zona) => ({ ...z, cameras: z.cameras ?? 0 })))
-    } catch (error) {
-      console.error("❌ Error al cargar las zonas:", error)
-      toast.error("❌ Error al cargar las zonas desde el servidor")
-    }
+const loadZones = async () => {
+  if (!companyId) return;
+
+  try {
+    const data = await listarZonasPorEmpresa(companyId);
+
+    const zonasConCamaras = data.map((z: any) => ({
+      ...z,
+      cameras:
+        z.cameras ??
+        z.total_camaras ??
+        z.camaras ??
+        z.cameras_count ??
+        0, // fallback final
+    }));
+
+    setZones(zonasConCamaras);
+  } catch (error) {
+    console.error("❌ Error al cargar las zonas:", error);
+    toast.error("❌ Error al cargar las zonas desde el servidor");
   }
+};
+
 
   useEffect(() => {
     if (open && companyId) loadZones()

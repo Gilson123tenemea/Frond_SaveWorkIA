@@ -50,56 +50,61 @@ export function ZoneFormDialog({
     id_administrador_zona: 0,
   });
 
-  // ============================================
-  // 🔹 SOLO EJECUTAR CUANDO ABRE EL FORM
-  // ============================================
-  useEffect(() => {
-    if (!open) return; // <<--- evita resets innecesarios
-
+  // ===========================================================
+  // 🔹 Obtener ADMIN desde localStorage SIEMPRE CORRECTO
+  // ===========================================================
+  const getAdminId = () => {
     const user = JSON.parse(localStorage.getItem("user") || "null");
-    const adminId =
-      user?.id_administrador ||
-      parseInt(localStorage.getItem("adminId") || "0");
+    return user?.id_administrador ?? 0;
+  };
+
+  // ===========================================================
+  // 🔹 Cargar valores al abrir modal
+  // ===========================================================
+  useEffect(() => {
+    if (!open) return;
+
+    const adminId = getAdminId();
 
     if (zone) {
-      // MODO EDITAR
+      // 🔥 MODO EDITAR
       setFormData({
         nombreZona: zone.nombreZona,
         latitud: zone.latitud,
         longitud: zone.longitud,
         estado: zone.borrado ? "active" : "inactive",
         id_empresa_zona: zone.id_empresa_zona,
-        id_administrador_zona: zone.id_administrador_zona,
+        id_administrador_zona: adminId, // 🔥 SIEMPRE ADMIN VÁLIDO
       });
     } else {
-      // MODO CREAR — SIEMPRE NUEVO
+      // 🔥 MODO CREAR
       setFormData({
         nombreZona: "",
         latitud: "",
         longitud: "",
         estado: "active",
         id_empresa_zona: companyId ?? 0,
-        id_administrador_zona: adminId,
+        id_administrador_zona: adminId, // 🔥 OBLIGATORIO
       });
     }
 
     setErrors({});
-  }, [open, zone]); // <<--- DEPENDENCIAS CORRECTAS
+  }, [open, zone, companyId]);
 
-  // ============================================
-  // 🔹 Actualizar coordenadas SIN BORRAR NOMBRE
-  // ============================================
+  // ===========================================================
+  // 🔹 Guardar coordenadas cuando selecciona en el mapa
+  // ===========================================================
   const handleLocationSelect = (lat: number, lng: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       latitud: lat.toString(),
       longitud: lng.toString(),
     }));
   };
 
-  // ============================================
+  // ===========================================================
   // 🔹 Validar formulario
-  // ============================================
+  // ===========================================================
   const validarFormulario = () => {
     const newErrors: any = {};
 
@@ -112,9 +117,9 @@ export function ZoneFormDialog({
     return !Object.values(newErrors).some((e) => e !== null);
   };
 
-  // ============================================
+  // ===========================================================
   // 🔹 Enviar formulario
-  // ============================================
+  // ===========================================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -128,7 +133,7 @@ export function ZoneFormDialog({
       latitud: formData.latitud,
       longitud: formData.longitud,
       id_empresa_zona: formData.id_empresa_zona,
-      id_administrador_zona: formData.id_administrador_zona,
+      id_administrador_zona: formData.id_administrador_zona, // 🔥 NO PUEDE SER NULL
       borrado: formData.estado === "active",
     };
 
@@ -141,22 +146,22 @@ export function ZoneFormDialog({
       success: zone
         ? `Zona "${formData.nombreZona}" actualizada con éxito`
         : `Zona "${formData.nombreZona}" registrada exitosamente`,
-      error: (err) =>
-        err?.message?.includes("Ya existe")
-          ? "⚠️ Ya existe una zona con ese nombre en esta empresa"
-          : "❌ Ocurrió un error al guardar la zona",
+      error: "❌ Ocurrió un error al guardar la zona",
     });
 
     setLoading(true);
     try {
       await promise;
       onSuccess();
-      onOpenChange(false); // cerrar modal
+      onOpenChange(false);
     } finally {
       setLoading(false);
     }
   };
 
+  // ===========================================================
+  // 🔹 UI
+  // ===========================================================
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
@@ -172,12 +177,10 @@ export function ZoneFormDialog({
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
-
-            {/* NOMBRE */}
+            {/* Nombre */}
             <div className="space-y-2">
-              <Label htmlFor="nombreZona">Nombre de la Zona</Label>
+              <Label>Nombre de la Zona</Label>
               <Input
-                id="nombreZona"
                 placeholder="Ej: Zona A - Bodega"
                 value={formData.nombreZona}
                 onChange={(e) =>
@@ -189,7 +192,7 @@ export function ZoneFormDialog({
               )}
             </div>
 
-            {/* MAPA */}
+            {/* Mapa */}
             <div className="space-y-2">
               <Label>Ubicación</Label>
               <MapPicker
@@ -203,7 +206,7 @@ export function ZoneFormDialog({
               />
             </div>
 
-            {/* COORDENADAS */}
+            {/* Coordenadas */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Latitud</Label>
@@ -231,13 +234,17 @@ export function ZoneFormDialog({
                 )}
               </div>
             </div>
-
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancelar
             </Button>
+
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {zone ? "Actualizar" : "Registrar"}
