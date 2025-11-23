@@ -116,26 +116,40 @@ export function CompaniesTable() {
                 const promise = eliminarEmpresa(empresaId)
 
                 toast.promise(
-                  promise,
-                  {
-                    loading: "Eliminando empresa...",
-                    success: `Empresa "${nombreEmpresa}" eliminada correctamente`,
-                    error: "❌ Error al eliminar la empresa",
-                  },
-                  {
-                    style: {
-                      background: "#dc2626",
-                      color: "#fff",
-                      borderRadius: "8px",
-                      fontWeight: 500,
-                      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-                    },
-                    iconTheme: {
-                      primary: "#fff",
-                      secondary: "#b91c1c",
-                    },
-                  }
-                )
+  promise,
+  {
+    loading: "Eliminando empresa...",
+    success: `Empresa "${nombreEmpresa}" eliminada correctamente`,
+    error: (err: any) => {
+      console.error("Error backend eliminar empresa:", err);
+
+      const backendMsg =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "❌ Error al eliminar la empresa";
+
+      if (backendMsg.includes("zonas")) {
+        return "⚠️ No se puede eliminar una empresa que tiene zonas registradas.";
+      }
+
+      return "❌ " + backendMsg;
+    },
+  },
+  {
+    style: {
+      background: "#dc2626",
+      color: "#fff",
+      borderRadius: "8px",
+      fontWeight: 500,
+      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+    },
+    iconTheme: {
+      primary: "#fff",
+      secondary: "#b91c1c",
+    },
+  }
+)
+
 
                 try {
                   await promise
