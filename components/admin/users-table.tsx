@@ -472,14 +472,25 @@ export function SupervisoresTable() {
                 toast.dismiss(t.id);
                 document.body.removeChild(overlay);
 
-                const promise = eliminarSupervisor(idSupervisor);
+
+                const promise = eliminarSupervisor(idSupervisor).catch((err) => {
+                  const msg = err?.message || "";
+
+                  if (msg.includes("inspectores asignados")) {
+                    throw new Error("❌ Este supervisor está relacionado con uno o más inspectores. Debe eliminarlos primero.");
+                  }
+
+                  throw new Error(msg);
+                });
+
 
                 toast.promise(
                   promise,
                   {
                     loading: "Eliminando supervisor...",
                     success: `Supervisor "${nombreSupervisor}" eliminado correctamente`,
-                    error: "❌ Error al eliminar el supervisor",
+                    error: (err: any) => err.message || "❌ Error desconocido",
+
                   },
                   {
                     style: {
@@ -494,19 +505,16 @@ export function SupervisoresTable() {
                       secondary: "#b91c1c",
                     },
                   }
-
                 );
 
                 try {
                   await promise;
 
-                  // 🔥 ACTUALIZAR LISTAS
                   await cargarSupervisores();
                   await cargarEmpresasDisponibles();
                   await cargarEmpresasTodas();
 
                 } catch (err) {
-                  console.error("Error al eliminar:", err);
                 }
 
               }}

@@ -68,22 +68,28 @@ export async function listarSupervisores() {
 // 📌 Eliminar supervisor (borrado lógico)
 // ============================
 export async function eliminarSupervisor(idSupervisor) {
+  const response = await fetch(`${SUPERVISOR_URL}/eliminar/${idSupervisor}`, {
+    method: "DELETE",
+  });
+
+  let data = null;
   try {
-    const response = await fetch(`${SUPERVISOR_URL}/eliminar/${idSupervisor}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Error al eliminar el supervisor");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Error en eliminarSupervisor:", error);
-    throw error;
+    data = await response.json();
+  } catch {
+    data = null;
   }
+
+  // Si hay error, NO lanzar dos veces
+  if (!response.ok) {
+    const msg = data?.detail || "Error al eliminar el supervisor";
+    return Promise.reject(new Error(msg)); // SOLO UNA VEZ
+  }
+
+  return data;
 }
+
+
+
 
 // ============================
 // 📌 Editar supervisor existente
