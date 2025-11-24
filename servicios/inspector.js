@@ -98,17 +98,22 @@ export async function eliminarInspector(idInspector) {
       method: "DELETE",
     });
 
+    const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Error al eliminar el inspector");
+      const msg = data?.detail || "Error al eliminar el inspector";
+      return Promise.reject({ message: msg }); // ✔ sin error rojo
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error("❌ Error en eliminarInspector:", error);
-    throw error;
+    return Promise.reject(error);
   }
 }
+
+
+
 
 // ============================
 // 📌 Listar inspectores por SUPERVISOR

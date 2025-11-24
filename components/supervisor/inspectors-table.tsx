@@ -90,7 +90,6 @@ export function InspectorsTable() {
 
   // 🟥 ELIMINAR — con confirmación PRO (igual al módulo de supervisores)
   const handleDelete = async (id: number, nombreCompleto: string) => {
-    // Crear overlay oscuro
     const overlay = document.createElement("div");
     overlay.style.position = "fixed";
     overlay.style.top = "0";
@@ -102,7 +101,6 @@ export function InspectorsTable() {
     overlay.style.transition = "opacity 0.3s ease";
     document.body.appendChild(overlay);
 
-    // Mostrar confirmación
     const confirmToast = toast(
       (t) => (
         <div className="flex flex-col gap-4 p-2 text-center">
@@ -111,7 +109,7 @@ export function InspectorsTable() {
           </p>
 
           <div className="flex justify-center gap-3">
-            {/* Cancelar */}
+
             <button
               onClick={() => {
                 toast.dismiss(t.id);
@@ -122,21 +120,30 @@ export function InspectorsTable() {
               Cancelar
             </button>
 
-
-            {/* Eliminar */}
             <button
               onClick={async () => {
                 toast.dismiss(t.id);
                 document.body.removeChild(overlay);
 
-                const promise = eliminarInspector(id);
+                const promise = eliminarInspector(id).catch((err) => {
+                  const msg = err?.message || "";
+
+                  if (msg.includes("zonas asignadas")) {
+                    return Promise.reject({
+                      message:
+                        "❌ Este inspector tiene zonas asignadas. Elimine o reasigne esas zonas antes de eliminarlo.",
+                    });
+                  }
+
+                  return Promise.reject(err);
+                });
 
                 toast.promise(
                   promise,
                   {
                     loading: "Eliminando inspector...",
                     success: `Inspector "${nombreCompleto}" eliminado correctamente`,
-                    error: "❌ Error al eliminar el inspector",
+                    error: (err) => err.message || "❌ Error al eliminar el inspector",
                   },
                   {
                     style: {
@@ -153,12 +160,11 @@ export function InspectorsTable() {
                   }
                 );
 
-
                 try {
                   await promise;
                   await loadInspectors();
                 } catch (err) {
-                  console.error(err);
+                  /* 👌 NO MOSTRAR ERRORES EN CONSOLA */
                 }
               }}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
@@ -189,6 +195,7 @@ export function InspectorsTable() {
       }, 300);
     }, 8000);
   };
+
 
   return (
     <>
