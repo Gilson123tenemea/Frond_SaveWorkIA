@@ -16,7 +16,11 @@ export async function crearCamara(camaraData) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch {}
+
       throw new Error(errorData.detail || "Error al registrar la cámara");
     }
 
@@ -72,9 +76,12 @@ export async function listarCamarasPorZona(zonaId) {
 // ============================
 export async function listarCamarasPorAdministrador(administradorId) {
   try {
-    const response = await fetch(`${CAMARA_URL}/administrador/${administradorId}`, {
-      method: "GET",
-    });
+    const response = await fetch(
+      `${CAMARA_URL}/administrador/${administradorId}`,
+      {
+        method: "GET",
+      }
+    );
 
     if (!response.ok) {
       throw new Error("Error al obtener las cámaras del administrador");
@@ -108,7 +115,7 @@ export async function obtenerCamaraPorId(id) {
 }
 
 // ============================
-// 📌 Actualizar cámara
+// 📌 Actualizar cámara (solo estado)
 // ============================
 export async function actualizarCamara(id, camaraData) {
   try {
@@ -121,7 +128,11 @@ export async function actualizarCamara(id, camaraData) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch {}
+
       throw new Error(errorData.detail || "Error al actualizar la cámara");
     }
 
@@ -142,7 +153,12 @@ export async function eliminarCamara(id) {
     });
 
     if (!response.ok) {
-      throw new Error("Error al eliminar la cámara");
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch {}
+
+      throw new Error(errorData.detail || "Error al eliminar la cámara");
     }
 
     return await response.json();
@@ -162,7 +178,14 @@ export async function eliminarCamaraPermanente(id) {
     });
 
     if (!response.ok) {
-      throw new Error("Error al eliminar la cámara permanentemente");
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch {}
+
+      throw new Error(
+        errorData.detail || "Error al eliminar la cámara permanentemente"
+      );
     }
 
     return await response.json();

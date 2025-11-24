@@ -1,3 +1,4 @@
+// src/components/admin/zones/cameras-dialog.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -28,7 +29,7 @@ interface CamerasDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   zoneId: number | null;
-  zoneName?: string
+  zoneName?: string;
   onSuccess: () => void;
 }
 
@@ -36,13 +37,13 @@ export function CamerasDialog({
   open,
   onOpenChange,
   zoneId,
+  zoneName,
   onSuccess,
 }: CamerasDialogProps) {
   const [search, setSearch] = useState("");
   const [cameras, setCameras] = useState<any[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCamera, setEditingCamera] = useState<any | null>(null);
-  const [zoneName, setZoneName] = useState<string>("");
 
   // 🔹 Cargar cámaras
   const loadCameras = async () => {
@@ -60,7 +61,6 @@ export function CamerasDialog({
 
   useEffect(() => {
     if (zoneId && open) {
-      console.log("📡 Cargando cámaras para zona:", zoneId);
       loadCameras();
     }
   }, [zoneId, open]);
@@ -89,12 +89,14 @@ export function CamerasDialog({
     if (!zoneId) return;
     const confirmDelete = confirm(`¿Eliminar cámara ${codigo}?`);
     if (!confirmDelete) return;
+
     const promise = eliminarCamara(id);
     toast.promise(promise, {
       loading: "Eliminando cámara...",
       success: `Cámara "${codigo}" eliminada`,
       error: "❌ Error al eliminar",
     });
+
     await promise;
     loadCameras();
     onSuccess();
@@ -113,15 +115,18 @@ export function CamerasDialog({
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-  <Camera className="w-5 h-5" />
-  {zoneId ? (
-    <span>
-      Cámaras de la Zona <strong>{zoneName ?? `#${zoneId}`}</strong>
-    </span>
-  ) : (
-    <span className="text-red-500 font-semibold">Zona no identificada</span>
-  )}
-</DialogTitle>
+              <Camera className="w-5 h-5" />
+              {zoneId ? (
+                <span>
+                  Cámaras de la Zona{" "}
+                  <strong>{zoneName ?? `#${zoneId}`}</strong>
+                </span>
+              ) : (
+                <span className="text-red-500 font-semibold">
+                  Zona no identificada
+                </span>
+              )}
+            </DialogTitle>
             <DialogDescription>
               Gestiona las cámaras asociadas a esta zona.
             </DialogDescription>
@@ -182,13 +187,13 @@ export function CamerasDialog({
                             {camera.estado}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right space-x-1">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(camera)}
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-4 h-4 text-blue-600" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -210,7 +215,6 @@ export function CamerasDialog({
         </DialogContent>
       </Dialog>
 
-      {/* 📸 Modal de formulario para agregar o editar cámara */}
       <CameraFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}

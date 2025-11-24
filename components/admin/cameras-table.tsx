@@ -19,11 +19,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Camera, MapPin, Trash2, Pencil } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Camera,
+  MapPin,
+  Trash2,
+  Pencil,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { listarCamaras, eliminarCamara } from "@/servicios/camara";
 import { AllCamerasDialog } from "./all-cameras-dialog";
 import { CameraFormDialog } from "./camera-form-dialog";
+
+// 🔥 IMPORTAR dialog de SHADCN
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export function CamerasTable() {
   const [search, setSearch] = useState("");
@@ -33,7 +50,10 @@ export function CamerasTable() {
   const [editingCamera, setEditingCamera] = useState<any | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  // 🔹 Cargar cámaras desde backend
+  // 🔥 Estado para modal de eliminación
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [cameraToDelete, setCameraToDelete] = useState<any | null>(null);
+
   const loadCameras = async () => {
     setLoading(true);
     try {
@@ -51,7 +71,6 @@ export function CamerasTable() {
     loadCameras();
   }, []);
 
-  // 🔍 Filtro de búsqueda
   const filteredCameras = cameras.filter((camera) => {
     const codigo = camera.codigo?.toLowerCase() ?? "";
     const ip = camera.ipAddress?.toLowerCase() ?? "";
@@ -66,20 +85,34 @@ export function CamerasTable() {
     );
   });
 
-  // 🗑️ Eliminar cámara
-  const handleDelete = async (id: number, codigo: string) => {
-    if (!confirm(`¿Estás seguro de eliminar la cámara ${codigo}?`)) return;
-    const promise = eliminarCamara(id);
+  // ============================================================
+  // 🔥 NUEVO: abrir modal para eliminar
+  // ============================================================
+  const handleDelete = (camera: any) => {
+    setCameraToDelete(camera);
+    setDeleteOpen(true);
+  };
+
+  // ============================================================
+  // 🔥 NUEVO: confirmar desde modal
+  // ============================================================
+  const confirmDelete = async () => {
+    if (!cameraToDelete) return;
+
+    const promise = eliminarCamara(cameraToDelete.id_camara);
+
     toast.promise(promise, {
       loading: "Eliminando cámara...",
-      success: `Cámara "${codigo}" eliminada correctamente`,
+      success: `Cámara "${cameraToDelete.codigo}" eliminada correctamente`,
       error: "❌ No se pudo eliminar la cámara",
     });
+
     await promise;
+    setDeleteOpen(false);
+    setCameraToDelete(null);
     loadCameras();
   };
 
-  // ✏️ Editar cámara
   const handleEdit = (camera: any) => {
     setEditingCamera(camera);
     setIsFormOpen(true);
@@ -93,6 +126,42 @@ export function CamerasTable() {
 
   return (
     <>
+      {/* ======================= */}
+      {/* 🔥 MODAL DE ELIMINACIÓN */}
+      {/* ======================= */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              ¿Eliminar cámara?
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              La cámara <strong>{cameraToDelete?.codigo}</strong> será eliminada del sistema.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex justify-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={confirmDelete}
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ======================= */}
+      {/* TABLA COMPLETA */}
+      {/* ======================= */}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -110,7 +179,6 @@ export function CamerasTable() {
         </CardHeader>
 
         <CardContent>
-          {/* 🔍 Búsqueda */}
           <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -123,7 +191,6 @@ export function CamerasTable() {
             </div>
           </div>
 
-          {/* 🧾 Tabla */}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
@@ -155,7 +222,6 @@ export function CamerasTable() {
                 ) : (
                   filteredCameras.map((camera) => (
                     <TableRow key={camera.id_camara}>
-                      {/* Cámara */}
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div
@@ -186,7 +252,6 @@ export function CamerasTable() {
                         </div>
                       </TableCell>
 
-                      {/* IP */}
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -194,25 +259,20 @@ export function CamerasTable() {
                         </div>
                       </TableCell>
 
-                      {/* Zona */}
                       <TableCell>{camera.zona?.nombreZona ?? "—"}</TableCell>
 
-                      {/* Empresa */}
                       <TableCell>
                         {camera.zona?.empresa?.nombreEmpresa ?? "—"}
                       </TableCell>
 
-                      {/* Tipo */}
                       <TableCell>{camera.tipo}</TableCell>
 
-                      {/* Resolución */}
                       <TableCell>
                         <Badge variant="outline">
                           {camera.resolucion || "1080p"}
                         </Badge>
                       </TableCell>
 
-                      {/* Estado */}
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div
@@ -230,21 +290,20 @@ export function CamerasTable() {
                         </div>
                       </TableCell>
 
-                      {/* Acciones */}
                       <TableCell className="text-right space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(camera)}
                         >
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-4 h-4 text-blue-600" />
                         </Button>
+
+                        {/* 🔥 NUEVO: abre modal */}
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            handleDelete(camera.id_camara, camera.codigo)
-                          }
+                          onClick={() => handleDelete(camera)}
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
@@ -258,14 +317,14 @@ export function CamerasTable() {
         </CardContent>
       </Card>
 
-      {/* 📋 Modal de registro */}
+      {/* Modal de registro */}
       <AllCamerasDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         onSuccess={loadCameras}
       />
 
-      {/* ✏️ Modal de edición */}
+      {/* Modal de edición */}
       <CameraFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
