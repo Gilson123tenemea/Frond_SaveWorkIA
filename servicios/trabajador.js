@@ -135,11 +135,6 @@ export async function editarTrabajador(idTrabajador, datosTrabajador) {
   }
 }
 
-
-
-// =======================================
-// 📌 Borrado lógico del trabajador
-// =======================================
 export async function eliminarTrabajador(idTrabajador) {
   try {
     const response = await fetch(`${TRABAJADOR_URL}/borrar/${idTrabajador}`, {
@@ -147,16 +142,30 @@ export async function eliminarTrabajador(idTrabajador) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Error al eliminar el trabajador");
+      let mensaje = "Error al eliminar el trabajador";
+
+      try {
+        const errorData = await response.json();
+        if (errorData?.detail) {
+          mensaje = errorData.detail;
+        }
+      } catch (e) {
+      }
+
+      return Promise.reject({ message: mensaje });
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data;
+
   } catch (error) {
-    console.error("❌ Error en eliminarTrabajador:", error);
-    throw error;
+    return Promise.reject({
+      message: error.message || "Error desconocido al eliminar",
+    });
   }
 }
+
+
 
 export async function listarTrabajadoresPorSupervisor(idSupervisor) {
   try {

@@ -150,14 +150,27 @@ export function WorkersTable() {
                 toast.dismiss(t.id);
                 document.body.removeChild(overlay);
 
-                const promise = eliminarTrabajador(id);
+                const promise = eliminarTrabajador(id).catch((err) => {
+                  const msg = err?.message || "";
+
+                  if (msg.includes("zonas asignadas")) {
+                    return Promise.reject({
+                      message:
+                        "❌ Este trabajador tiene zonas asignadas. Elimine o reasigne esas zonas antes de eliminarlo.",
+                    });
+                  }
+
+                  return Promise.reject({
+                    message: msg || "❌ Error al eliminar el trabajador",
+                  });
+                });
 
                 toast.promise(
-                  promise,
+                  () => promise,
                   {
                     loading: "Eliminando trabajador...",
                     success: `Trabajador "${nombreCompleto}" eliminado correctamente`,
-                    error: "❌ Error al eliminar el trabajador",
+                    error: (err) => err.message || "❌ Error al eliminar el trabajador",
                   },
                   {
                     style: {
@@ -177,14 +190,15 @@ export function WorkersTable() {
                 try {
                   await promise;
                   await loadWorkers();
-                } catch (err) {
-                  console.error(err);
+                } catch (err: any) {
                 }
+
               }}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
             >
               Eliminar
             </button>
+
           </div>
         </div>
       ),
