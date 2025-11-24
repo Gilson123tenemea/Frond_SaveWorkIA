@@ -153,3 +153,22 @@ export async function obtenerZonasPorInspector(idInspector) {
     throw error;
   }
 }
+
+export async function obtenerPerfilInspector(idInspector) {
+  try {
+    const response = await fetch(`${INSPECTOR_URL}/perfil/${idInspector}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const txt = await response.text();
+      console.error("❌ Error en obtenerPerfilInspector:", txt);
+      throw new Error("Error obteniendo perfil del inspector");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ obtenerPerfilInspector:", error);
+    throw error;
+  }
+}

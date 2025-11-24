@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   MapPin,
@@ -28,10 +27,13 @@ import { ReportsList } from "./reports-list";
 import { InspectorStats } from "./inspector-stats";
 import { WorkerAlertsList } from "./worker-alerts-list";
 
-import { obtenerZonasPorInspector } from "../../servicios/inspector";
+import { obtenerZonasPorInspector } from "@/servicios/inspector";
 import { NotificationsPopover } from "./notifications-popover";
+import { InspectorProfile } from "./inspector-profile";
 
-// 🎯 Tipo local actualizado
+// ======================================
+// 📌 Tipado local
+// ======================================
 type ZonaAsignada = {
   id_Zona: number;
   nombreZona: string;
@@ -42,17 +44,27 @@ type ZonaAsignada = {
   total_camaras: number;
 };
 
+// ======================================
+// 📌 COMPONENTE PRINCIPAL
+// ======================================
 export function InspectorDashboard() {
   const user = getUser();
 
   if (!user) return <div>Cargando...</div>;
 
+  // 👉 No se recibe por props — se toma del usuario logueado
   const inspectorId = user.id_inspector ?? user.id ?? null;
 
   const [activeTab, setActiveTab] = useState("overview");
   const [assignedZones, setAssignedZones] = useState<ZonaAsignada[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 👉 Modal del perfil
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  // =====================================================
+  // 📌 Cargar zonas asignadas
+  // =====================================================
   useEffect(() => {
     if (!inspectorId) return;
 
@@ -72,7 +84,9 @@ export function InspectorDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* HEADER */}
+      {/* =====================================================
+          ENCABEZADO SUPERIOR
+      ===================================================== */}
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -83,21 +97,32 @@ export function InspectorDashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold">SaveWorkIA</h1>
-                <p className="text-xs text-muted-foreground">Panel de Inspector</p>
+                <p className="text-xs text-muted-foreground">
+                  Panel de Inspector
+                </p>
               </div>
             </div>
 
-            {/* RIGHT SIDE */}
+            {/* DERECHA */}
             <div className="flex items-center gap-3">
               <NotificationsPopover unreadCount={5} />
-              <Button variant="ghost" size="icon">
+
+              {/* 👉 Tuerquita → Perfil */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setProfileOpen(true)}
+              >
                 <Settings className="w-5 h-5" />
               </Button>
 
+              {/* Usuario */}
               <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
                   <p className="text-sm font-medium">{user.nombre}</p>
-                  <p className="text-xs text-muted-foreground">Inspector de Seguridad</p>
+                  <p className="text-xs text-muted-foreground">
+                    Inspector de Seguridad
+                  </p>
                 </div>
 
                 <Avatar>
@@ -116,36 +141,39 @@ export function InspectorDashboard() {
         </div>
       </header>
 
-      {/* MAIN */}
+      {/* =====================================================
+          CONTENIDO PRINCIPAL
+      ===================================================== */}
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          {/* TABS */}
           <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="gap-2">
               <MapPin className="w-4 h-4" />
               Mi Zona
             </TabsTrigger>
+
             <TabsTrigger value="reports" className="gap-2">
               <FileText className="w-4 h-4" />
               Reportes
             </TabsTrigger>
+
             <TabsTrigger value="alerts" className="gap-2">
               <AlertTriangle className="w-4 h-4" />
               Alertas
             </TabsTrigger>
           </TabsList>
 
-          {/* ----------- TAB MI ZONA ----------- */}
+          {/* ------------------ MI ZONA ------------------ */}
           <TabsContent value="overview" className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold">Mi Zona Asignada</h2>
-              <p className="text-muted-foreground">Información de la zona bajo tu supervisión</p>
+              <p className="text-muted-foreground">
+                Información de la zona bajo tu supervisión
+              </p>
             </div>
 
-            {/* CUADROS DE ARRIBA */}
             <InspectorStats zoneId={assignedZones[0]?.id_Zona ?? null} />
 
-            {/* ZONA PRINCIPAL */}
             <div className="grid gap-6 lg:grid-cols-2">
               {loading ? (
                 <Card className="lg:col-span-2">
@@ -153,7 +181,15 @@ export function InspectorDashboard() {
                     <p className="text-muted-foreground">Cargando zonas...</p>
                   </CardContent>
                 </Card>
-              ) : assignedZones.length > 0 ? (
+              ) : assignedZones.length === 0 ? (
+                <Card className="lg:col-span-2">
+                  <CardContent className="py-12 text-center">
+                    <p className="text-muted-foreground">
+                      No tienes zonas asignadas.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
                 <Card className="lg:col-span-2 shadow-md">
                   <CardHeader>
                     <div className="flex items-start gap-3">
@@ -171,63 +207,52 @@ export function InspectorDashboard() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Latitud</p>
-                        <p className="text-sm font-medium">{assignedZones[0].latitud}</p>
+                        <p className="font-medium">{assignedZones[0].latitud}</p>
                       </div>
 
                       <div>
                         <p className="text-sm text-muted-foreground">Longitud</p>
-                        <p className="text-sm font-medium">{assignedZones[0].longitud}</p>
+                        <p className="font-medium">
+                          {assignedZones[0].longitud}
+                        </p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6 pt-4 border-t">
                       <div className="flex items-center gap-2">
                         <Users className="w-5 h-5 text-primary" />
-                        <span className="text-sm font-medium">
-                          Trabajadores: {assignedZones[0].total_trabajadores}
-                        </span>
+                        <p className="font-medium">
+                          {assignedZones[0].total_trabajadores} trabajadores
+                        </p>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <Camera className="w-5 h-5 text-primary" />
-                        <span className="text-sm font-medium">
-                          Cámaras: {assignedZones[0].total_camaras}
-                        </span>
+                        <p className="font-medium">
+                          {assignedZones[0].total_camaras} cámaras
+                        </p>
                       </div>
                     </div>
-
-                    <p className="text-sm text-muted-foreground pt-2 border-t">
-                      Asignado el: <strong>{assignedZones[0].fecha_asignacion}</strong>
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="lg:col-span-2 shadow-lg border bg-gradient-to-br from-gray-100 to-gray-50">
-                  <CardContent className="py-14 text-center">
-                    <MapPin className="w-14 h-14 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-700">
-                      No tienes zonas asignadas
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto mt-2">
-                      Si crees que se trata de un error, comunícate con tu supervisor.
-                    </p>
                   </CardContent>
                 </Card>
               )}
             </div>
           </TabsContent>
 
-          {/* REPORTES */}
+          {/* ------------------ REPORTES ------------------ */}
           <TabsContent value="reports">
             <ReportsList />
           </TabsContent>
 
-          {/* ALERTAS */}
+          {/* ------------------ ALERTAS ------------------ */}
           <TabsContent value="alerts">
             <WorkerAlertsList />
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* ------------------ MODAL → PERFIL ------------------ */}
+      <InspectorProfile open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }
