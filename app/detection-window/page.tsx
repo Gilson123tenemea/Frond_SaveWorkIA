@@ -5,78 +5,54 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Shield, Camera, AlertCircle, CheckCircle2, Scan } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+// → constante nueva para este componente
+const BASE_URL = "http://127.0.0.1:8000"
+const CAMARA_IA_URL = `${BASE_URL}/ia/camaras`  // ✔ ya existe aquí
+const CAMARA_STREAM_ENDPOINT = (id: number) => `${CAMARA_IA_URL}/${id}/stream`
+
+import { obtenerTrabajadorPorCodigo } from "@/servicios/trabajador"
+// Usamos el servicio para validar conexión si quieres usarlo luego:
+import { iniciarStreamCamaraIA } from "@/servicios/camara_ia"
+
 export default function DetectionWindow() {
-  const [workerCode, setWorkerCode] = useState("")
+  const [workerCode, setWorkerCode] = useState<string>("")
   const [isDetecting, setIsDetecting] = useState(false)
-  const [showCloseDialog, setShowCloseDialog] = useState(false)
-  const [supervisorEmail, setSupervisorEmail] = useState("")
-  const [supervisorPassword, setSupervisorPassword] = useState("")
-  const [authError, setAuthError] = useState("")
-  const [detectionStarted, setDetectionStarted] = useState(false)
+  const [workerInfo, setWorkerInfo] = useState<string | null>(null)
+  const [workerError, setWorkerError] = useState("")
+  const [cameraStreamUrl, setCameraStreamUrl] = useState<string | null>(null)
 
-  // Prevenir cierre de ventana
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-      e.returnValue = ""
-      setShowCloseDialog(true)
-      return ""
+  const handleStartDetection = async () => {
+    setWorkerError("")
+    setWorkerInfo(null)
+    setCameraStreamUrl(null)
+    setIsDetecting(false)
+
+    const trabajador = await obtenerTrabajadorPorCodigo(workerCode.trim())
+
+    if (!trabajador) {
+      setWorkerError("❌ No existe trabajador con ese código")
+      return
     }
 
-    window.addEventListener("beforeunload", handleBeforeUnload)
+    // ✅ EXTRAER EL ID DE LA CÁMARA DESDE EL JSON
+    const idCamara = trabajador.camara.id_camara
 
-    // Interceptar Alt+F4 y otros atajos
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.altKey && e.key === "F4") || (e.ctrlKey && e.key === "w") || (e.ctrlKey && e.key === "W")) {
-        e.preventDefault()
-        setShowCloseDialog(true)
-      }
-    }
+    // ✅ ARMAR EL ENDPOINT REAL DEL BACK
+    const urlStream = `${CAMARA_IA_URL}/${idCamara}/stream`
 
-    window.addEventListener("keydown", handleKeyDown)
+    setWorkerInfo(`${trabajador.persona.nombre} ${trabajador.persona.apellido}`)
+    setCameraStreamUrl(urlStream)
+    setIsDetecting(true)
 
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload)
-      window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [])
-
-  const handleStartDetection = () => {
-    if (workerCode.trim()) {
-      setIsDetecting(true)
-      setDetectionStarted(true)
-      // Aquí se iniciaría la detección real
-      console.log("[v0] Iniciando detección para trabajador:", workerCode)
-    }
-  }
-
-  const handleCloseWindow = () => {
-    setShowCloseDialog(true)
-  }
-
-  const handleAuthenticateAndClose = () => {
-    // Validar credenciales (usar las mismas que en el login)
-    if (supervisorEmail === "supervisor@savework.com" && supervisorPassword === "super123") {
-      window.removeEventListener("beforeunload", () => {})
-      window.close()
-    } else {
-      setAuthError("Credenciales incorrectas")
-    }
+    console.log("🎥 Encendiendo cámara con IA:", urlStream)
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-success/10 flex items-center justify-center p-4">
+
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
@@ -84,129 +60,91 @@ export default function DetectionWindow() {
               <Camera className="w-8 h-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Sistema de Detección IA</CardTitle>
-          <CardDescription>Ingrese el código del trabajador para iniciar el monitoreo</CardDescription>
+          <CardTitle className="text-2xl">Detección de Entrada (Zona)</CardTitle>
+          <CardDescription>Ingrese el código del trabajador</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {!detectionStarted ? (
+
+        <CardContent className="space-y-4">
+
+          {/* ❌ ERROR */}
+          {workerError && (
+            <Alert className="bg-red-100 border-red-500 text-red-600 text-xs text-center">
+              <AlertCircle className="h-4 w-4 mr-1 inline-block" />
+              <AlertDescription className="inline-block">{workerError}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* ✅ FORMULARIO */}
+          {!isDetecting && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="workerCode">Código del Trabajador</Label>
                 <div className="relative">
                   <Input
                     id="workerCode"
-                    placeholder="Ej: TRB-2024-001"
                     value={workerCode}
                     onChange={(e) => setWorkerCode(e.target.value)}
-                    className="pr-10 text-lg"
+                    placeholder="Ej: TRA-001"
+                    className="text-center text-lg border-2 rounded-xl"
                     autoFocus
                   />
-                  <Scan className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Scan className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 </div>
               </div>
 
-              <Button onClick={handleStartDetection} className="w-full" size="lg" disabled={!workerCode.trim()}>
+              <Button
+                onClick={handleStartDetection}
+                size="lg"
+                className="w-full rounded-2xl border-2 border-primary shadow-lg hover:scale-105 transition-transform"
+                disabled={!workerCode.trim()}
+              >
                 <Camera className="w-5 h-5 mr-2" />
                 Iniciar Detección
               </Button>
-
-              <Alert>
-                <Shield className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  Esta ventana permanecerá abierta durante el monitoreo. Requiere autenticación del supervisor para
-                  cerrar.
-                </AlertDescription>
-              </Alert>
             </>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center py-8">
-                <div className="relative">
-                  <div className="w-24 h-24 bg-success/20 rounded-full flex items-center justify-center animate-pulse">
-                    <CheckCircle2 className="w-12 h-12 text-success" />
-                  </div>
-                  <div className="absolute inset-0 rounded-full border-4 border-success/30 animate-ping" />
-                </div>
-              </div>
+          )}
 
-              <div className="text-center space-y-2">
-                <h3 className="text-xl font-bold text-success">Detección Activa</h3>
-                <p className="text-sm text-muted-foreground">Código: {workerCode}</p>
+          {/* 🎥 VISOR MJPEG DE IA (solo si existe trabajador y cámara está asignada por zona) */}
+          {isDetecting && workerInfo && cameraStreamUrl && (
+            <div className="text-center space-y-3">
+              <div className="flex justify-center">
+                <CheckCircle2 className="h-12 w-12 text-success animate-bounce" />
               </div>
+              <p className="text-success font-bold text-lg">✅ Detección Activa</p>
+              <p className="text-md">{workerInfo}</p>
+              <p className="text-xs text-green-600 font-medium">📷 Transmisión en tiempo real</p>
 
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Estado del sistema:</span>
-                  <span className="text-success font-medium">Operativo</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Cámaras activas:</span>
-                  <span className="font-medium">12</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Tiempo transcurrido:</span>
-                  <span className="font-medium">00:00</span>
-                </div>
-              </div>
+              {/* ✔ Visor correcto MJPEG desde tu backend */}
+              <img
+                src={cameraStreamUrl}
+                className="w-full max-w-md rounded-xl border-2 mt-3"
+                style={{ objectFit: "cover" }}
+              />
 
-              <Button onClick={handleCloseWindow} variant="outline" className="w-full bg-transparent">
-                Cerrar Ventana
+              <Button
+                onClick={() => {
+                  setIsDetecting(false)
+                  setCameraStreamUrl(null)
+                  setWorkerInfo(null)
+                  setWorkerCode("")
+                }}
+                variant="outline"
+                className="mt-3 border-red-500 text-red-600"
+                size="sm"
+              >
+                Cancelar detección
               </Button>
             </div>
           )}
+
         </CardContent>
       </Card>
 
-      <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Autenticación Requerida</DialogTitle>
-            <DialogDescription>
-              Para cerrar la ventana de detección, ingrese las credenciales del supervisor
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email del Supervisor</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="supervisor@savework.com"
-                value={supervisorEmail}
-                onChange={(e) => {
-                  setSupervisorEmail(e.target.value)
-                  setAuthError("")
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={supervisorPassword}
-                onChange={(e) => {
-                  setSupervisorPassword(e.target.value)
-                  setAuthError("")
-                }}
-              />
-            </div>
-            {authError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{authError}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCloseDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAuthenticateAndClose}>Autenticar y Cerrar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
+}
+
+// Ya no lo usas por ahora en UI, pero lo dejamos nuevo para evitar error:
+function handleCloseWindow(e: Event) {
+  e.preventDefault()
 }

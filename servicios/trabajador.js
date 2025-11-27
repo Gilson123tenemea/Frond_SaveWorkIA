@@ -222,3 +222,20 @@ export async function validarCorreoInstantaneo(correo) {
   }
 }
 
+
+export async function obtenerTrabajadorPorCodigo(codigoTrabajador) {
+  try {
+    const response = await fetch(`${TRABAJADOR_URL}/extraer/entrada/camara/${codigoTrabajador}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      return null;  
+    }
+
+    return await response.json();
+  } catch (error) {
+    return null; 
+  }
+}
+
