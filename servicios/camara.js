@@ -19,7 +19,7 @@ export async function crearCamara(camaraData) {
       let errorData = {};
       try {
         errorData = await response.json();
-      } catch {}
+      } catch { }
 
       throw new Error(errorData.detail || "Error al registrar la cámara");
     }
@@ -131,7 +131,7 @@ export async function actualizarCamara(id, camaraData) {
       let errorData = {};
       try {
         errorData = await response.json();
-      } catch {}
+      } catch { }
 
       throw new Error(errorData.detail || "Error al actualizar la cámara");
     }
@@ -156,7 +156,7 @@ export async function eliminarCamara(id) {
       let errorData = {};
       try {
         errorData = await response.json();
-      } catch {}
+      } catch { }
 
       throw new Error(errorData.detail || "Error al eliminar la cámara");
     }
@@ -181,7 +181,7 @@ export async function eliminarCamaraPermanente(id) {
       let errorData = {};
       try {
         errorData = await response.json();
-      } catch {}
+      } catch { }
 
       throw new Error(
         errorData.detail || "Error al eliminar la cámara permanentemente"
@@ -192,5 +192,35 @@ export async function eliminarCamaraPermanente(id) {
   } catch (error) {
     console.error("❌ Error en eliminarCamaraPermanente:", error);
     throw error;
+  }
+}
+
+// SIN interface
+// SIN tipos
+// SIN Promise<>
+
+export async function probarConexionCamara(url) {
+  try {
+    const response = await fetch(`${CAMARA_URL}/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Error al probar la conexión");
+    }
+
+    // Siempre devolver objetos simples
+    return {
+      ok: data.ok,
+      message: data.message,
+    };
+  } catch (error) {
+    throw new Error(error.message || "No se pudo conectar con la cámara");
   }
 }

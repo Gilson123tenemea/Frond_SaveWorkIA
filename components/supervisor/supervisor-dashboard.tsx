@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import {
   Users, Camera, MapPin, Shield, LogOut, Settings,
-  Eye, UserCheck, UserCog, Map,
+  Eye, UserCheck, UserCog, Map, Play
 } from "lucide-react";
 
 import { logout, getUser } from "@/lib/auth";
@@ -17,7 +17,7 @@ import { ZonesGrid } from "./zones-grid";
 import { LiveDetections } from "./live-detections";
 import { SupervisorStats } from "./supervisor-stats";
 import { InspectorsTable } from "./inspectors-table";
-import { SupervisorProfile } from "./supervisor-profile";
+import { SupervisorProfile } from "./supervisor-profile"; // ✅ corregido
 import { ZoneAssignmentsTable } from "./zone-assignments-table";
 import { ZonesMapViewer } from "@/components/maps/zones-map-viewer";
 
@@ -41,9 +41,23 @@ export function SupervisorDashboard() {
 
   if (!mounted) return null;
 
+  /* ✅ Función para abrir ventana de detección */
+  const openDetectionWindow = () => {
+    const width = 600;
+    const height = 700;
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
+
+    window.open(
+      "/detection-window",
+      "DetectionWindow",
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=no,resizable=no,status=no`
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      
+
       {/* HEADER */}
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
@@ -64,14 +78,11 @@ export function SupervisorDashboard() {
             <div className="flex items-center gap-3">
 
               {/* ⚙️ Botón Perfil */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setOpenProfile(true)}
-              >
+              <Button variant="ghost" size="icon" onClick={() => setOpenProfile(true)}>
                 <Settings className="w-5 h-5" />
               </Button>
 
+              {/* Avatar + nombre */}
               <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
                   <p className="text-sm font-medium">{user?.name}</p>
@@ -90,6 +101,7 @@ export function SupervisorDashboard() {
                 <LogOut className="w-4 h-4 mr-2" />
                 Salir
               </Button>
+
             </div>
 
           </div>
@@ -111,7 +123,29 @@ export function SupervisorDashboard() {
             <TabsTrigger value="detections"><Camera className="w-4 h-4" /> Detecciones IA</TabsTrigger>
           </TabsList>
 
-          {/* MAPA */}
+          {/* TAB MONITOREO */}
+          <TabsContent value="overview"><SupervisorStats /></TabsContent>
+          <TabsContent value="inspectors"><InspectorsTable /></TabsContent>
+          <TabsContent value="assignments"><ZoneAssignmentsTable /></TabsContent>
+          <TabsContent value="workers"><WorkersTable /></TabsContent>
+          <TabsContent value="zones"><ZonesGrid /></TabsContent>
+
+          {/* ✅ TAB Detección IA + BOTÓN FUNCIONAL */}
+          <TabsContent value="detections" className="space-y-4">
+            <Button
+              onClick={openDetectionWindow}
+              size="lg"
+              className="gap-2 w-full sm:w-auto rounded-xl shadow-md hover:shadow-xl transition-all"
+            >
+              <Play className="w-5 h-5" />
+              Iniciar Detección
+            </Button>
+
+            {/* contenido */}
+            <LiveDetections />
+          </TabsContent>
+
+          {/* TAB MAPA */}
           <TabsContent value="map">
             <Card>
               <CardHeader>
@@ -133,17 +167,10 @@ export function SupervisorDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="overview"><SupervisorStats /></TabsContent>
-          <TabsContent value="inspectors"><InspectorsTable /></TabsContent>
-          <TabsContent value="assignments"><ZoneAssignmentsTable /></TabsContent>
-          <TabsContent value="workers"><WorkersTable /></TabsContent>
-          <TabsContent value="zones"><ZonesGrid /></TabsContent>
-          <TabsContent value="detections"><LiveDetections /></TabsContent>
-
         </Tabs>
       </main>
 
-      {/* 🔵 MODAL DE PERFIL */}
+      {/* MODAL PERFIL */}
       <SupervisorProfile
         open={openProfile}
         onClose={() => setOpenProfile(false)}

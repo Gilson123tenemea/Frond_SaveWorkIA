@@ -22,7 +22,13 @@ import {
 } from "@/components/ui/select";
 import { Camera, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { crearCamara, actualizarCamara } from "@/servicios/camara";
+
+// Servicios
+import {
+  crearCamara,
+  actualizarCamara,
+  probarConexionCamara,
+} from "@/servicios/camara";
 
 interface CameraFormDialogProps {
   open: boolean;
@@ -50,8 +56,16 @@ export function CameraFormDialog({
 
   const [errors, setErrors] = useState<Record<string, string | null>>({});
 
+  // Estado de prueba de conexión
+  const [conexionOk, setConexionOk] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [mensajeTest, setMensajeTest] = useState<string | null>(null);
+  const [tipoMensajeTest, setTipoMensajeTest] = useState<
+    "ok" | "error" | null
+  >(null);
+
   // ============================================================
-  // 🔥 Cargar datos para edición o creación
+  // 🔥 Cargar datos para edición o limpieza para creación
   // ============================================================
   useEffect(() => {
     if (camera) {
@@ -69,7 +83,11 @@ export function CameraFormDialog({
         status: "activa",
       });
     }
+
     setErrors({});
+    setConexionOk(false);
+    setMensajeTest(null);
+    setTipoMensajeTest(null);
   }, [camera, open]);
 
   // ============================================================
@@ -88,14 +106,16 @@ export function CameraFormDialog({
         newErrors.name = "El nombre o código de la cámara es obligatorio";
       }
 
+      // URL válida (http, https, rtsp)
       if (!formData.location.trim()) {
-        newErrors.location = "La dirección IP es obligatoria";
-      } else {
-        const ipRegex =
-          /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
-        if (!ipRegex.test(formData.location.trim())) {
-          newErrors.location = "La dirección IP no es válida";
-        }
+        newErrors.location = "La URL de la cámara es obligatoria";
+      } else if (
+        !formData.location.startsWith("http://") &&
+        !formData.location.startsWith("https://") &&
+        !formData.location.startsWith("rtsp://")
+      ) {
+        newErrors.location =
+          "La URL debe iniciar con http://, https:// o rtsp://";
       }
 
       if (!formData.resolution) {
@@ -112,6 +132,44 @@ export function CameraFormDialog({
   };
 
   // ============================================================
+  // 🔥 Probar conexión con la cámara
+  // ============================================================
+  const handleProbarConexion = async () => {
+    if (!formData.location || formData.location.trim() === "") {
+      toast.error("Ingresa primero la URL de la cámara");
+      return;
+    }
+
+    setTesting(true);
+    setMensajeTest(null);
+    setTipoMensajeTest(null);
+
+    try {
+      const resp = await probarConexionCamara(formData.location.trim());
+      const msg = resp.message || "Conexión exitosa";
+
+      setConexionOk(true);
+      setMensajeTest(msg);
+      setTipoMensajeTest("ok");
+      toast.success(msg);
+    } catch (err: any) {
+      const msg =
+        typeof err === "string"
+          ? err
+          : err?.message
+          ? err.message
+          : "No se pudo conectar con la cámara";
+
+      setConexionOk(false);
+      setTipoMensajeTest("error");
+      setMensajeTest(msg);
+      toast.error(msg);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  // ============================================================
   // 🔥 Enviar al backend
   // ============================================================
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,6 +179,11 @@ export function CameraFormDialog({
 
     if (!validarFormulario(esEdicion)) {
       toast.error("⚠️ Revise los campos del formulario");
+      return;
+    }
+
+    if (!esEdicion && !conexionOk) {
+      toast.error("Primero debes probar la conexión de la cámara");
       return;
     }
 
@@ -158,14 +221,9 @@ export function CameraFormDialog({
 
     toast.promise(promise, {
       loading: esEdicion ? "Actualizando cámara..." : "Registrando cámara...",
-
       success: esEdicion
         ? `Cámara ${formData.name} actualizada correctamente`
         : `Cámara ${formData.name} registrada exitosamente`,
-
-      // ============================================================
-      // 🔥 MENSAJES DE ERROR NORMALIZADOS — FINAL
-      // ============================================================
       error: (err) => {
         const msg = String(err?.message || "").toLowerCase();
 
@@ -174,14 +232,10 @@ export function CameraFormDialog({
         }
 
         if (msg.includes("ip") || msg.includes("dirección")) {
-          return "⚠️ Esta dirección IP ya está en uso dentro de la empresa";
+          return "⚠️ Esta URL ya está en uso dentro de la empresa";
         }
 
-        if (msg.includes("empresa") && msg.includes("zona")) {
-          return "⚠️ Ya existe una cámara con estos datos en esta empresa";
-        }
-
-        if (msg.includes("formato") || msg.includes("obligatorio") || msg.includes("inválida")) {
+        if (msg.includes("formato") || msg.includes("obligatorio")) {
           return "⚠️ Verifique los datos ingresados";
         }
 
@@ -202,7 +256,7 @@ export function CameraFormDialog({
   const esEdicion = !!camera;
 
   // ============================================================
-  // 🔥 UI COMPLETA – PLACEHOLDERS INTACTOS
+  // 🔥 UI COMPLETA
   // ============================================================
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -221,6 +275,7 @@ export function CameraFormDialog({
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
+
             {/* Código */}
             <div className="space-y-2">
               <Label>Nombre / Código de Cámara</Label>
@@ -237,24 +292,60 @@ export function CameraFormDialog({
               )}
             </div>
 
-            {/* IP */}
+            {/* URL */}
             <div className="space-y-2">
-              <Label>Dirección IP</Label>
-              <Input
-                placeholder="Ej: 192.168.1.20"
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                disabled={esEdicion}
-              />
+              <Label>URL de la Cámara</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="http://192.168.1.10:8080/video"
+                  value={formData.location}
+                  onChange={(e) => {
+                    setFormData({
+                      ...formData,
+                      location: e.target.value,
+                    });
+                    setConexionOk(false);
+                    setMensajeTest(null);
+                    setTipoMensajeTest(null);
+                  }}
+                  disabled={esEdicion}
+                  className="flex-1"
+                />
+
+                {!esEdicion && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleProbarConexion}
+                    disabled={testing || !formData.location}
+                  >
+                    {testing ? "Probando..." : "Probar"}
+                  </Button>
+                )}
+              </div>
+
+              {mensajeTest && (
+                <p
+                  className={`text-sm ${
+                    tipoMensajeTest === "ok"
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {mensajeTest}
+                </p>
+              )}
+
               {errors.location && (
-                <p className="text-red-500 text-sm">{errors.location}</p>
+                <p className="text-red-500 text-sm">
+                  {errors.location}
+                </p>
               )}
             </div>
 
             {/* Tipo y Estado */}
             <div className="grid grid-cols-2 gap-4">
+
               {/* Tipo */}
               <div className="space-y-2">
                 <Label>Tipo</Label>
@@ -276,7 +367,9 @@ export function CameraFormDialog({
                   </SelectContent>
                 </Select>
                 {errors.resolution && (
-                  <p className="text-red-500 text-sm">{errors.resolution}</p>
+                  <p className="text-red-500 text-sm">
+                    {errors.resolution}
+                  </p>
                 )}
               </div>
 
@@ -295,14 +388,21 @@ export function CameraFormDialog({
                   <SelectContent>
                     <SelectItem value="activa">Activa</SelectItem>
                     <SelectItem value="inactiva">Inactiva</SelectItem>
-                    <SelectItem value="mantenimiento">Mantenimiento</SelectItem>
-                    <SelectItem value="desconectada">Desconectada</SelectItem>
+                    <SelectItem value="mantenimiento">
+                      Mantenimiento
+                    </SelectItem>
+                    <SelectItem value="desconectada">
+                      Desconectada
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.status && (
-                  <p className="text-red-500 text-sm">{errors.status}</p>
+                  <p className="text-red-500 text-sm">
+                    {errors.status}
+                  </p>
                 )}
               </div>
+
             </div>
           </div>
 
@@ -317,10 +417,13 @@ export function CameraFormDialog({
             </Button>
 
             <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {loading && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               {esEdicion ? "Actualizar" : "Crear"}
             </Button>
           </DialogFooter>
+
         </form>
       </DialogContent>
     </Dialog>
