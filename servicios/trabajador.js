@@ -223,19 +223,21 @@ export async function validarCorreoInstantaneo(correo) {
 }
 
 
-export async function obtenerTrabajadorPorCodigo(codigoTrabajador) {
+export async function obtenerTrabajadorPorCodigo(codigoTrabajador, idEmpresa) {
   try {
-    const response = await fetch(`${TRABAJADOR_URL}/extraer/entrada/camara/${codigoTrabajador}`, {
-      method: "GET",
-    });
+    const response = await fetch(
+      `${TRABAJADOR_URL}/extraer/entrada/camara/${codigoTrabajador}/empresa/${idEmpresa}`,
+      { method: "GET" }
+    );
 
     if (!response.ok) {
-      return null;  
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.detail || "Error al obtener trabajador");
     }
 
     return await response.json();
   } catch (error) {
-    return null; 
+    return { error: error.message };
   }
 }
 

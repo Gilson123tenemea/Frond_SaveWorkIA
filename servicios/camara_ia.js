@@ -1,19 +1,18 @@
-
 import { BASE_URL } from "./api"
 
-const CAMARA_IA_URL = `${BASE_URL}/ia/camaras`
+const WEBCAM_STREAM_URL = `${BASE_URL}/webcam/stream`
 
-// =======================================
-// 📌 Obtener STREAM de IA de la cámara por ID de zona
-// =======================================
-export async function iniciarStreamCamaraIA(idCamara) {
+export async function iniciarStreamWebcamIA() {
   try {
-    const response = await fetch(`${CAMARA_IA_URL}/${idCamara}/stream`, {
-      method: "GET",
-    })
+    const response = await fetch(WEBCAM_STREAM_URL, { method: "GET" })
     if (!response.ok) return null
     return response
-  } catch {
+  } catch (err) {
+    console.error("Error conectando webcam IA:", err)
     return null
   }
+}
+
+export function obtenerUrlStreamWebcamIA() {
+  return WEBCAM_STREAM_URL
 }
