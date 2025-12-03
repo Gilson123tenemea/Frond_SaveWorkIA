@@ -7,38 +7,44 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter, // <-- IMPORTANTE
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+
 import {
   Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
+
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Camera } from "lucide-react";
-import { listarEmpresas } from "@/servicios/empresa";
-import { listarZonasPorEmpresa } from "@/servicios/zona";
-import { CameraFormDialog } from "./camera-form-dialog";
+
 import toast from "react-hot-toast";
 
-interface AllCamerasDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-}
+import { listarEmpresas } from "@/servicios/empresa";
+import { listarZonasPorEmpresa } from "@/servicios/zona";
+
+import { CameraFormDialog } from "./camera-form-dialog";
 
 export function AllCamerasDialog({
   open,
   onOpenChange,
   onSuccess,
-}: AllCamerasDialogProps) {
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
-  const [selectedZoneId, setSelectedZoneId] = useState<string>("");
-  const [showCameraForm, setShowCameraForm] = useState(false);
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [zones, setZones] = useState<any[]>([]);
+
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [selectedZoneId, setSelectedZoneId] = useState<string>("");
+
+  const [showCameraForm, setShowCameraForm] = useState(false);
 
   useEffect(() => {
     if (open) loadCompanies();
@@ -49,7 +55,7 @@ export function AllCamerasDialog({
       const data = await listarEmpresas();
       setCompanies(data);
     } catch {
-      toast.error("❌ Error al obtener empresas");
+      toast.error("❌ Error al cargar empresas");
     }
   };
 
@@ -58,18 +64,16 @@ export function AllCamerasDialog({
       const data = await listarZonasPorEmpresa(Number(empresaId));
       setZones(data);
     } catch {
-      toast.error("❌ Error al obtener zonas");
+      toast.error("❌ Error al cargar zonas");
     }
   };
 
-  const handleCompanyChange = (value: string) => {
-    setSelectedCompanyId(value);
-    setSelectedZoneId("");
-    loadZones(value);
-  };
-
   const handleContinue = () => {
-    if (selectedZoneId) setShowCameraForm(true);
+    if (!selectedZoneId) {
+      toast.error("⚠️ Debes seleccionar una zona");
+      return;
+    }
+    setShowCameraForm(true);
   };
 
   const handleSuccess = () => {
@@ -81,45 +85,42 @@ export function AllCamerasDialog({
 
   return (
     <>
-      {/* Selección de empresa y zona */}
       <Dialog open={open && !showCameraForm} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Camera className="w-5 h-5" />
-              Agregar Nueva Cámara
+              Registrar Nueva Cámara
             </DialogTitle>
             <DialogDescription>
-              Selecciona la empresa y zona donde instalar la cámara
+              Selecciona la empresa y la zona donde estará la cámara.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Empresa */}
             <div className="space-y-2">
-              <Label htmlFor="company">Empresa</Label>
+              <Label>Empresa</Label>
               <Select
                 value={selectedCompanyId}
-                onValueChange={handleCompanyChange}
+                onValueChange={(val) => {
+                  setSelectedCompanyId(val);
+                  setSelectedZoneId("");
+                  loadZones(val);
+                }}
               >
-                <SelectTrigger id="company">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleccionar empresa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {companies.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground text-center">
-                      No hay empresas disponibles
-                    </div>
-                  ) : (
-                    companies.map((company) => (
-                      <SelectItem
-                        key={company.id_empresa}
-                        value={String(company.id_empresa)}
-                      >
-                        {company.nombreEmpresa}
-                      </SelectItem>
-                    ))
-                  )}
+                  {companies.map((c: any) => (
+                    <SelectItem
+                      key={c.id_empresa}
+                      value={String(c.id_empresa)}
+                    >
+                      {c.nombreEmpresa}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -127,50 +128,41 @@ export function AllCamerasDialog({
             {/* Zona */}
             {selectedCompanyId && (
               <div className="space-y-2">
-                <Label htmlFor="zone">Zona</Label>
+                <Label>Zona</Label>
                 <Select
                   value={selectedZoneId}
                   onValueChange={setSelectedZoneId}
                 >
-                  <SelectTrigger id="zone">
+                  <SelectTrigger>
                     <SelectValue placeholder="Seleccionar zona" />
                   </SelectTrigger>
                   <SelectContent>
-                    {zones.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground text-center">
-                        No hay zonas disponibles
-                      </div>
-                    ) : (
-  zones.map((zone) => (
-  <SelectItem
-    key={zone.id_zona}
-    value={String(zone.id_zona)}
-  >
-    {zone.nombreZona}
-  </SelectItem>
-))
-
-
-                    )}
+                    {zones.map((z: any) => (
+                      <SelectItem
+                        key={z.id_Zona}
+                        value={String(z.id_Zona)}
+                      >
+                        {z.nombreZona}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
           </div>
 
-          {/* Botones */}
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button onClick={handleContinue} disabled={!selectedZoneId}>
               Continuar
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Formulario de creación de cámara */}
+      {/* FORMULARIO DE CÁMARA */}
       <CameraFormDialog
         open={showCameraForm}
         onOpenChange={(open) => {

@@ -137,22 +137,33 @@ export async function actualizarZona(id, zonaData) {
 }
 
 // ============================
-// 📌 Eliminar zona (lógica)
+// 📌 Eliminar Zona (sin errores en consola)
 // ============================
 export async function eliminarZona(id) {
   try {
     const response = await fetch(`${ZONA_URL}/${id}`, {
       method: "DELETE",
+      headers: { "Content-Type": "application/json" },
     });
 
+    // ❌ Si backend envía error
     if (!response.ok) {
-      throw new Error("Error al eliminar la zona");
+      let backendMsg = "Error al eliminar la zona";
+
+      try {
+        const errorData = await response.json();
+        backendMsg = errorData?.detail || backendMsg;
+      } catch {}
+
+      // 👉 No lanzamos error, solo devolvemos un objeto controlado
+      return { ok: false, message: backendMsg };
     }
 
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Error en eliminarZona:", error);
-    throw error;
+    const data = await response.json();
+    return { ok: true, message: data.message || "Zona eliminada" };
+
+  } catch {
+    // 👉 error de conexión u otro error inesperado
+    return { ok: false, message: "Error de conexión con el servidor" };
   }
 }
-

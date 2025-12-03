@@ -23,7 +23,6 @@ import {
 import { Camera, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
-// Servicios
 import {
   crearCamara,
   actualizarCamara,
@@ -56,17 +55,16 @@ export function CameraFormDialog({
 
   const [errors, setErrors] = useState<Record<string, string | null>>({});
 
-  // Estado de prueba de conexión
+  // Estado prueba cámara
   const [conexionOk, setConexionOk] = useState(false);
   const [testing, setTesting] = useState(false);
   const [mensajeTest, setMensajeTest] = useState<string | null>(null);
-  const [tipoMensajeTest, setTipoMensajeTest] = useState<
-    "ok" | "error" | null
-  >(null);
+  const [tipoMensajeTest, setTipoMensajeTest] = useState<"ok" | "error" | null>(
+    null
+  );
 
-  // ============================================================
-  // 🔥 Cargar datos para edición o limpieza para creación
-  // ============================================================
+  const esEdicion = !!camera;
+
   useEffect(() => {
     if (camera) {
       setFormData({
@@ -83,16 +81,12 @@ export function CameraFormDialog({
         status: "activa",
       });
     }
-
     setErrors({});
     setConexionOk(false);
     setMensajeTest(null);
     setTipoMensajeTest(null);
   }, [camera, open]);
 
-  // ============================================================
-  // 🔥 Validaciones FRONTEND
-  // ============================================================
   const validarFormulario = (esEdicion: boolean) => {
     const newErrors: Record<string, string | null> = {
       name: null,
@@ -103,23 +97,18 @@ export function CameraFormDialog({
 
     if (!esEdicion) {
       if (!formData.name.trim()) {
-        newErrors.name = "El nombre o código de la cámara es obligatorio";
+        newErrors.name = "El nombre / código de la cámara es obligatorio";
       }
-
-      // URL válida (http, https, rtsp)
       if (!formData.location.trim()) {
         newErrors.location = "La URL de la cámara es obligatoria";
-      } else if (
+      }
+      if (
         !formData.location.startsWith("http://") &&
         !formData.location.startsWith("https://") &&
         !formData.location.startsWith("rtsp://")
       ) {
         newErrors.location =
-          "La URL debe iniciar con http://, https:// o rtsp://";
-      }
-
-      if (!formData.resolution) {
-        newErrors.resolution = "El tipo de cámara es obligatorio";
+          "La URL debe empezar con http://, https:// o rtsp://";
       }
     }
 
@@ -131,12 +120,9 @@ export function CameraFormDialog({
     return !Object.values(newErrors).some((e) => e !== null);
   };
 
-  // ============================================================
-  // 🔥 Probar conexión con la cámara
-  // ============================================================
   const handleProbarConexion = async () => {
-    if (!formData.location || formData.location.trim() === "") {
-      toast.error("Ingresa primero la URL de la cámara");
+    if (!formData.location.trim()) {
+      toast.error("⚠️ Ingresa primero la URL de la cámara");
       return;
     }
 
@@ -149,33 +135,35 @@ export function CameraFormDialog({
       const msg = resp.message || "Conexión exitosa";
 
       setConexionOk(true);
-      setMensajeTest(msg);
       setTipoMensajeTest("ok");
-      toast.success(msg);
+      setMensajeTest(msg);
+
+      toast.success(msg, {
+        style: {
+          background: "#16a34a",
+          color: "#fff",
+          fontWeight: 500,
+        },
+        iconTheme: { primary: "#fff", secondary: "#14532d" },
+      });
     } catch (err: any) {
-      const msg =
-        typeof err === "string"
-          ? err
-          : err?.message
-          ? err.message
-          : "No se pudo conectar con la cámara";
+      const msg = err?.message || "No se pudo conectar con la cámara";
 
       setConexionOk(false);
       setTipoMensajeTest("error");
       setMensajeTest(msg);
-      toast.error(msg);
+
+      toast.error(msg, {
+        style: { background: "#dc2626", color: "#fff" },
+        iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
+      });
     } finally {
       setTesting(false);
     }
   };
 
-  // ============================================================
-  // 🔥 Enviar al backend
-  // ============================================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const esEdicion = !!camera;
 
     if (!validarFormulario(esEdicion)) {
       toast.error("⚠️ Revise los campos del formulario");
@@ -183,26 +171,17 @@ export function CameraFormDialog({
     }
 
     if (!esEdicion && !conexionOk) {
-      toast.error("Primero debes probar la conexión de la cámara");
-      return;
-    }
-
-    if (!zoneId && !esEdicion) {
-      toast.error("No se pudo identificar la zona");
+      toast.error("⚠️ Primero prueba la conexión de la cámara");
       return;
     }
 
     const user = JSON.parse(localStorage.getItem("user") || "null");
-    const adminId =
-      user?.id_administrador ||
-      parseInt(localStorage.getItem("adminId") || "0");
+    const adminId = user?.id_administrador ?? 0;
 
     let payload: any;
 
     if (esEdicion) {
-      payload = {
-        estado: formData.status,
-      };
+      payload = { estado: formData.status };
     } else {
       payload = {
         codigo: formData.name.trim(),
@@ -216,32 +195,31 @@ export function CameraFormDialog({
     }
 
     const promise = esEdicion
-      ? actualizarCamara(camera?.id_camara, payload)
+      ? actualizarCamara(camera.id_camara, payload)
       : crearCamara(payload);
 
-    toast.promise(promise, {
-      loading: esEdicion ? "Actualizando cámara..." : "Registrando cámara...",
-      success: esEdicion
-        ? `Cámara ${formData.name} actualizada correctamente`
-        : `Cámara ${formData.name} registrada exitosamente`,
-      error: (err) => {
-        const msg = String(err?.message || "").toLowerCase();
-
-        if (msg.includes("código") || msg.includes("codigo")) {
-          return "⚠️ Ya existe una cámara con ese código en esta empresa";
-        }
-
-        if (msg.includes("ip") || msg.includes("dirección")) {
-          return "⚠️ Esta URL ya está en uso dentro de la empresa";
-        }
-
-        if (msg.includes("formato") || msg.includes("obligatorio")) {
-          return "⚠️ Verifique los datos ingresados";
-        }
-
-        return "❌ No se pudo guardar la cámara";
+    toast.promise(
+      promise,
+      {
+        loading: esEdicion ? "Actualizando cámara..." : "Registrando cámara...",
+        success: esEdicion
+          ? `Cámara ${formData.name} actualizada correctamente`
+          : `Cámara ${formData.name} creada correctamente`,
+        error: "❌ No se pudo completar la operación",
       },
-    });
+      {
+        style: {
+          background: esEdicion ? "#2563EB" : "#16a34a",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+        },
+        iconTheme: {
+          primary: "#fff",
+          secondary: esEdicion ? "#1e3a8a" : "#14532d",
+        },
+      }
+    );
 
     setLoading(true);
     try {
@@ -253,23 +231,18 @@ export function CameraFormDialog({
     }
   };
 
-  const esEdicion = !!camera;
-
-  // ============================================================
-  // 🔥 UI COMPLETA
-  // ============================================================
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="w-5 h-5" />
-            {esEdicion ? "Editar Cámara" : "Crear Nueva Cámara"}
+            {esEdicion ? "Editar Cámara" : "Crear Cámara"}
           </DialogTitle>
           <DialogDescription>
             {esEdicion
-              ? "Solo puedes modificar el estado de la cámara"
-              : "Completa los datos para registrar una nueva cámara"}
+              ? "Modifica el estado de la cámara"
+              : "Registra una nueva cámara para esta zona"}
           </DialogDescription>
         </DialogHeader>
 
@@ -278,9 +251,8 @@ export function CameraFormDialog({
 
             {/* Código */}
             <div className="space-y-2">
-              <Label>Nombre / Código de Cámara</Label>
+              <Label>Código</Label>
               <Input
-                placeholder="Ej: CAM-A01"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
@@ -294,36 +266,29 @@ export function CameraFormDialog({
 
             {/* URL */}
             <div className="space-y-2">
-              <Label>URL de la Cámara</Label>
+              <Label>URL Cámara</Label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="http://192.168.1.10:8080/video"
                   value={formData.location}
                   onChange={(e) => {
-                    setFormData({
-                      ...formData,
-                      location: e.target.value,
-                    });
+                    setFormData({ ...formData, location: e.target.value });
                     setConexionOk(false);
                     setMensajeTest(null);
-                    setTipoMensajeTest(null);
                   }}
                   disabled={esEdicion}
-                  className="flex-1"
                 />
 
                 {!esEdicion && (
                   <Button
                     type="button"
                     variant="outline"
+                    disabled={testing}
                     onClick={handleProbarConexion}
-                    disabled={testing || !formData.location}
                   >
                     {testing ? "Probando..." : "Probar"}
                   </Button>
                 )}
               </div>
-
               {mensajeTest && (
                 <p
                   className={`text-sm ${
@@ -335,29 +300,21 @@ export function CameraFormDialog({
                   {mensajeTest}
                 </p>
               )}
-
-              {errors.location && (
-                <p className="text-red-500 text-sm">
-                  {errors.location}
-                </p>
-              )}
             </div>
 
             {/* Tipo y Estado */}
             <div className="grid grid-cols-2 gap-4">
-
-              {/* Tipo */}
-              <div className="space-y-2">
+              <div>
                 <Label>Tipo</Label>
                 <Select
                   value={formData.resolution}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, resolution: value })
+                  onValueChange={(val) =>
+                    setFormData({ ...formData, resolution: val })
                   }
                   disabled={esEdicion}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Tipo de cámara" />
+                    <SelectValue placeholder="Tipo" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="IP">IP</SelectItem>
@@ -366,24 +323,18 @@ export function CameraFormDialog({
                     <SelectItem value="PTZ">PTZ</SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.resolution && (
-                  <p className="text-red-500 text-sm">
-                    {errors.resolution}
-                  </p>
-                )}
               </div>
 
-              {/* Estado */}
-              <div className="space-y-2">
+              <div>
                 <Label>Estado</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, status: value })
+                  onValueChange={(val) =>
+                    setFormData({ ...formData, status: val })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar estado" />
+                    <SelectValue placeholder="Estado" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="activa">Activa</SelectItem>
@@ -396,34 +347,20 @@ export function CameraFormDialog({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.status && (
-                  <p className="text-red-500 text-sm">
-                    {errors.status}
-                  </p>
-                )}
               </div>
-
             </div>
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
 
             <Button type="submit" disabled={loading}>
-              {loading && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              {esEdicion ? "Actualizar" : "Crear"}
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {esEdicion ? "Actualizar" : "Registrar"}
             </Button>
           </DialogFooter>
-
         </form>
       </DialogContent>
     </Dialog>

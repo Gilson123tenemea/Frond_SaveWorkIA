@@ -17,7 +17,7 @@ import toast from "react-hot-toast";
 import { crearZona, actualizarZona } from "@/servicios/zona";
 import { MapPicker } from "@/components/maps/google-maps-picker";
 
-// 🔹 Validaciones
+// Validaciones Front
 import {
   validarNombreZona,
   validarCoordenada,
@@ -50,50 +50,44 @@ export function ZoneFormDialog({
     id_administrador_zona: 0,
   });
 
-  // ===========================================================
-  // 🔹 Obtener ADMIN desde localStorage SIEMPRE CORRECTO
-  // ===========================================================
+  // Obtener ADMIN desde localStorage
   const getAdminId = () => {
     const user = JSON.parse(localStorage.getItem("user") || "null");
     return user?.id_administrador ?? 0;
   };
 
-  // ===========================================================
-  // 🔹 Cargar valores al abrir modal
-  // ===========================================================
+  // Cargar valores al abrir modal
   useEffect(() => {
     if (!open) return;
 
     const adminId = getAdminId();
 
     if (zone) {
-      // 🔥 MODO EDITAR
+      // MODO EDITAR
       setFormData({
         nombreZona: zone.nombreZona,
         latitud: zone.latitud,
         longitud: zone.longitud,
         estado: zone.borrado ? "active" : "inactive",
         id_empresa_zona: zone.id_empresa_zona,
-        id_administrador_zona: adminId, // 🔥 SIEMPRE ADMIN VÁLIDO
+        id_administrador_zona: adminId,
       });
     } else {
-      // 🔥 MODO CREAR
+      // MODO CREAR
       setFormData({
         nombreZona: "",
         latitud: "",
         longitud: "",
         estado: "active",
         id_empresa_zona: companyId ?? 0,
-        id_administrador_zona: adminId, // 🔥 OBLIGATORIO
+        id_administrador_zona: adminId,
       });
     }
 
     setErrors({});
   }, [open, zone, companyId]);
 
-  // ===========================================================
-  // 🔹 Guardar coordenadas cuando selecciona en el mapa
-  // ===========================================================
+  // Guardar coordenadas desde el mapa
   const handleLocationSelect = (lat: number, lng: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -102,9 +96,7 @@ export function ZoneFormDialog({
     }));
   };
 
-  // ===========================================================
-  // 🔹 Validar formulario
-  // ===========================================================
+  // Validar formulario
   const validarFormulario = () => {
     const newErrors: any = {};
 
@@ -117,9 +109,7 @@ export function ZoneFormDialog({
     return !Object.values(newErrors).some((e) => e !== null);
   };
 
-  // ===========================================================
-  // 🔹 Enviar formulario
-  // ===========================================================
+  // Guardar (crear/editar)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -133,7 +123,7 @@ export function ZoneFormDialog({
       latitud: formData.latitud,
       longitud: formData.longitud,
       id_empresa_zona: formData.id_empresa_zona,
-      id_administrador_zona: formData.id_administrador_zona, // 🔥 NO PUEDE SER NULL
+      id_administrador_zona: formData.id_administrador_zona,
       borrado: formData.estado === "active",
     };
 
@@ -141,15 +131,39 @@ export function ZoneFormDialog({
       ? actualizarZona(zone.id_Zona, dataToSend)
       : crearZona(dataToSend);
 
-    toast.promise(promise, {
-      loading: zone ? "Actualizando zona..." : "Registrando zona...",
-      success: zone
-        ? `Zona "${formData.nombreZona}" actualizada con éxito`
-        : `Zona "${formData.nombreZona}" registrada exitosamente`,
-      error: "❌ Ocurrió un error al guardar la zona",
-    });
+    toast.promise(
+      promise,
+      {
+        loading: zone ? "Actualizando zona..." : "Registrando zona...",
+        success: zone
+          ? `Zona "${formData.nombreZona}" actualizada correctamente`
+          : `Zona "${formData.nombreZona}" registrada exitosamente`,
+        error: (err: any) => {
+          const backendMsg =
+            err?.response?.data?.detail ||
+            err?.message ||
+            "❌ Error al guardar la zona";
+
+          return "⚠️ " + backendMsg;
+        },
+      },
+      {
+        style: {
+          background: zone ? "#1d4ed8" : "#16a34a",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+        },
+        iconTheme: {
+          primary: "#fff",
+          secondary: zone ? "#1e40af" : "#166534",
+        },
+      }
+    );
 
     setLoading(true);
+
     try {
       await promise;
       onSuccess();
@@ -159,9 +173,6 @@ export function ZoneFormDialog({
     }
   };
 
-  // ===========================================================
-  // 🔹 UI
-  // ===========================================================
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
@@ -171,7 +182,7 @@ export function ZoneFormDialog({
             {zone ? "Editar Zona" : "Registrar Nueva Zona"}
           </DialogTitle>
           <DialogDescription>
-            Selecciona una ubicación en el mapa y completa los campos requeridos.
+            Seleccione una ubicación en el mapa y llene todos los campos.
           </DialogDescription>
         </DialogHeader>
 
