@@ -32,7 +32,12 @@ interface EmpresaDialogProps {
   onSuccess: () => void;
 }
 
-export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: EmpresaDialogProps) {
+export function EmpresaDialog({
+  open,
+  onOpenChange,
+  empresa,
+  onSuccess,
+}: EmpresaDialogProps) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<any>({});
 
@@ -46,7 +51,46 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
     id_administrador_empresa: 0,
   });
 
-  // CARGAR DATOS
+  // Saneador universal + validación en tiempo real
+  const handleChange = (campo: string, valor: string) => {
+    setFormData((prev) => ({ ...prev, [campo]: valor }));
+
+    // VALIDACIÓN automática por campo
+    let error = null;
+    switch (campo) {
+      case "nombreEmpresa":
+        error =
+          campoObligatorio(valor, "Nombre de la empresa") ||
+          validarNombreEmpresa(valor);
+        break;
+
+      case "ruc":
+        error = campoObligatorio(valor, "RUC") || validarRuc(valor);
+        break;
+
+      case "direccion":
+        error = campoObligatorio(valor, "Dirección");
+        break;
+
+      case "telefono":
+        error =
+          campoObligatorio(valor, "Teléfono") || validarTelefono(valor);
+        break;
+
+      case "correo":
+        error =
+          campoObligatorio(valor, "Correo electrónico") ||
+          validarCorreo(valor);
+        break;
+
+      case "sector":
+        error = campoObligatorio(valor, "Sector");
+        break;
+    }
+
+    setErrors((prev: any) => ({ ...prev, [campo]: error }));
+  };
+
   useEffect(() => {
     const user = getUser();
     const adminId = user?.id_administrador;
@@ -76,32 +120,24 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
     setErrors({});
   }, [empresa, open]);
 
-  // VALIDACIONES
   const validateForm = () => {
+    const campos = ["nombreEmpresa", "ruc", "direccion", "telefono", "correo", "sector"];
     const newErrors: any = {};
 
-    newErrors.nombreEmpresa =
-      campoObligatorio(formData.nombreEmpresa, "Nombre de la empresa") ||
-      validarNombreEmpresa(formData.nombreEmpresa);
+    campos.forEach((campo) => {
+      const valor = (formData as any)[campo];
 
-    newErrors.ruc =
-      campoObligatorio(formData.ruc, "RUC") || validarRuc(formData.ruc);
-
-    newErrors.direccion = campoObligatorio(formData.direccion, "Dirección");
-
-    newErrors.telefono =
-      campoObligatorio(formData.telefono, "Teléfono") ||
-      validarTelefono(formData.telefono);
-
-    newErrors.correo =
-      campoObligatorio(formData.correo, "Correo electrónico") ||
-      validarCorreo(formData.correo);
-
-    newErrors.sector = campoObligatorio(formData.sector, "Sector");
+      newErrors[campo] =
+        campoObligatorio(valor, campo) ||
+        (campo === "nombreEmpresa" && validarNombreEmpresa(valor)) ||
+        (campo === "telefono" && validarTelefono(valor)) ||
+        (campo === "ruc" && validarRuc(valor)) ||
+        (campo === "correo" && validarCorreo(valor)) ||
+        null;
+    });
 
     setErrors(newErrors);
-
-    return Object.values(newErrors).every((e) => e === null);
+    return Object.values(newErrors).every((x) => x === null);
   };
 
   // SUBMIT
@@ -113,7 +149,7 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
       return;
     }
 
-    let payload: any = {
+    const payload: any = {
       nombreEmpresa: formData.nombreEmpresa,
       direccion: formData.direccion,
       telefono: formData.telefono,
@@ -128,13 +164,46 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
       ? actualizarEmpresa(empresa.id_Empresa, payload)
       : crearEmpresa(payload);
 
+    // Estilos personalizados
+    const toastOptions = empresa
+      ? {
+          // 🔵 Azul editar
+          style: {
+            background: "#2563eb",
+            color: "#fff",
+            borderRadius: "8px",
+            fontWeight: 600,
+          },
+          iconTheme: {
+            primary: "#fff",
+            secondary: "#1e3a8a",
+          },
+        }
+      : {
+          // 🟢 Verde crear
+          style: {
+            background: "#16a34a",
+            color: "#fff",
+            borderRadius: "8px",
+            fontWeight: 600,
+          },
+          iconTheme: {
+            primary: "#fff",
+            secondary: "#166534",
+          },
+        };
+
     toast.promise(
       promise,
       {
-        loading: empresa ? "Actualizando empresa..." : "Registrando empresa...",
+        loading: empresa
+          ? "Actualizando empresa..."
+          : "Registrando empresa...",
+
         success: empresa
           ? `Empresa "${formData.nombreEmpresa}" actualizada con éxito`
-          : `Empresa "${formData.nombreEmpresa}" registrada exitosamente`,
+          : `Empresa "${formData.nombreEmpresa}" registrada correctamente`,
+
         error: (err: any) => {
           const backendMsg =
             err?.response?.data?.detail ||
@@ -144,47 +213,7 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
           return `⚠️ ${backendMsg}`;
         },
       },
-      {
-        // 🔵 LOADING
-        loading: {
-          style: {
-            background: "#2563eb",
-            color: "#fff",
-            borderRadius: "8px",
-            fontWeight: 500,
-          },
-          iconTheme: {
-            primary: "#fff",
-            secondary: "#1e3a8a",
-          },
-        },
-        // 🟢 SUCCESS
-        success: {
-          style: {
-            background: "#16a34a",
-            color: "#fff",
-            borderRadius: "8px",
-            fontWeight: 500,
-          },
-          iconTheme: {
-            primary: "#fff",
-            secondary: "#14532d",
-          },
-        },
-        // 🔴 ERROR
-        error: {
-          style: {
-            background: "#dc2626",
-            color: "#fff",
-            borderRadius: "8px",
-            fontWeight: 500,
-          },
-          iconTheme: {
-            primary: "#fff",
-            secondary: "#7f1d1d",
-          },
-        },
-      }
+      toastOptions
     );
 
     try {
@@ -204,8 +233,8 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
           </DialogTitle>
           <DialogDescription>
             {empresa
-              ? "Actualiza los datos de la empresa"
-              : "Registra una nueva empresa en el sistema"}
+              ? "Actualiza los datos de la empresa."
+              : "Ingresa los datos de la nueva empresa."}
           </DialogDescription>
         </DialogHeader>
 
@@ -215,11 +244,16 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             <div>
               <Label>Nombre de la Empresa</Label>
               <Input
-                placeholder="Ej: Constructora ABC"
+                maxLength={50}
+                className={errors.nombreEmpresa ? "border-red-500" : ""}
                 value={formData.nombreEmpresa}
                 onChange={(e) =>
-                  setFormData({ ...formData, nombreEmpresa: e.target.value })
+                  handleChange(
+                    "nombreEmpresa",
+                    e.target.value.replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ ]/g, "")
+                  )
                 }
+                placeholder="Ej: Constructora ABC"
               />
               {errors.nombreEmpresa && (
                 <p className="text-red-500 text-sm">{errors.nombreEmpresa}</p>
@@ -230,27 +264,26 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             <div>
               <Label>RUC</Label>
               <Input
-                placeholder="Ej: 1790012345001"
-                value={formData.ruc}
+                maxLength={13}
                 disabled={!!empresa}
+                className={errors.ruc ? "border-red-500" : ""}
+                value={formData.ruc}
                 onChange={(e) =>
-                  setFormData({ ...formData, ruc: e.target.value })
+                  handleChange("ruc", e.target.value.replace(/\D/g, ""))
                 }
+                placeholder="Ej: 1790012345001"
               />
-              {errors.ruc && (
-                <p className="text-red-500 text-sm">{errors.ruc}</p>
-              )}
+              {errors.ruc && <p className="text-red-500 text-sm">{errors.ruc}</p>}
             </div>
 
             {/* Dirección */}
             <div>
               <Label>Dirección</Label>
               <Input
-                placeholder="Ej: Av. Loja y Remigio Crespo"
+                className={errors.direccion ? "border-red-500" : ""}
                 value={formData.direccion}
-                onChange={(e) =>
-                  setFormData({ ...formData, direccion: e.target.value })
-                }
+                onChange={(e) => handleChange("direccion", e.target.value)}
+                placeholder="Dirección completa"
               />
               {errors.direccion && (
                 <p className="text-red-500 text-sm">{errors.direccion}</p>
@@ -261,11 +294,13 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             <div>
               <Label>Teléfono</Label>
               <Input
-                placeholder="0998887766"
+                maxLength={10}
+                className={errors.telefono ? "border-red-500" : ""}
                 value={formData.telefono}
                 onChange={(e) =>
-                  setFormData({ ...formData, telefono: e.target.value })
+                  handleChange("telefono", e.target.value.replace(/\D/g, ""))
                 }
+                placeholder="0998887766"
               />
               {errors.telefono && (
                 <p className="text-red-500 text-sm">{errors.telefono}</p>
@@ -277,11 +312,10 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
               <Label>Correo Electrónico</Label>
               <Input
                 type="email"
-                placeholder="contacto@empresa.com"
+                className={errors.correo ? "border-red-500" : ""}
                 value={formData.correo}
-                onChange={(e) =>
-                  setFormData({ ...formData, correo: e.target.value })
-                }
+                onChange={(e) => handleChange("correo", e.target.value)}
+                placeholder="contacto@empresa.com"
               />
               {errors.correo && (
                 <p className="text-red-500 text-sm">{errors.correo}</p>
@@ -292,11 +326,10 @@ export function EmpresaDialog({ open, onOpenChange, empresa, onSuccess }: Empres
             <div>
               <Label>Sector</Label>
               <Input
-                placeholder="Ej: Construcción / Tecnología / Legal"
+                className={errors.sector ? "border-red-500" : ""}
                 value={formData.sector}
-                onChange={(e) =>
-                  setFormData({ ...formData, sector: e.target.value })
-                }
+                onChange={(e) => handleChange("sector", e.target.value)}
+                placeholder="Ej: Construcción / Tecnología"
               />
               {errors.sector && (
                 <p className="text-red-500 text-sm">{errors.sector}</p>

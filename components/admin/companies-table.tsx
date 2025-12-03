@@ -9,10 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Building2, Pencil, MapPin, Trash2 } from "lucide-react"
 import toast from "react-hot-toast"
 
-// Servicios del backend
+// Servicios
 import { listarEmpresas, eliminarEmpresa } from "../../servicios/empresa"
 
-// Componentes del panel
+// Componentes
 import { EmpresaDialog } from "./company-dialog"
 import { ZonesDialog } from "./zones-dialog"
 
@@ -28,7 +28,6 @@ export function CompaniesTable() {
     loadCompanies()
   }, [])
 
-  // 🔹 Cargar empresas desde backend
   const loadCompanies = async () => {
     try {
       setLoading(true)
@@ -42,42 +41,36 @@ export function CompaniesTable() {
     }
   }
 
-  // 🔍 Filtro de búsqueda
   const filteredCompanies = companies.filter((empresa) =>
     (empresa.nombreEmpresa ?? "").toLowerCase().includes(search.toLowerCase())
   )
 
-  // 🧩 Abrir modal de registro
   const handleAdd = () => {
     setEditingCompany(null)
     setIsDialogOpen(true)
   }
 
-  // ✏️ Editar empresa
   const handleEdit = (empresa: any) => {
     setEditingCompany(empresa)
     setIsDialogOpen(true)
   }
 
-  // ✅ Al guardar o editar correctamente
   const handleSuccess = () => {
     loadCompanies()
     setIsDialogOpen(false)
     setEditingCompany(null)
   }
 
-  // 📍 Ver zonas de una empresa (manejo seguro del ID)
   const handleViewZones = (empresa: any) => {
     const empresaId = empresa.id_Empresa ?? empresa.id_empresa ?? empresa.id ?? null
     if (!empresaId) {
       toast.error("❌ No se pudo identificar la empresa seleccionada")
       return
     }
-    console.log("📡 Abriendo zonas para empresa ID:", empresaId)
     setZonesCompanyId(empresaId)
   }
 
-  // 🗑️ Eliminar empresa (confirmación visual)
+  // 🗑️ Eliminar empresa con validación del backend
   const handleDelete = async (empresaId: number, nombreEmpresa: string) => {
     const overlay = document.createElement("div")
     overlay.style.position = "fixed"
@@ -116,47 +109,42 @@ export function CompaniesTable() {
                 const promise = eliminarEmpresa(empresaId)
 
                 toast.promise(
-  promise,
-  {
-    loading: "Eliminando empresa...",
-    success: `Empresa "${nombreEmpresa}" eliminada correctamente`,
-    error: (err: any) => {
-      console.error("Error backend eliminar empresa:", err);
+                  promise,
+                  {
+                    loading: "Eliminando empresa...",
 
-      const backendMsg =
-        err?.response?.data?.detail ||
-        err?.message ||
-        "❌ Error al eliminar la empresa";
+                    // ✔ Solo éxito real si el backend confirma
+                    success: (res) => {
+                      if (res?.message?.includes("eliminada correctamente")) {
+                        return `Empresa "${nombreEmpresa}" eliminada correctamente`
+                      }
+                      throw new Error("Error inesperado al eliminar empresa")
+                    },
 
-      if (backendMsg.includes("zonas")) {
-        return "⚠️ No se puede eliminar una empresa que tiene zonas registradas.";
-      }
-
-      return "❌ " + backendMsg;
-    },
-  },
-  {
-    style: {
-      background: "#dc2626",
-      color: "#fff",
-      borderRadius: "8px",
-      fontWeight: 500,
-      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-    },
-    iconTheme: {
-      primary: "#fff",
-      secondary: "#b91c1c",
-    },
-  }
-)
-
+                    // ✔ Mostrar el mensaje REAL del backend
+                    error: (err: any) => {
+                      return "⚠️ " + (err?.message || "Error al eliminar la empresa")
+                    },
+                  },
+                  {
+                    style: {
+                      background: "#dc2626",
+                      color: "#fff",
+                      borderRadius: "8px",
+                      fontWeight: 500,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                    },
+                    iconTheme: {
+                      primary: "#fff",
+                      secondary: "#7f1d1d",
+                    },
+                  }
+                )
 
                 try {
                   await promise
                   await loadCompanies()
-                } catch (err) {
-                  console.error("Error al eliminar:", err)
-                }
+                } catch {}
               }}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
             >
@@ -206,7 +194,6 @@ export function CompaniesTable() {
         </CardHeader>
 
         <CardContent>
-          {/* 🔍 Barra de búsqueda */}
           <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -219,7 +206,6 @@ export function CompaniesTable() {
             </div>
           </div>
 
-          {/* 📋 Tabla de empresas */}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
@@ -250,24 +236,29 @@ export function CompaniesTable() {
                         </div>
                       </div>
                     </TableCell>
+
                     <TableCell>{empresa.ruc}</TableCell>
                     <TableCell>{empresa.telefono}</TableCell>
                     <TableCell>{empresa.correo}</TableCell>
                     <TableCell>{empresa.sector}</TableCell>
+
                     <TableCell>
                       <Badge variant={empresa.borrado ? "default" : "outline"}>
                         {empresa.borrado ? "Activo" : "Inactivo"}
                       </Badge>
                     </TableCell>
+
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button variant="ghost" size="sm" onClick={() => handleViewZones(empresa)}>
                           <MapPin className="w-4 h-4 mr-2" />
                           Zonas
                         </Button>
+
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(empresa)}>
                           <Pencil className="w-4 h-4" />
                         </Button>
+
                         <Button
                           variant="ghost"
                           size="sm"
@@ -287,7 +278,7 @@ export function CompaniesTable() {
                 ))}
 
                 {filteredCompanies.length === 0 && (
-                  <TableRow key="no-companies">
+                  <TableRow>
                     <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                       {loading ? "Cargando empresas..." : "No se encontraron empresas registradas"}
                     </TableCell>
@@ -299,7 +290,6 @@ export function CompaniesTable() {
         </CardContent>
       </Card>
 
-      {/* 🟩 Modal de registro / edición */}
       <EmpresaDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
@@ -307,7 +297,6 @@ export function CompaniesTable() {
         onSuccess={handleSuccess}
       />
 
-      {/* 🟨 Modal de zonas */}
       <ZonesDialog
         open={zonesCompanyId !== null}
         onOpenChange={(open) => !open && setZonesCompanyId(null)}

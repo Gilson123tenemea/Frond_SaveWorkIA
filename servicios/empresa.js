@@ -111,22 +111,32 @@
     }
   }
 
-  // ============================
-  // 📌 Eliminar empresa (lógica)
-  // ============================
-  export async function eliminarEmpresa(id) {
+// ============================
+// 📌 Eliminar empresa (borrado lógico)
+// ============================
+export async function eliminarEmpresa(id) {
+  const response = await fetch(`${EMPRESA_URL}/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  // ❗ SI FALLA → lanzar ERROR REAL
+  if (!response.ok) {
+    let backendMsg = "Error al eliminar empresa";
+
     try {
-      const response = await fetch(`${EMPRESA_URL}/${id}`, {
-        method: "DELETE",
-      });
+      const errorData = await response.json();
+      backendMsg = errorData?.detail || backendMsg;
+    } catch {}
 
-      if (!response.ok) {
-        throw new Error("Error al eliminar la empresa");
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("❌ Error en eliminarEmpresa:", error);
-      throw error;
-    }
+    // 🔥 Lanzar error REAL → esto activa el bloque ERROR del toast
+    throw new Error(backendMsg);
   }
+
+  // ✔ Si no falló → eliminar OK
+  return await response.json();
+}
+
+
