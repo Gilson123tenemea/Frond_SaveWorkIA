@@ -1,49 +1,3 @@
-// app/servicios/registro_asistencia_actualizado.js
-/**
- * NOTA: Reemplaza tu registro_asistencia.js actual con este
- */
-
-import { BASE_URL } from "./api";
-
-/**
- * Registra asistencia BÁSICA (sin análisis EPP)
- * Se usa solo para crear el registro inicial
- * 
- * DEPRECATED: Ahora se recomienda usar verificarEPP() que hace todo automáticamente
- */
-export async function registrarAsistencia(codigo, idCamara, ids, supervisorLoginIds) {
-  try {
-    const payload = {
-      fecha_hora: null,
-      cumple_epp: true,
-      codigo_ingresado: codigo,
-      id_trabajador: ids.id_trabajador,
-      id_empresa: ids.id_empresa,
-      id_zona: ids.id_zona,
-      id_camara: idCamara,
-      id_supervisor: supervisorLoginIds.id_supervisor,
-      id_inspector: ids.id_inspector ?? null,
-    };
-
-    const res = await fetch(`${BASE_URL}/registros-asistencia/registrar`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.detail || "❌ Error al registrar asistencia");
-    }
-
-    return await res.json();
-  } catch (error) {
-    console.error("❌ registrarAsistencia:", error.message);
-    return { error: error.message };
-  }
-}
-
-// ============================================================
 // app/servicios/verificar_epp.js
 /**
  * Servicio para verificar EPP y crear registros de asistencia
@@ -54,12 +8,36 @@ import { BASE_URL } from "./api";
 
 /**
  * Verifica EPP del trabajador capturando frame de la cámara
- * Puede recibir 2 o 3 argumentos (compatible hacia atrás)
+ * Crea automáticamente RegistroAsistencia y EvidenciaFallo si es necesario
  *
  * @param {number} idCamara - ID de la cámara
  * @param {string} codigoTrabajador - Código del trabajador (ej: "TRA-001")
- * @param {Object} [datosTrabajador] - Datos del trabajador (opcional, si no se pasa se obtiene del endpoint)
+ * @param {Object} [datosTrabajador] - Datos del trabajador (opcional)
  * @returns {Promise<Object>} Resultado del análisis con detecciones y evidencia
+ *
+ * Retorna:
+ * {
+ *   status: "✅ CUMPLE EPP" | "❌ NO CUMPLE EPP",
+ *   mensaje: string,
+ *   registro: {
+ *     id_registro: number,
+ *     trabajador: { id, codigo, nombre },
+ *     cumple_epp: boolean,
+ *     fecha_hora: string (ISO)
+ *   },
+ *   detecciones: {
+ *     casco: boolean,
+ *     chaleco: boolean,
+ *     guantes: boolean,
+ *     botas: boolean,
+ *     lentes: boolean
+ *   },
+ *   evidencia: {
+ *     tiene_fallo: boolean,
+ *     foto_url: string | null,
+ *     detalle: string
+ *   }
+ * }
  */
 export async function verificarEPP(idCamara, codigoTrabajador, datosTrabajador = null) {
   try {
@@ -69,32 +47,16 @@ export async function verificarEPP(idCamara, codigoTrabajador, datosTrabajador =
 
     console.log(`🔍 Verificando EPP: Cámara ${idCamara}, Código ${codigoTrabajador}`);
 
-    // Si no recibe datos del trabajador, obtenerlos (compatibilidad hacia atrás)
-    let datosVerificacion;
-    
-    if (datosTrabajador) {
-      // 🔥 Si recibe datos, usarlos directamente
-      datosVerificacion = {
-        id_trabajador: datosTrabajador.id_trabajador,
-        id_empresa: datosTrabajador.id_empresa,
-        id_zona: datosTrabajador.id_zona,
-        id_supervisor: datosTrabajador.id_supervisor_trabajador,
-        id_inspector: datosTrabajador.id_inspector || null,
-        nombre_trabajador: `${datosTrabajador.persona.nombre} ${datosTrabajador.persona.apellido}`,
-      };
-    } else {
-      // Si no recibe datos, obtenerlos del endpoint (ya no recomendado)
-      throw new Error("datosTrabajador es requerido");
-    }
-
-    // Construir URL con parámetros
+    // Construir URL solo con parámetros básicos
     const url = new URL(`${BASE_URL}/registros-asistencia/verificar-epp/${idCamara}`);
     url.searchParams.append("codigo_trabajador", codigoTrabajador);
+
+    console.log(`📤 Enviando objeto trabajador completo...`);
 
     const response = await fetch(url.toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(datosVerificacion),
+      body: JSON.stringify(datosTrabajador),  // 🔥 Enviar objeto completo del trabajador
     });
 
     if (!response.ok) {
