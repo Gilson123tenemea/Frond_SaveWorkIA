@@ -26,3 +26,37 @@ export async function obtenerIncumplimientos(idSupervisor) {
     throw error;
   }
 }
+
+
+/**
+ * Obtiene el historial de incumplimientos de un trabajador
+ * filtrando por cédula, código o ID.
+ * 
+ * @param {Object} filtros - Objeto con al menos uno de los filtros:
+ *                           { cedula, codigo_trabajador, id_trabajador }
+ * @returns {Promise<Array>} Lista de incumplimientos del trabajador.
+ */
+export async function obtenerHistorialTrabajador(filtros) {
+  try {
+    const params = new URLSearchParams();
+
+    if (filtros.cedula) params.append("cedula", filtros.cedula);
+    if (filtros.codigo_trabajador) params.append("codigo_trabajador", filtros.codigo_trabajador);
+    if (filtros.id_trabajador) params.append("id_trabajador", filtros.id_trabajador);
+
+    const response = await fetch(
+      `${BASE_URL}/reportes/incumplimientos/trabajador?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Error al obtener historial del trabajador");
+    }
+
+    const data = await response.json();
+    return data;
+
+  } catch (error) {
+    console.error("❌ Error en obtenerHistorialTrabajador:", error);
+    throw error;
+  }
+}
