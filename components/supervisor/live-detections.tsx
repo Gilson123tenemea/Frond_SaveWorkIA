@@ -14,27 +14,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Camera, Clock, UserCheck, HardHat, Shield, Glasses, Shirt } from "lucide-react";
 
-import {
-  HardHat,
-  Shield,
-  Glasses,
-  Shirt,
-  AlertTriangle,
-  CheckCircle2,
-  Camera,
-  Clock,
-  UserCheck,
-} from "lucide-react";
+// IMPORTA EL NUEVO MODAL (AJUSTA LA RUTA SEGÚN TU PROYECTO)
+import { WorkerHistoryDialog } from "./worker-history-dialog"
 
 const ICON_MAP: any = {
   casco: HardHat,
@@ -87,7 +72,7 @@ export function LiveDetections() {
             id: index + 1,
             timestamp: new Date(item.fecha_registro).toLocaleString(),
             worker: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
-            cedula: item.trabajador.cedula, // 🔥 NECESARIO PARA VER HISTORIAL
+            cedula: item.trabajador.cedula,
             camera: item.camara.codigo,
             zone: item.camara.zona,
             inspector: item.inspector.nombre
@@ -99,7 +84,6 @@ export function LiveDetections() {
           };
         });
 
-        // AGRUPAR POR ZONA
         const groupedByZone: any = {};
 
         transformado.forEach((item) => {
@@ -128,17 +112,12 @@ export function LiveDetections() {
   async function verHistorial(detection: any) {
     try {
       const cedula = detection.cedula;
-
-      if (!cedula) {
-        console.error("⚠ No se encontró cédula del trabajador.");
-        return;
-      }
+      if (!cedula) return;
 
       setHistorialWorker(detection.worker);
 
       const data = await obtenerHistorialTrabajador({ cedula });
 
-      // TRANSFORMAR IGUAL QUE EN DETECCIONES PRINCIPALES
       const transformado = data.map((item: any, index: number) => {
         const detalle = item.evidencia.detalle.toLowerCase();
 
@@ -153,9 +132,6 @@ export function LiveDetections() {
           return { item: det.item, detected, icon: Icon };
         });
 
-        let fails = detecciones.filter((d) => !d.detected).length;
-        let severity = fails >= 2 ? "high" : fails === 1 ? "medium" : "safe";
-
         return {
           id: index + 1,
           timestamp: new Date(item.fecha_registro).toLocaleString(),
@@ -167,7 +143,7 @@ export function LiveDetections() {
             : "Sin inspector asignado",
           detections: detecciones,
           image: item.evidencia.foto_url,
-          severity,
+          severity: detecciones.some((d) => !d.detected) ? "high" : "safe",
         };
       });
 
@@ -185,105 +161,15 @@ export function LiveDetections() {
 
   return (
     <>
-      {/* ------- MODAL HISTORIAL ------- */}
-      <Dialog open={openHistorial} onOpenChange={setOpenHistorial}>
-        <DialogContent
-          className="w-full max-w-[90vw] h-[90vh] overflow-y-auto bg-white p-8 rounded-xl"
-        >
+      {/* NUEVO MODAL PROFESIONAL */}
+      <WorkerHistoryDialog
+        open={openHistorial}
+        onOpenChange={setOpenHistorial}
+        workerName={historialWorker}
+        history={historial}
+      />
 
-          <DialogHeader>
-            <DialogTitle className="text-3xl font-bold">
-              Historial de Incumplimientos – {historialWorker}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-10 mt-10 w-full">
-            {historial.map((h: any) => (
-              <Card
-                key={h.id}
-                className={`w-full max-w-full rounded-xl shadow-lg ${h.severity === "high"
-                  ? "border-destructive"
-                  : h.severity === "medium"
-                    ? "border-yellow-500"
-                    : "border-border"
-                  }`}
-              >
-                <CardContent className="p-8 w-full">
-
-                  {/* CONTENEDOR AMPLIO */}
-                  <div className="grid gap-8 md:grid-cols-[450px_1fr] w-full">
-
-
-                    {/* IMAGEN GRANDE */}
-                    <div className="relative h-[500px] w-full rounded-xl overflow-hidden bg-muted shadow-xl">
-
-                      <img
-                        src={h.image}
-                        alt="Evidencia"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-
-                    {/* INFO */}
-                    <div className="space-y-6 w-full">
-                      <h4 className="text-2xl font-semibold">{h.worker}</h4>
-
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-2">
-                        <Camera className="w-4 h-4" /> {h.camera}
-                        <span>•</span>
-                        <span>{h.zone}</span>
-                      </div>
-
-                      <div className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        {h.timestamp}
-                      </div>
-
-                      {/* DETECCIÓN EPP */}
-                      <div className="grid grid-cols-2 gap-4 w-full">
-                        {h.detections.map((det: any) => {
-                          const Icon = det.icon;
-                          return (
-                            <div
-                              key={det.item}
-                              className={`flex items-center gap-4 p-4 rounded-xl border ${det.detected
-                                ? "bg-success/5 border-success/20"
-                                : "bg-destructive/5 border-destructive/20"
-                                }`}
-                            >
-                              <Icon
-                                className={`w-6 h-6 ${det.detected ? "text-success" : "text-destructive"
-                                  }`}
-                              />
-                              <div>
-                                <p className="font-medium text-lg">{det.item}</p>
-                                <p
-                                  className={`text-xs ${det.detected ? "text-success" : "text-destructive"
-                                    }`}
-                                >
-                                  {det.detected ? "Detectado" : "No detectado"}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                    </div>
-                  </div>
-
-                </CardContent>
-              </Card>
-
-            ))}
-          </div>
-
-        </DialogContent>
-
-
-      </Dialog>
-
-      {/* ------- DETECCIONES PRINCIPALES ------- */}
+      {/* LISTADO PRINCIPAL */}
       <div className="space-y-8">
         {Object.entries(grouped).map(([zona, data]: any) => (
           <Card key={zona}>
@@ -311,12 +197,13 @@ export function LiveDetections() {
                 {data.registros.map((detection: any) => (
                   <Card
                     key={detection.id}
-                    className={`${detection.severity === "high"
-                      ? "border-destructive"
-                      : detection.severity === "medium"
+                    className={`${
+                      detection.severity === "high"
+                        ? "border-destructive"
+                        : detection.severity === "medium"
                         ? "border-yellow-500"
                         : "border-border"
-                      }`}
+                    }`}
                   >
                     <CardContent className="p-4">
                       <div className="grid gap-4 md:grid-cols-[300px_1fr]">
@@ -334,10 +221,8 @@ export function LiveDetections() {
                               <h4 className="font-semibold">{detection.worker}</h4>
 
                               <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                                <span className="flex items-center gap-1">
-                                  <Camera className="w-3 h-3" />
-                                  {detection.camera}
-                                </span>
+                                <Camera className="w-3 h-3" />
+                                {detection.camera}
                                 <span>•</span>
                                 <span>{zona}</span>
                               </div>
@@ -355,33 +240,30 @@ export function LiveDetections() {
                               return (
                                 <div
                                   key={item.item}
-                                  className={`flex items-center gap-3 p-2 rounded-lg border ${item.detected
-                                    ? "bg-success/5 border-success/20"
-                                    : "bg-destructive/5 border-destructive/20"
-                                    }`}
+                                  className={`flex items-center gap-3 p-2 rounded-lg border ${
+                                    item.detected
+                                      ? "bg-success/5 border-success/20"
+                                      : "bg-destructive/5 border-destructive/20"
+                                  }`}
                                 >
-                                  <div
-                                    className={`p-1.5 rounded ${item.detected
-                                      ? "bg-success/10"
-                                      : "bg-destructive/10"
-                                      }`}
-                                  >
-                                    <Icon
-                                      className={`w-4 h-4 ${item.detected
+                                  <Icon
+                                    className={`w-4 h-4 ${
+                                      item.detected
                                         ? "text-success"
                                         : "text-destructive"
-                                        }`}
-                                    />
-                                  </div>
+                                    }`}
+                                  />
+
                                   <div className="flex-1">
                                     <p className="text-sm font-medium">
                                       {item.item}
                                     </p>
                                     <p
-                                      className={`text-xs ${item.detected
-                                        ? "text-success"
-                                        : "text-destructive"
-                                        }`}
+                                      className={`text-xs ${
+                                        item.detected
+                                          ? "text-success"
+                                          : "text-destructive"
+                                      }`}
                                     >
                                       {item.detected
                                         ? "Detectado"
