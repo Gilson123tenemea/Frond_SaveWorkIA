@@ -22,18 +22,26 @@ import {
 } from "lucide-react"
 import { logout, getUser } from "@/lib/auth"
 import { CompaniesTable } from "./companies-table"
-import { SupervisoresTable  } from "./users-table"
-
+import { SupervisoresTable } from "./users-table"
 import { CamerasTable } from "./cameras-table"
 import { StatsCards } from "./stats-cards"
 import { initializeStorage } from "@/lib/storage"
+
+import { obtenerDashboardOverview } from "@/servicios/dashboard"   // <-- IMPORTANTE
 
 export function AdminDashboard() {
   const user = getUser()
   const [activeTab, setActiveTab] = useState("overview")
 
+  const [overview, setOverview] = useState<any>(null)
+
   useEffect(() => {
     initializeStorage()
+
+    // 🔥 Cargar datos reales del backend
+    obtenerDashboardOverview().then((data) => {
+      setOverview(data)
+    })
   }, [])
 
   return (
@@ -114,40 +122,45 @@ export function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {MOCK_ALERTS.map((alert) => (
+                    {(overview?.alertas_recientes ?? []).length === 0 && (
+                      <p className="text-sm text-muted-foreground">No hay alertas recientes.</p>
+                    )}
+
+                    {(overview?.alertas_recientes ?? []).map((alert: any) => (
                       <div key={alert.id} className="flex items-start gap-3 p-3 border rounded-lg">
                         <div
-                          className={`p-2 rounded-full ${
-                            alert.severity === "high"
+                          className={`p-2 rounded-full ${alert.nivel === "high"
                               ? "bg-destructive/10"
-                              : alert.severity === "medium"
+                              : alert.nivel === "medium"
                                 ? "bg-yellow-500/10"
                                 : "bg-blue-500/10"
-                          }`}
+                            }`}
                         >
-                          {alert.severity === "high" ? (
+                          {alert.nivel === "high" ? (
                             <XCircle className="w-4 h-4 text-destructive" />
-                          ) : alert.severity === "medium" ? (
+                          ) : alert.nivel === "medium" ? (
                             <AlertTriangle className="w-4 h-4 text-yellow-600" />
                           ) : (
                             <AlertTriangle className="w-4 h-4 text-blue-600" />
                           )}
                         </div>
+
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <p className="font-medium text-sm">{alert.message}</p>
-                            <Badge variant={alert.severity === "high" ? "destructive" : "outline"} className="shrink-0">
-                              {alert.severity === "high" ? "Alta" : alert.severity === "medium" ? "Media" : "Baja"}
+                            <p className="font-medium text-sm">{alert.mensaje}</p>
+                            <Badge variant="outline" className="shrink-0">
+                              {alert.nivel}
                             </Badge>
                           </div>
+
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
-                              {alert.location}
+                              {alert.empresa}   {/* <-- AHORA SÍ MUESTRA LA EMPRESA */}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {alert.time}
+                              {alert.tiempo}
                             </span>
                           </div>
                         </div>
@@ -166,37 +179,44 @@ export function AdminDashboard() {
                   </CardTitle>
                   <CardDescription>Estado de servicios y componentes</CardDescription>
                 </CardHeader>
+
                 <CardContent>
                   <div className="space-y-4">
-                    {SYSTEM_STATUS.map((item) => (
-                      <div key={item.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              item.status === "online"
-                                ? "bg-success animate-pulse"
-                                : item.status === "warning"
-                                  ? "bg-yellow-500 animate-pulse"
-                                  : "bg-destructive"
-                            }`}
-                          />
-                          <div>
-                            <p className="font-medium text-sm">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.description}</p>
+                    {overview &&
+                      Object.entries(overview.estado_sistema).map(([name, status]: any) => (
+                        <div key={name} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-2 h-2 rounded-full ${status === "online"
+                                  ? "bg-success animate-pulse"
+                                  : status === "warning"
+                                    ? "bg-yellow-500 animate-pulse"
+                                    : "bg-destructive"
+                                }`}
+                            />
+                            <div>
+                              <p className="font-medium text-sm">{name}</p>
+                              <p className="text-xs text-muted-foreground">Estado actual</p>
+                            </div>
                           </div>
+
+                          <Badge
+                            variant={
+                              status === "online"
+                                ? "default"
+                                : status === "warning"
+                                  ? "outline"
+                                  : "destructive"
+                            }
+                          >
+                            {status}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={
-                            item.status === "online" ? "default" : item.status === "warning" ? "outline" : "destructive"
-                          }
-                        >
-                          {item.status === "online" ? "Activo" : item.status === "warning" ? "Advertencia" : "Inactivo"}
-                        </Badge>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </CardContent>
               </Card>
+
             </div>
           </TabsContent>
 
@@ -207,7 +227,7 @@ export function AdminDashboard() {
 
           {/* Users Tab */}
           <TabsContent value="users">
-            <SupervisoresTable  />
+            <SupervisoresTable />
           </TabsContent>
 
           {/* Cameras Tab */}
@@ -219,58 +239,3 @@ export function AdminDashboard() {
     </div>
   )
 }
-
-// Mock data
-const MOCK_ALERTS = [
-  {
-    id: 1,
-    severity: "high" as const,
-    message: "Trabajador sin casco detectado",
-    location: "Zona A - Almacén Principal",
-    time: "Hace 2 min",
-  },
-  {
-    id: 2,
-    severity: "high" as const,
-    message: "Acceso no autorizado",
-    location: "Zona B - Área Restringida",
-    time: "Hace 8 min",
-  },
-  {
-    id: 3,
-    severity: "medium" as const,
-    message: "EPP incompleto detectado",
-    location: "Zona C - Producción",
-    time: "Hace 15 min",
-  },
-  {
-    id: 4,
-    severity: "low" as const,
-    message: "Cámara con baja iluminación",
-    location: "Zona D - Estacionamiento",
-    time: "Hace 28 min",
-  },
-]
-
-const SYSTEM_STATUS = [
-  {
-    name: "Servidor IA",
-    description: "Detección de EPP activa",
-    status: "online" as const,
-  },
-  {
-    name: "Cámaras Activas",
-    description: "47 de 50 operativas",
-    status: "warning" as const,
-  },
-  {
-    name: "Base de Datos",
-    description: "Conexión estable",
-    status: "online" as const,
-  },
-  {
-    name: "Almacenamiento",
-    description: "78% disponible",
-    status: "online" as const,
-  },
-]

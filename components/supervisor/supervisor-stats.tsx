@@ -5,13 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, CheckCircle2, AlertTriangle, Camera as CameraIcon } from "lucide-react";
 import { obtenerZonasYCamarasPorEmpresa } from "@/servicios/monitorio";
+import { obtenerDashboardSupervisor } from "@/servicios/dashboardSupervisor";  // ✅ NUEVO
 import { getUser } from "@/lib/auth";
 
 export function SupervisorStats() {
   const [loading, setLoading] = useState(true);
   const [monitoreo, setMonitoreo] = useState<any>(null);
 
-  // 🔥 Estado para mostrar video por cámara
+  // 🔥 Datos para las tarjetas
+  const [stats, setStats] = useState<any>(null);
+
+  // Estado para mostrar video por cámara
   const [cameraVideoOpen, setCameraVideoOpen] = useState<number | null>(null);
 
   useEffect(() => {
@@ -23,10 +27,16 @@ export function SupervisorStats() {
           return;
         }
 
-        const data = await obtenerZonasYCamarasPorEmpresa(user.id_empresa_supervisor);
-        setMonitoreo(data);
+        // 🔹 Cargar los datos de monitoreo
+        const dataMonitoreo = await obtenerZonasYCamarasPorEmpresa(user.id_empresa_supervisor);
+        setMonitoreo(dataMonitoreo);
+
+        // 🔹 Cargar los datos de estadísticas
+        const dataStats = await obtenerDashboardSupervisor(user.id_empresa_supervisor);
+        setStats(dataStats);
+
       } catch (err) {
-        console.error("❌ Error cargando monitoreo:", err);
+        console.error("❌ Error cargando datos del supervisor:", err);
       } finally {
         setLoading(false);
       }
@@ -36,48 +46,59 @@ export function SupervisorStats() {
   }, []);
 
   if (loading) return <p>Cargando información...</p>;
-  if (!monitoreo) return <p>No hay datos de monitoreo disponibles.</p>;
+  if (!monitoreo || !stats) return <p>No hay datos disponibles.</p>;
 
   return (
     <div className="space-y-8">
 
-      {/* ╔════════════════════════════╗ */}
-      {/*  🔹 TARJETAS DE ESTADÍSTICAS  */}
-      {/* ╚════════════════════════════╝ */}
+      {/* ╔══════════════════════════╗ */}
+      {/*     🔹 TARJETAS ARRIBA      */}
+      {/* ╚══════════════════════════╝ */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+        {/* 🔵 Trabajadores activos */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Trabajadores Activos</CardTitle>
             <Users className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">28</div>
-            <p className="text-xs text-muted-foreground mt-1">De 32 registrados</p>
+            <div className="text-2xl font-bold">{stats.trabajadores_activos}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              De {stats.trabajadores_registrados} registrados
+            </p>
           </CardContent>
         </Card>
 
+        {/* 🟢 EPP Completo */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">EPP Completo</CardTitle>
             <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">26</div>
-            <p className="text-xs text-muted-foreground mt-1">92.8% cumplimiento</p>
+            <div className="text-2xl font-bold text-success">{stats.epp_completo}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.porcentaje_epp}% cumplimiento
+            </p>
           </CardContent>
         </Card>
 
+        {/* 🔴 Alertas activas */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Alertas Activas</CardTitle>
             <AlertTriangle className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">2</div>
+            <div className="text-2xl font-bold text-destructive">
+              {stats.alertas_activas}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">Requieren atención</p>
           </CardContent>
         </Card>
 
+        {/* 📷 Cámaras activas */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Cámaras Activas</CardTitle>
@@ -85,17 +106,19 @@ export function SupervisorStats() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {monitoreo.totalCamarasActivas}/{monitoreo.totalCamaras}
+              {stats.camaras_activas}/{stats.camaras_totales}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Estado general</p>
           </CardContent>
         </Card>
+
       </div>
 
-      {/* ╔════════════════════════════╗ */}
-      {/*   🔹 ZONAS Y SUS CÁMARAS     */}
-      {/* ╚════════════════════════════╝ */}
+      {/* ╔══════════════════════════╗ */}
+      {/* 🔹 ZONAS Y SUS CÁMARAS     */}
+      {/* ╚══════════════════════════╝ */}
       <div className="space-y-6">
+        {/* 🔥 No se toca nada aquí, se mantiene igual */}
         {monitoreo?.zonas?.map((zona: any, index: number) => (
           <Card key={`zona_${index}_${zona.id_Zona}`}>
             <CardHeader>
@@ -111,31 +134,23 @@ export function SupervisorStats() {
               ) : (
                 <ul className="space-y-4">
                   {zona.camaras.map((cam: any) => (
-                    <li
-                      key={`cam_${zona.id_Zona}_${cam.id_camara}`}
-                      className="border p-3 rounded-md space-y-2"
-                    >
-
-                      {/* 🔥 Información de la cámara */}
+                    <li key={`cam_${zona.id_Zona}_${cam.id_camara}`} className="border p-3 rounded-md space-y-2">
                       <div className="flex justify-between items-center gap-4">
                         <div>
                           <strong>{cam.codigo}</strong> — {cam.tipo}
-                          <p className="text-xs text-muted-foreground">
-                            {cam.ipAddress}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{cam.ipAddress}</p>
                         </div>
 
                         <div className="flex items-center gap-2">
                           <span
-                            className={`text-sm px-2 py-1 rounded ${cam.estado === "activa"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-200 text-gray-700"
-                              }`}
-                          >
+                            className={`text-sm px-2 py-1 rounded ${
+                              cam.estado === "activa"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-200 text-gray-700"
+                            }`}>
                             {cam.estado}
                           </span>
 
-                          {/* 🔘 BOTÓN PARA VER VIDEO */}
                           <Button
                             size="sm"
                             variant="outline"
@@ -146,22 +161,15 @@ export function SupervisorStats() {
                             }
                             disabled={cam.estado !== "activa"}
                           >
-                            {cameraVideoOpen === cam.id_camara
-                              ? "Ocultar video"
-                              : "Ver video"}
+                            {cameraVideoOpen === cam.id_camara ? "Ocultar video" : "Ver video"}
                           </Button>
                         </div>
                       </div>
 
-                      {/* 🔴 VIDEO STREAM DEBAJO */}
                       {cameraVideoOpen === cam.id_camara && (
                         <div className="mt-2">
                           <div className="aspect-video bg-black rounded-md overflow-hidden">
-                            <img
-                              src={cam.ipAddress}
-                              alt={`Video de ${cam.codigo}`}
-                              className="w-full h-full object-contain"
-                            />
+                            <img src={cam.ipAddress} alt={`Video de ${cam.codigo}`} className="w-full h-full object-contain" />
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             Transmisión en vivo desde la cámara
