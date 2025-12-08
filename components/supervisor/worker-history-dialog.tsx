@@ -70,52 +70,53 @@ export function WorkerHistoryDialog({
         {/* CONTENIDO CENTRADO */}
         <div className="max-w-[900px] mx-auto space-y-6">
 
-         {/* ESTADÍSTICAS */}
-  <div className="grid grid-cols-4 gap-4">
+          {/* ESTADÍSTICAS */}
+          <div className="grid grid-cols-4 gap-4">
 
-    <Card>
-      <CardContent className="pt-3">
-        <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
-          Total
-        </p>
-        <p className="text-2xl font-bold">{total}</p>
-      </CardContent>
-    </Card>
+            <Card>
+              <CardContent className="pt-3">
+                <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
+                  Total
+                </p>
+                <p className="text-2xl font-bold">{total}</p>
+              </CardContent>
+            </Card>
 
-    <Card>
-      <CardContent className="pt-3">
-        <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
-          Cumplimientos
-        </p>
-        <p className="text-2xl font-bold text-green-600">{compliant}</p>
-      </CardContent>
-    </Card>
+            <Card>
+              <CardContent className="pt-3">
+                <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
+                  Cumplimientos
+                </p>
+                <p className="text-2xl font-bold text-green-600">{compliant}</p>
+              </CardContent>
+            </Card>
 
-    <Card>
-      <CardContent className="pt-3">
-        <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
-          Incumplimientos
-        </p>
-        <p className="text-2xl font-bold text-red-600">{violations}</p>
-      </CardContent>
-    </Card>
+            <Card>
+              <CardContent className="pt-3">
+                <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
+                  Incumplimientos
+                </p>
+                <p className="text-2xl font-bold text-red-600">{violations}</p>
+              </CardContent>
+            </Card>
 
-    <Card>
-      <CardContent className="pt-3">
-        <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
-          Tasa
-        </p>
-        <p className="text-2xl font-bold">{rate}%</p>
-      </CardContent>
-    </Card>
+            <Card>
+              <CardContent className="pt-3">
+                <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
+                  Tasa
+                </p>
+                <p className="text-2xl font-bold">{rate}%</p>
+              </CardContent>
+            </Card>
 
-  </div>
+          </div>
 
-          {/* LISTA DEL HISTORIAL (SIN TABS) */}
+          {/* LISTA DEL HISTORIAL */}
           <ScrollArea className="h-[350px] pr-3">
 
             {Object.entries(grouped).map(([fecha, records]: any) => (
               <div key={fecha} className="space-y-3 mb-4">
+
                 {/* FECHA */}
                 <div className="flex items-center gap-2 py-1">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -124,7 +125,7 @@ export function WorkerHistoryDialog({
 
                 {/* REGISTROS */}
                 {records.map((r: any) => {
-                  const hasViolation = r.detections.some((d:any)=>!d.detected);
+                  const hasViolation = r.detections.some((d: any) => !d.detected);
 
                   return (
                     <Card
@@ -133,13 +134,18 @@ export function WorkerHistoryDialog({
                     >
                       <CardContent className="p-4">
 
-                        {/* GRID ORGANIZADO */}
                         <div className="grid gap-4 md:grid-cols-[150px_1fr]">
 
                           {/* IMAGEN */}
                           <div className="relative rounded-lg overflow-hidden bg-muted h-[120px]">
                             <img
-                              src={r.image}
+                              src={
+                                r.image?.startsWith("data:image")
+                                  ? r.image
+                                  : r.image
+                                    ? `data:image/jpeg;base64,${r.image}`
+                                    : "/placeholder.png"
+                              }
                               className="w-full h-full object-cover"
                             />
 
@@ -163,6 +169,7 @@ export function WorkerHistoryDialog({
 
                           {/* INFORMACIÓN */}
                           <div className="space-y-2">
+
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               <Clock className="w-3 h-3" />
                               {r.timestamp}
@@ -175,16 +182,27 @@ export function WorkerHistoryDialog({
 
                             {/* DETECCIONES */}
                             <div className="grid grid-cols-3 gap-2">
-                              {r.detections.map((det:any) => {
+                              {r.detections.map((det: any) => {
                                 const Icon = det.icon;
+
+                                // 🔥 IDENTIFICAR SI ES GAFAS
+                                const isGafas =
+                                  det.item.toLowerCase() === "gafas" ||
+                                  det.key?.toLowerCase() === "lentes";
+
+                                // 🔥 LÓGICA DE COLORES
+                                const classes = det.detected
+                                  ? "bg-green-50 border-green-200 text-green-600"
+                                  : isGafas
+                                    ? "bg-yellow-50 border-yellow-400 text-yellow-700"
+                                    : "bg-red-50 border-red-200 text-red-600";
+
                                 return (
                                   <div
                                     key={det.item}
                                     className={`
                                       flex items-center gap-1 px-2 py-1 rounded border text-xs
-                                      ${det.detected
-                                        ? "bg-green-50 border-green-200 text-green-600"
-                                        : "bg-red-50 border-red-200 text-red-600"}
+                                      ${classes}
                                     `}
                                   >
                                     <Icon className="w-3 h-3" />
@@ -201,6 +219,7 @@ export function WorkerHistoryDialog({
                     </Card>
                   );
                 })}
+
               </div>
             ))}
 

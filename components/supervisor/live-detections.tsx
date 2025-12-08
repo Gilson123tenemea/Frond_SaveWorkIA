@@ -16,16 +16,22 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-import { Camera, Clock, UserCheck, HardHat, Shield, Glasses, Shirt } from "lucide-react";
-
-// IMPORTA EL NUEVO MODAL (AJUSTA LA RUTA SEGÚN TU PROYECTO)
-import { WorkerHistoryDialog } from "./worker-history-dialog"
+import {
+  Camera,
+  Clock,
+  UserCheck,
+  HardHat,
+  Shield,
+  Glasses,
+  Shirt,
+} from "lucide-react";
+import { WorkerHistoryDialog } from "./worker-history-dialog";
 
 const ICON_MAP: any = {
   casco: HardHat,
   chaleco: Shirt,
   botas: Shield,
-  gafas: Glasses,
+  lentes: Glasses,
 };
 
 export function LiveDetections() {
@@ -54,10 +60,22 @@ export function LiveDetections() {
             { item: "Casco", key: "casco" },
             { item: "Chaleco", key: "chaleco" },
             { item: "Botas", key: "botas" },
-            { item: "Gafas", key: "gafas" },
+            { item: "Gafas", key: "lentes" },
           ].map((det) => {
-            const detected = !detalle.includes(det.key);
+
+            let detected;
+
+            // 🔥 Lentes: detectado SOLO si aparece explícito en detalle
+            if (det.key === "lentes") {
+              detected = detalle.includes("lentes");
+            }
+            // 🔥 Otros implementos: detectados si NO aparecen como faltantes
+            else {
+              detected = !detalle.includes(det.key);
+            }
+
             const Icon = ICON_MAP[det.key];
+
             return {
               item: det.item,
               detected,
@@ -65,8 +83,11 @@ export function LiveDetections() {
             };
           });
 
-          let fails = detecciones.filter((d) => !d.detected).length;
-          let severity = fails >= 2 ? "high" : fails === 1 ? "medium" : "safe";
+
+          const fails = detecciones.filter(
+            (d) => !d.detected && d.item !== "Gafas"
+          ).length;
+          const severity = fails >= 2 ? "high" : fails === 1 ? "medium" : "safe";
 
           return {
             id: index + 1,
@@ -78,8 +99,10 @@ export function LiveDetections() {
             inspector: item.inspector.nombre
               ? `${item.inspector.nombre} ${item.inspector.apellido}`
               : "Sin inspector asignado",
-            detections: detecciones,
-            image: item.evidencia.foto_url,
+            detections: detecciones, // 👈 AQUÍ EL FIX
+            image: item.evidencia.foto_base64
+              ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
+              : null,
             severity,
           };
         });
@@ -125,12 +148,17 @@ export function LiveDetections() {
           { item: "Casco", key: "casco" },
           { item: "Chaleco", key: "chaleco" },
           { item: "Botas", key: "botas" },
-          { item: "Gafas", key: "gafas" },
+          { item: "Gafas", key: "lentes" },
         ].map((det) => {
           const detected = !detalle.includes(det.key);
           const Icon = ICON_MAP[det.key];
+
           return { item: det.item, detected, icon: Icon };
         });
+
+        const fails = detecciones.filter(
+          (d) => !d.detected && d.item !== "Gafas"
+        ).length;
 
         return {
           id: index + 1,
@@ -141,9 +169,11 @@ export function LiveDetections() {
           inspector: item.inspector.nombre
             ? `${item.inspector.nombre} ${item.inspector.apellido}`
             : "Sin inspector asignado",
-          detections: detecciones,
-          image: item.evidencia.foto_url,
-          severity: detecciones.some((d) => !d.detected) ? "high" : "safe",
+          detections: detecciones, // 👈 AQUÍ EL FIX
+          image: item.evidencia.foto_base64
+            ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
+            : null,
+          severity: fails > 0 ? "high" : "safe",
         };
       });
 
@@ -161,7 +191,6 @@ export function LiveDetections() {
 
   return (
     <>
-      {/* NUEVO MODAL PROFESIONAL */}
       <WorkerHistoryDialog
         open={openHistorial}
         onOpenChange={setOpenHistorial}
@@ -169,7 +198,6 @@ export function LiveDetections() {
         history={historial}
       />
 
-      {/* LISTADO PRINCIPAL */}
       <div className="space-y-8">
         {Object.entries(grouped).map(([zona, data]: any) => (
           <Card key={zona}>
@@ -197,13 +225,12 @@ export function LiveDetections() {
                 {data.registros.map((detection: any) => (
                   <Card
                     key={detection.id}
-                    className={`${
-                      detection.severity === "high"
+                    className={`${detection.severity === "high"
                         ? "border-destructive"
                         : detection.severity === "medium"
-                        ? "border-yellow-500"
-                        : "border-border"
-                    }`}
+                          ? "border-yellow-500"
+                          : "border-border"
+                      }`}
                   >
                     <CardContent className="p-4">
                       <div className="grid gap-4 md:grid-cols-[300px_1fr]">
@@ -218,7 +245,9 @@ export function LiveDetections() {
                         <div className="space-y-4">
                           <div className="flex items-start justify-between">
                             <div>
-                              <h4 className="font-semibold">{detection.worker}</h4>
+                              <h4 className="font-semibold">
+                                {detection.worker}
+                              </h4>
 
                               <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                                 <Camera className="w-3 h-3" />
@@ -234,40 +263,48 @@ export function LiveDetections() {
                             </div>
                           </div>
 
+                          {/* LISTA DE DETECCIONES */}
                           <div className="grid grid-cols-2 gap-3">
                             {detection.detections.map((item: any) => {
                               const Icon = item.icon;
+
                               return (
                                 <div
                                   key={item.item}
-                                  className={`flex items-center gap-3 p-2 rounded-lg border ${
-                                    item.detected
+                                  className={`flex items-center gap-3 p-2 rounded-lg border ${item.detected
                                       ? "bg-success/5 border-success/20"
-                                      : "bg-destructive/5 border-destructive/20"
-                                  }`}
+                                      : item.item === "Gafas"
+                                        ? "bg-yellow-50 border-yellow-400"
+                                        : "bg-destructive/5 border-destructive/20"
+                                    }`}
                                 >
                                   <Icon
-                                    className={`w-4 h-4 ${
-                                      item.detected
+                                    className={`w-4 h-4 ${item.detected
                                         ? "text-success"
-                                        : "text-destructive"
-                                    }`}
+                                        : item.item === "Gafas"
+                                          ? "text-yellow-600"
+                                          : "text-destructive"
+                                      }`}
                                   />
 
                                   <div className="flex-1">
                                     <p className="text-sm font-medium">
                                       {item.item}
                                     </p>
+
                                     <p
-                                      className={`text-xs ${
-                                        item.detected
+                                      className={`text-xs ${item.detected
                                           ? "text-success"
-                                          : "text-destructive"
-                                      }`}
+                                          : item.item === "Gafas"
+                                            ? "text-yellow-600"
+                                            : "text-destructive"
+                                        }`}
                                     >
                                       {item.detected
                                         ? "Detectado"
-                                        : "No detectado"}
+                                        : item.item === "Gafas"
+                                          ? "Opcional (no detectado)"
+                                          : "No detectado"}
                                     </p>
                                   </div>
                                 </div>
