@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { getUser } from "@/lib/auth";
+
 import {
   obtenerIncumplimientos,
   obtenerHistorialTrabajador,
+  obtenerInspectores,
+  obtenerZonas,
+  obtenerDeteccionesFiltradas,
 } from "@/servicios/reporte_incumplimiento";
 
 import {
@@ -14,7 +18,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
+
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   Camera,
@@ -28,174 +42,216 @@ import {
 
 import { WorkerHistoryDialog } from "./worker-history-dialog";
 
-
 // ===============================
-// 🔥 ICONOS PARA CADA IMPLEMENTO
+// 🔥 ICONOS IMPLEMENTOS
 // ===============================
 const ICON_MAP: any = {
   casco: HardHat,
   chaleco: Shirt,
   botas: Shield,
-  guantes: Shield, // Puedes cambiarlo por otro ícono más representativo
+  guantes: Shield,
   lentes: Glasses,
 };
-
-
 
 export function LiveDetections() {
   const [grouped, setGrouped] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
+  // Historial
   const [openHistorial, setOpenHistorial] = useState(false);
   const [historial, setHistorial] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
-
   const [historialWorker, setHistorialWorker] = useState<string>("");
 
-  // ---------------------------
-  // CARGAR INCUMPLIMIENTOS
-  // ---------------------------
-  useEffect(() => {
-    async function cargar() {
-      try {
-        const user = getUser();
-        if (!user || !user.id_supervisor) return;
+  // Filtros
+  const [inspectores, setInspectores] = useState<any[]>([]);
+  const [zonas, setZonas] = useState<any[]>([]);
+  const [filtroInspector, setFiltroInspector] = useState<string>("");
+  const [filtroZona, setFiltroZona] = useState<string>("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
 
-        const data = await obtenerIncumplimientos(user.id_supervisor);
+  const user = getUser();
+  const empresaId = user?.id_empresa_supervisor ?? null;
 
-        const transformado = data.map((item: any, index: number) => {
-          const detalle = item.evidencia.detalle.toLowerCase();
+  // ======================================================
+  // 🔥 TRANSFORMAR REGISTROS PARA MOSTRARLOS AGRUPADOS
+  // ======================================================
+  function transformarRegistros(data: any[]) {
+    const transformado = data.map((item: any, index: number) => {
+      const detalle = item.evidencia.detalle.toLowerCase();
 
-          // ===============================
-          // 🔥 LISTA COMPLETA DE IMPLEMENTOS
-          // ===============================
-          const detecciones = [
-            { item: "Casco", key: "casco" },
-            { item: "Chaleco", key: "chaleco" },
-            { item: "Botas", key: "botas" },
-            { item: "Guantes", key: "guantes" },
-            { item: "Lentes", key: "lentes" },
-          ].map((det) => {
-            const detected = !detalle.includes(det.key);
-            const Icon = ICON_MAP[det.key];
+      const detections = [
+        { item: "Casco", key: "casco" },
+        { item: "Chaleco", key: "chaleco" },
+        { item: "Botas", key: "botas" },
+        { item: "Guantes", key: "guantes" },
+        { item: "Lentes", key: "lentes" },
+      ].map((det) => ({
+        item: det.item,
+        key: det.key,
+        detected: !detalle.includes(det.key),
+        icon: ICON_MAP[det.key],
+      }));
 
-            return {
-              item: det.item,
-              key: det.key,
-              detected,
-              icon: Icon,
-            };
-          });
+      const fails = detections.filter((d) => !d.detected).length;
 
-          const fails = detecciones.filter((d) => !d.detected).length;
+      return {
+        id: index + 1,
+        timestamp: new Date(item.fecha_registro).toLocaleString(),
+        worker: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
+        cedula: item.trabajador.cedula,
+        camera: item.camara.codigo,
+        zone: item.camara.zona,
+        inspector: item.inspector?.nombre
+          ? `${item.inspector.nombre} ${item.inspector.apellido}`
+          : "Sin inspector asignado",
+        detections,
+        severity:
+          fails >= 3 ? "high" : fails === 2 ? "medium" : fails === 1 ? "low" : "safe",
+        image: item.evidencia.foto_base64
+          ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
+          : null,
+      };
+    });
 
-          const severity =
-            fails >= 3 ? "high" : fails === 2 ? "medium" : fails === 1 ? "low" : "safe";
-
-          return {
-            id: index + 1,
-            timestamp: new Date(item.fecha_registro).toLocaleString(),
-            worker: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
-            cedula: item.trabajador.cedula,
-            camera: item.camara.codigo,
-            zone: item.camara.zona,
-            inspector: item.inspector.nombre
-              ? `${item.inspector.nombre} ${item.inspector.apellido}`
-              : "Sin inspector asignado",
-            detections: detecciones,
-            image: item.evidencia.foto_base64
-              ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
-              : null,
-            severity,
-          };
-        });
-
-        // AGRUPAR POR ZONA
-        const groupedByZone: any = {};
-
-        transformado.forEach((item) => {
-          if (!groupedByZone[item.zone]) {
-            groupedByZone[item.zone] = {
-              inspector: item.inspector,
-              registros: [],
-            };
-          }
-          groupedByZone[item.zone].registros.push(item);
-        });
-
-        setGrouped(groupedByZone);
-      } catch (err) {
-        console.error("Error cargando incumplimientos:", err);
+    const groupedByZone: any = {};
+    transformado.forEach((item) => {
+      if (!groupedByZone[item.zone]) {
+        groupedByZone[item.zone] = {
+          inspector: item.inspector,
+          registros: [],
+        };
       }
+      groupedByZone[item.zone].registros.push(item);
+    });
+
+    return groupedByZone;
+  }
+
+  // ======================================
+  // 🔥 Cargar datos iniciales
+  // ======================================
+  useEffect(() => {
+    async function cargarInicial() {
+      if (!empresaId || !user?.id_supervisor) return;
+
+      // Inspectores
+      const insp = await obtenerInspectores(empresaId);
+      setInspectores(insp);
+
+      // Zonas sin inspector
+      const zonasBD = await obtenerZonas(empresaId);
+      setZonas(zonasBD);
+
+      // Datos del día
+      const data = await obtenerIncumplimientos(user.id_supervisor);
+      setGrouped(transformarRegistros(data));
       setLoading(false);
     }
 
-    cargar();
+    cargarInicial();
   }, []);
 
-  // ---------------------------
-  // VER HISTORIAL DEL TRABAJADOR
-  // ---------------------------
-  async function verHistorial(detection: any) {
-    try {
-      const cedula = detection.cedula;
-      if (!cedula) return;
+  // ======================================
+  // 🔥 Filtrado en tiempo REAL
+  // ======================================
+  useEffect(() => {
+    async function filtrar() {
+      if (!empresaId) return;
 
-      setHistorialWorker(detection.worker);
+      setLoading(true);
 
-      const data = await obtenerHistorialTrabajador({ cedula });
-      const { estadisticas, historial } = data;
+      const filtros = {
+        id_empresa: empresaId,
+        fecha_desde: fechaDesde || undefined,
+        fecha_hasta: fechaHasta || undefined,
+        id_inspector: filtroInspector ? Number(filtroInspector) : undefined,
+        id_zona: filtroZona ? Number(filtroZona) : undefined,
+      };
 
-      const transformado = historial.map((item: any, index: number) => {
-        const detalle = item.evidencia.detalle.toLowerCase();
-
-        const detecciones = [
-          { item: "Casco", key: "casco" },
-          { item: "Chaleco", key: "chaleco" },
-          { item: "Botas", key: "botas" },
-          { item: "Guantes", key: "guantes" },
-          { item: "Lentes", key: "lentes" },
-        ].map((det) => {
-          const detected = !detalle.includes(det.key);
-          const Icon = ICON_MAP[det.key];
-
-          return { item: det.item, detected, icon: Icon };
-        });
-
-        const fails = detecciones.filter((d) => !d.detected).length;
-
-        return {
-          id: index + 1,
-          timestamp: new Date(item.fecha_registro).toLocaleString(),
-          worker: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
-          camera: item.camara.codigo,
-          zone: item.camara.zona,
-          inspector: item.inspector.nombre
-            ? `${item.inspector.nombre} ${item.inspector.apellido}`
-            : "Sin inspector asignado",
-          detections: detecciones,
-          image: item.evidencia.foto_base64
-            ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
-            : null,
-          severity: fails > 0 ? "high" : "safe",
-        };
-      });
-
-      setStats(estadisticas);
-      setHistorial(transformado);
-      setOpenHistorial(true);
-    } catch (err) {
-      console.error("Error cargando historial:", err);
+      const data = await obtenerDeteccionesFiltradas(filtros);
+      setGrouped(transformarRegistros(data));
+      setLoading(false);
     }
+
+    filtrar();
+  }, [filtroInspector, filtroZona, fechaDesde, fechaHasta]);
+
+  // ===============================
+  // 🔥 Cambiar inspector → carga zonas
+  // ===============================
+  async function cambiarInspector(id: string) {
+    setFiltroInspector(id);
+    setFiltroZona("");
+
+    const zonasBD = await obtenerZonas(
+      empresaId,
+      id ? Number(id) : undefined
+    );
+
+    setZonas(zonasBD);
   }
 
-  // ---------------------------
-  // INTERFAZ
-  // ---------------------------
-  if (loading) return <p className="text-center">Cargando incumplimientos...</p>;
+  // =======================================================
+  // 🔥 Ver historial del trabajador
+  // =======================================================
+  async function verHistorial(detection: any) {
+    const cedula = detection.cedula;
+    if (!cedula) return;
+
+    setHistorialWorker(detection.worker);
+
+    const data = await obtenerHistorialTrabajador({ cedula });
+    const { estadisticas, historial } = data;
+
+    const transformado = historial.map((item: any, index: number) => {
+      const detalle = item.evidencia.detalle.toLowerCase();
+
+      const detections = [
+        { item: "Casco", key: "casco" },
+        { item: "Chaleco", key: "chaleco" },
+        { item: "Botas", key: "botas" },
+        { item: "Guantes", key: "guantes" },
+        { item: "Lentes", key: "lentes" },
+      ].map((det) => ({
+        item: det.item,
+        detected: !detalle.includes(det.key),
+        icon: ICON_MAP[det.key],
+      }));
+
+      const fails = detections.filter((d) => !d.detected).length;
+
+      return {
+        id: index + 1,
+        timestamp: new Date(item.fecha_registro).toLocaleString(),
+        worker: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
+        camera: item.camara.codigo,
+        zone: item.camara.zona,
+        inspector: item.inspector?.nombre
+          ? `${item.inspector.nombre} ${item.inspector.apellido}`
+          : "Sin inspector asignado",
+        detections,
+        image: item.evidencia.foto_base64
+          ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
+          : null,
+        severity: fails > 0 ? "high" : "safe",
+      };
+    });
+
+    setStats(estadisticas);
+    setHistorial(transformado);
+    setOpenHistorial(true);
+  }
+
+  // ===============================
+  // 🔥 UI
+  // ===============================
+  if (loading) return <p className="text-center">Cargando reportes...</p>;
 
   return (
     <>
+      {/* MODAL HISTORIAL */}
       {openHistorial && stats && (
         <WorkerHistoryDialog
           open={openHistorial}
@@ -206,6 +262,63 @@ export function LiveDetections() {
         />
       )}
 
+      {/* ==========================================
+          🔥 FILTROS (Tiempo real)
+      ========================================== */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* INSPECTOR */}
+        <div>
+          <p className="text-sm font-medium mb-1">Inspector</p>
+          <Select onValueChange={cambiarInspector}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+             <SelectItem value="all">Todos</SelectItem>
+
+              {inspectores.map((i) => (
+                <SelectItem key={i.id} value={String(i.id)}>
+                  {i.nombre} {i.apellido}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* ZONA */}
+        <div>
+          <p className="text-sm font-medium mb-1">Zona</p>
+          <Select onValueChange={(v) => setFiltroZona(v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Todas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+
+              {zonas.map((z) => (
+                <SelectItem key={z.id} value={String(z.id)}>
+                  {z.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* FECHAS */}
+        <div>
+          <p className="text-sm font-medium mb-1">Desde</p>
+          <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
+        </div>
+
+        <div>
+          <p className="text-sm font-medium mb-1">Hasta</p>
+          <Input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
+        </div>
+      </div>
+
+      {/* ===============================
+          🔥 REPORTES
+      =============================== */}
       <div className="space-y-8">
         {Object.entries(grouped).map(([zona, data]: any) => (
           <Card key={zona}>
@@ -239,6 +352,7 @@ export function LiveDetections() {
                   >
                     <CardContent className="p-4">
                       <div className="grid gap-4 md:grid-cols-[300px_1fr]">
+                        {/* IMAGEN */}
                         <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
                           <img
                             src={detection.image}
@@ -247,6 +361,7 @@ export function LiveDetections() {
                           />
                         </div>
 
+                        {/* INFO */}
                         <div className="space-y-4">
                           <div className="flex items-start justify-between">
                             <div>
@@ -268,7 +383,7 @@ export function LiveDetections() {
                             </div>
                           </div>
 
-                          {/* LISTA DE DETECCIONES */}
+                          {/* DETECCIONES */}
                           <div className="grid grid-cols-2 gap-3">
                             {detection.detections.map((item: any) => {
                               const Icon = item.icon;
@@ -302,9 +417,7 @@ export function LiveDetections() {
                                           : "text-red-600"
                                       }`}
                                     >
-                                      {item.detected
-                                        ? "Detectado"
-                                        : "No detectado"}
+                                      {item.detected ? "Detectado" : "No detectado"}
                                     </p>
                                   </div>
                                 </div>
@@ -312,12 +425,13 @@ export function LiveDetections() {
                             })}
                           </div>
 
+                          {/* ACCIONES */}
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="flex-1 bg-transparent"
                               onClick={() => verHistorial(detection)}
+                              className="flex-1 bg-transparent"
                             >
                               Ver Historial
                             </Button>

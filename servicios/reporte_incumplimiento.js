@@ -69,3 +69,75 @@ export async function obtenerHistorialTrabajador(filtros) {
     throw error;
   }
 }
+
+export async function obtenerInspectores(idEmpresa) {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/reportes/incumplimientos/inspectores?id_empresa=${idEmpresa}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Error al obtener inspectores");
+    }
+
+    const data = await response.json();
+    return data; // [{ id, nombre, apellido }]
+  } catch (error) {
+    console.error("❌ Error en obtenerInspectores:", error);
+    throw error;
+  }
+}
+
+export async function obtenerZonas(idEmpresa, idInspector)
+ {
+  try {
+    const params = new URLSearchParams();
+    params.append("id_empresa", idEmpresa);
+
+    if (idInspector) {
+      params.append("id_inspector", idInspector);
+    }
+
+    const response = await fetch(
+      `${BASE_URL}/reportes/incumplimientos/zonas?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Error al obtener zonas");
+    }
+
+    const data = await response.json();
+    return data; // [{ id, nombre }]
+  } catch (error) {
+    console.error("❌ Error en obtenerZonas:", error);
+    throw error;
+  }
+}
+
+export async function obtenerDeteccionesFiltradas(filtros) {
+  try {
+    const params = new URLSearchParams();
+
+    params.append("id_empresa", filtros.id_empresa);
+
+    if (filtros.fecha_desde) params.append("fecha_desde", filtros.fecha_desde);
+    if (filtros.fecha_hasta) params.append("fecha_hasta", filtros.fecha_hasta);
+    if (filtros.id_inspector) params.append("id_inspector", filtros.id_inspector);
+    if (filtros.id_zona) params.append("id_zona", filtros.id_zona);
+
+    const response = await fetch(
+      `${BASE_URL}/reportes/incumplimientos/detecciones?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Error al obtener detecciones filtradas");
+    }
+
+    const data = await response.json();
+    return data; // array de IncumplimientoResponse
+
+  } catch (error) {
+    console.error("❌ Error en obtenerDeteccionesFiltradas:", error);
+    throw error;
+  }
+}
