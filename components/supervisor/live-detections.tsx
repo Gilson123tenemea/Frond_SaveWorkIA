@@ -25,6 +25,7 @@ import {
   Glasses,
   Shirt,
 } from "lucide-react";
+
 import { WorkerHistoryDialog } from "./worker-history-dialog";
 
 const ICON_MAP: any = {
@@ -39,7 +40,10 @@ export function LiveDetections() {
   const [loading, setLoading] = useState(true);
 
   const [openHistorial, setOpenHistorial] = useState(false);
+
   const [historial, setHistorial] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+
   const [historialWorker, setHistorialWorker] = useState<string>("");
 
   // ---------------------------
@@ -62,17 +66,9 @@ export function LiveDetections() {
             { item: "Botas", key: "botas" },
             { item: "Gafas", key: "lentes" },
           ].map((det) => {
-
             let detected;
-
-            // 🔥 Lentes: detectado SOLO si aparece explícito en detalle
-            if (det.key === "lentes") {
-              detected = detalle.includes("lentes");
-            }
-            // 🔥 Otros implementos: detectados si NO aparecen como faltantes
-            else {
-              detected = !detalle.includes(det.key);
-            }
+            if (det.key === "lentes") detected = detalle.includes("lentes");
+            else detected = !detalle.includes(det.key);
 
             const Icon = ICON_MAP[det.key];
 
@@ -82,7 +78,6 @@ export function LiveDetections() {
               icon: Icon,
             };
           });
-
 
           const fails = detecciones.filter(
             (d) => !d.detected && d.item !== "Gafas"
@@ -99,7 +94,7 @@ export function LiveDetections() {
             inspector: item.inspector.nombre
               ? `${item.inspector.nombre} ${item.inspector.apellido}`
               : "Sin inspector asignado",
-            detections: detecciones, // 👈 AQUÍ EL FIX
+            detections: detecciones,
             image: item.evidencia.foto_base64
               ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
               : null,
@@ -141,7 +136,11 @@ export function LiveDetections() {
 
       const data = await obtenerHistorialTrabajador({ cedula });
 
-      const transformado = data.map((item: any, index: number) => {
+      // EXTRAER estadísticas e historial DEL BACKEND
+      const { estadisticas, historial } = data;
+
+      // Transformar historial igual que antes
+      const transformado = historial.map((item: any, index: number) => {
         const detalle = item.evidencia.detalle.toLowerCase();
 
         const detecciones = [
@@ -169,7 +168,7 @@ export function LiveDetections() {
           inspector: item.inspector.nombre
             ? `${item.inspector.nombre} ${item.inspector.apellido}`
             : "Sin inspector asignado",
-          detections: detecciones, // 👈 AQUÍ EL FIX
+          detections: detecciones,
           image: item.evidencia.foto_base64
             ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
             : null,
@@ -177,8 +176,11 @@ export function LiveDetections() {
         };
       });
 
+      // GUARDAR ESTADÍSTICAS Y LISTA
+      setStats(estadisticas);
       setHistorial(transformado);
       setOpenHistorial(true);
+
     } catch (err) {
       console.error("Error cargando historial:", err);
     }
@@ -191,12 +193,16 @@ export function LiveDetections() {
 
   return (
     <>
-      <WorkerHistoryDialog
-        open={openHistorial}
-        onOpenChange={setOpenHistorial}
-        workerName={historialWorker}
-        history={historial}
-      />
+      {openHistorial && stats && (
+        <WorkerHistoryDialog
+          open={openHistorial}
+          onOpenChange={setOpenHistorial}
+          workerName={historialWorker}
+          stats={stats}
+          historial={historial}
+        />
+      )}
+
 
       <div className="space-y-8">
         {Object.entries(grouped).map(([zona, data]: any) => (

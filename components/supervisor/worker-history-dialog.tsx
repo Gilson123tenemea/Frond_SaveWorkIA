@@ -22,24 +22,34 @@ interface WorkerHistoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workerName: string;
-  history: any[];
+
+  // Cambió → ahora vienen del backend
+  stats: {
+    total: number;
+    cumple: number;
+    incumple: number;
+    tasa: number;
+  };
+
+  historial: any[];
 }
 
 export function WorkerHistoryDialog({
   open,
   onOpenChange,
   workerName,
-  history,
+  stats,
+  historial,
 }: WorkerHistoryDialogProps) {
-  const total = history.length;
-  const violations = history.filter((h: any) =>
-    h.detections.some((d: any) => !d.detected)
-  ).length;
-  const compliant = total - violations;
-  const rate = total ? ((compliant / total) * 100).toFixed(1) : "0";
 
-  // Agrupar por fecha
-  const grouped = history.reduce((acc: any, rec: any) => {
+  // --- AHORA YA NO SE CALCULAN AQUÍ ---
+  const total = stats.total;
+  const compliant = stats.cumple;
+  const violations = stats.incumple;
+  const rate = stats.tasa;
+
+  // Agrupar por fecha (se mantiene igual)
+  const grouped = historial.reduce((acc: any, rec: any) => {
     const [fecha] = rec.timestamp.split(",");
     if (!acc[fecha]) acc[fecha] = [];
     acc[fecha].push(rec);
@@ -57,7 +67,6 @@ export function WorkerHistoryDialog({
           bg-white
         "
       >
-        {/* TITULO */}
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">
             Historial de {workerName}
@@ -67,53 +76,45 @@ export function WorkerHistoryDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* CONTENIDO CENTRADO */}
+        {/* CONTENIDO */}
         <div className="max-w-[900px] mx-auto space-y-6">
 
-          {/* ESTADÍSTICAS */}
           <div className="grid grid-cols-4 gap-4">
 
             <Card>
-              <CardContent className="pt-3">
-                <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
-                  Total
-                </p>
+              <CardContent className="pt-3 flex flex-col items-center justify-center text-center">
+                <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold">{total}</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="pt-3">
-                <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
-                  Cumplimientos
-                </p>
+              <CardContent className="pt-3 flex flex-col items-center justify-center text-center">
+                <p className="text-xs text-muted-foreground">Cumplimientos</p>
                 <p className="text-2xl font-bold text-green-600">{compliant}</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="pt-3">
-                <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
-                  Incumplimientos
-                </p>
+              <CardContent className="pt-3 flex flex-col items-center justify-center text-center">
+                <p className="text-xs text-muted-foreground">Incumplimientos</p>
                 <p className="text-2xl font-bold text-red-600">{violations}</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="pt-3">
-                <p className="text-xs text-muted-foreground text-left whitespace-normal break-words leading-tight">
-                  Tasa
-                </p>
+              <CardContent className="pt-3 flex flex-col items-center justify-center text-center">
+                <p className="text-xs text-muted-foreground">Tasa</p>
                 <p className="text-2xl font-bold">{rate}%</p>
               </CardContent>
             </Card>
 
           </div>
 
-          {/* LISTA DEL HISTORIAL */}
-          <ScrollArea className="h-[350px] pr-3">
 
+
+          {/* HISTORIAL */}
+          <ScrollArea className="h-[350px] pr-3">
             {Object.entries(grouped).map(([fecha, records]: any) => (
               <div key={fecha} className="space-y-3 mb-4">
 
@@ -128,12 +129,8 @@ export function WorkerHistoryDialog({
                   const hasViolation = r.detections.some((d: any) => !d.detected);
 
                   return (
-                    <Card
-                      key={r.id}
-                      className="border rounded-xl shadow-sm"
-                    >
+                    <Card key={r.id} className="border rounded-xl shadow-sm">
                       <CardContent className="p-4">
-
                         <div className="grid gap-4 md:grid-cols-[150px_1fr]">
 
                           {/* IMAGEN */}
@@ -184,13 +181,10 @@ export function WorkerHistoryDialog({
                             <div className="grid grid-cols-3 gap-2">
                               {r.detections.map((det: any) => {
                                 const Icon = det.icon;
-
-                                // 🔥 IDENTIFICAR SI ES GAFAS
                                 const isGafas =
-                                  det.item.toLowerCase() === "gafas" ||
+                                  det.item?.toLowerCase() === "gafas" ||
                                   det.key?.toLowerCase() === "lentes";
 
-                                // 🔥 LÓGICA DE COLORES
                                 const classes = det.detected
                                   ? "bg-green-50 border-green-200 text-green-600"
                                   : isGafas
@@ -200,10 +194,7 @@ export function WorkerHistoryDialog({
                                 return (
                                   <div
                                     key={det.item}
-                                    className={`
-                                      flex items-center gap-1 px-2 py-1 rounded border text-xs
-                                      ${classes}
-                                    `}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${classes}`}
                                   >
                                     <Icon className="w-3 h-3" />
                                     {det.item}
@@ -214,16 +205,14 @@ export function WorkerHistoryDialog({
 
                           </div>
                         </div>
-
                       </CardContent>
                     </Card>
                   );
                 })}
-
               </div>
             ))}
-
           </ScrollArea>
+
         </div>
 
       </DialogContent>

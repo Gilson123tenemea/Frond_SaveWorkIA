@@ -34,7 +34,16 @@ export async function obtenerIncumplimientos(idSupervisor) {
  * 
  * @param {Object} filtros - Objeto con al menos uno de los filtros:
  *                           { cedula, codigo_trabajador, id_trabajador }
- * @returns {Promise<Array>} Lista de incumplimientos del trabajador.
+ * @returns {Promise<{
+ *   estadisticas: {
+ *     total: number,
+ *     cumple: number,
+ *     incumple: number,
+ *     tasa: number
+ *   },
+ *   historial: any[]
+ * }>}
+
  */
 export async function obtenerHistorialTrabajador(filtros) {
   try {
@@ -53,7 +62,7 @@ export async function obtenerHistorialTrabajador(filtros) {
     }
 
     const data = await response.json();
-    return data;
+    return data; // AHORA retorna { estadisticas, historial }
 
   } catch (error) {
     console.error("❌ Error en obtenerHistorialTrabajador:", error);
