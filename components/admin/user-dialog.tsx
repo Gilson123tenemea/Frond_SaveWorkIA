@@ -1,23 +1,21 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Shield, Loader2 } from "lucide-react"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { Shield, Loader2, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { registrarSupervisor } from "../../servicios/supervisor"
-import { useEffect } from "react"
-import { obtenerEmpresasDisponibles } from "../../servicios/supervisor"
+import { registrarSupervisor, obtenerEmpresasDisponibles } from "../../servicios/supervisor"
 
 interface UserDialogProps {
   open: boolean
@@ -27,12 +25,13 @@ interface UserDialogProps {
 
 export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
   const { toast } = useToast()
+
   const [loading, setLoading] = useState(false)
   const [empresas, setEmpresas] = useState<any[]>([])
+  const [showPassword, setShowPassword] = useState(false)
+
   const [formData, setFormData] = useState({
-
     cedula: "",
-
     nombre: "",
     apellido: "",
     telefono: "",
@@ -49,25 +48,24 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
   useEffect(() => {
     if (open) {
       cargarEmpresas()
+      setShowPassword(false)
     }
   }, [open])
 
   const cargarEmpresas = async () => {
     try {
-      const data = await obtenerEmpresasDisponibles();
-      setEmpresas(data);
+      const data = await obtenerEmpresasDisponibles()
+      setEmpresas(data)
     } catch (error) {
-      console.error("Error al cargar empresas disponibles:", error);
+      console.error("Error al cargar empresas:", error)
     }
-  };
+  }
 
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
     setLoading(true)
 
     try {
-      const datosSupervisor = {
+      const payload = {
         persona: {
           cedula: formData.cedula,
           nombre: formData.nombre,
@@ -84,7 +82,7 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
         id_empresa_supervisor: Number(formData.id_empresa_supervisor),
       }
 
-      await registrarSupervisor(datosSupervisor)
+      await registrarSupervisor(payload)
 
       toast({
         title: "Supervisor registrado",
@@ -93,10 +91,10 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
 
       onSuccess()
       onOpenChange(false)
-    } catch (error: any) {
+    } catch (e: any) {
       toast({
-        title: "Error al registrar",
-        description: error.message || "Ocurrió un error al registrar el supervisor.",
+        title: "Error",
+        description: String(e.message),
         variant: "destructive",
       })
     } finally {
@@ -106,92 +104,89 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl">
+
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
             Registrar Supervisor
           </DialogTitle>
           <DialogDescription>
-            Completa los datos personales y laborales del supervisor
+            Completa la información requerida
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="cedula">Cédula</Label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+
+          {/* CÉDULA */}
+          <div className="flex flex-col gap-1">
+            <Label>Cédula <span className="text-muted-foreground font-normal">(Ej: 0102030405)</span></Label>
             <Input
-              id="cedula"
-              placeholder="0102030405"
               value={formData.cedula}
               onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="nombre">Nombre</Label>
+          {/* NOMBRE */}
+          <div className="flex flex-col gap-1">
+            <Label>Nombre <span className="text-muted-foreground font-normal">(Ej: David)</span></Label>
             <Input
-              id="nombre"
-              placeholder="David"
               value={formData.nombre}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="apellido">Apellido</Label>
+          {/* APELLIDO */}
+          <div className="flex flex-col gap-1">
+            <Label>Apellido <span className="text-muted-foreground font-normal">(Ej: López)</span></Label>
             <Input
-              id="apellido"
-              placeholder="López"
               value={formData.apellido}
               onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="telefono">Teléfono</Label>
+          {/* TELÉFONO */}
+          <div className="flex flex-col gap-1">
+            <Label>Teléfono <span className="text-muted-foreground font-normal">(Ej: 0991234567)</span></Label>
             <Input
-              id="telefono"
-              placeholder="0991234567"
               value={formData.telefono}
               onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="correo">Correo</Label>
+          {/* CORREO */}
+          <div className="flex flex-col gap-1">
+            <Label>Correo <span className="text-muted-foreground font-normal">(Ej: usuario@gmail.com)</span></Label>
             <Input
-              id="correo"
               type="email"
-              placeholder="david@gmail.com"
               value={formData.correo}
               onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="direccion">Dirección</Label>
+          {/* DIRECCIÓN */}
+          <div className="flex flex-col gap-1">
+            <Label>Dirección <span className="text-muted-foreground font-normal">(Ej: Av. Central)</span></Label>
             <Input
-              id="direccion"
-              placeholder="Av. Central"
               value={formData.direccion}
               onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="genero">Género</Label>
+          {/* GÉNERO */}
+          <div className="flex flex-col gap-1">
+            <Label>Género</Label>
             <Select
               value={formData.genero}
               onValueChange={(value) => setFormData({ ...formData, genero: value })}
             >
-              <SelectTrigger id="genero">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleccionar género" />
               </SelectTrigger>
               <SelectContent>
@@ -201,10 +196,10 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="fecha_nacimiento">Fecha de nacimiento</Label>
+          {/* FECHA NACIMIENTO */}
+          <div className="flex flex-col gap-1">
+            <Label>Fecha de nacimiento <span className="text-muted-foreground font-normal">(Ej: 1998-05-21)</span></Label>
             <Input
-              id="fecha_nacimiento"
               type="date"
               value={formData.fecha_nacimiento}
               onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
@@ -212,85 +207,88 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="contrasena">Contraseña</Label>
+          {/* CONTRASEÑA */}
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <Label>Contraseña <span className="text-muted-foreground font-normal">(Ej: Abc123@)</span></Label>
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={formData.contrasena}
+                onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
+                required
+                className="pr-10"
+              />
+
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+
+          {/* ESPECIALIDAD */}
+          <div className="flex flex-col gap-1">
+            <Label>Especialidad <span className="text-muted-foreground font-normal">(Ej: Prevención de Riesgos)</span></Label>
             <Input
-              id="contrasena"
-              type="password"
-              placeholder="•••••••"
-              value={formData.contrasena}
-              onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
+              value={formData.especialidad_seguridad}
+              onChange={(e) =>
+                setFormData({ ...formData, especialidad_seguridad: e.target.value })
+              }
               required
             />
           </div>
 
-          {/* 👇 Pega aquí */}
-          <div className="space-y-2">
-            <Label htmlFor="empresa">Empresa</Label>
+          {/* EMPRESA */}
+          <div className="flex flex-col gap-1">
+            <Label>Empresa</Label>
             <Select
-              value={formData.id_empresa_supervisor || ""}
+              value={formData.id_empresa_supervisor}
               onValueChange={(value) =>
                 setFormData({ ...formData, id_empresa_supervisor: value })
               }
             >
-              <SelectTrigger id="empresa">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleccionar empresa" />
               </SelectTrigger>
               <SelectContent>
-                {empresas.length > 0 ? (
-                  empresas.map((empresa) => (
-                    <SelectItem
-                      key={empresa.id_Empresa}
-                      value={empresa.id_Empresa.toString()}
-                    >
-                      {empresa.nombreEmpresa}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem disabled value="">
-                    No hay empresas activas
+                {empresas.map((e) => (
+                  <SelectItem key={e.id_Empresa} value={e.id_Empresa.toString()}>
+                    {e.nombreEmpresa}
                   </SelectItem>
-                )}
+                ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="especialidad_seguridad">Especialidad</Label>
+          {/* EXPERIENCIA */}
+          <div className="flex flex-col gap-1">
+            <Label>Experiencia (años) <span className="text-muted-foreground font-normal">(Ej: 5)</span></Label>
             <Input
-              id="especialidad_seguridad"
-              placeholder="Prevención de Riesgos Laborales"
-              value={formData.especialidad_seguridad}
-              onChange={(e) => setFormData({ ...formData, especialidad_seguridad: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="experiencia">Años de experiencia</Label>
-            <Input
-              id="experiencia"
               type="number"
-              placeholder="5"
               value={formData.experiencia}
-              onChange={(e) => setFormData({ ...formData, experiencia: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, experiencia: e.target.value })
+              }
               required
             />
           </div>
 
+        </div>
 
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            Cancelar
+          </Button>
 
+          <Button disabled={loading} onClick={handleSubmit}>
+            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Guardar
+          </Button>
+        </DialogFooter>
 
-          <DialogFooter className="pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Registrar
-            </Button>
-          </DialogFooter>
-        </form>
       </DialogContent>
     </Dialog>
   )

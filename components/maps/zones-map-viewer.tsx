@@ -1,117 +1,63 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { listarZonasPorEmpresa } from "@/servicios/zona";
 
-// Leaflet solo se carga en cliente
-let L: any = null;
-if (typeof window !== "undefined") {
-  L = require("leaflet");
+// ✅ Carga dinámica del mapa solo en cliente
+const DynamicZonesMap = dynamic(() => import("./zones-map-core"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[500px] flex items-center justify-center bg-muted rounded-lg">
+      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+    </div>
+  ),
+});
 
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://unpkg.com/leaflet@1.7/dist/images/marker-icon-2x.png",
-    iconUrl: "https://unpkg.com/leaflet@1.7/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.7/dist/images/marker-shadow.png",
-  });
+interface ZonesMapViewerProps {
+  companyId: number;
 }
 
-export function ZonesMapViewer({ companyId }: { companyId: number }) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+export function ZonesMapViewer({ companyId }: ZonesMapViewerProps) {
+  const [mounted, setMounted] = useState(false);
   const [zones, setZones] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const generarCuadrado = (lat: number, lng: number, dist = 40) => {
-    const delta = dist / 111320;
-    return [
-      [lat + delta, lng - delta],
-      [lat + delta, lng + delta],
-      [lat - delta, lng + delta],
-      [lat - delta, lng - delta],
-    ];
-  };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
-      const data = await listarZonasPorEmpresa(companyId);
-      setZones(data);
+      try {
+        setLoading(true);
+        const data = await listarZonasPorEmpresa(companyId);
+        setZones(data);
+      } catch (error) {
+        console.error("Error cargando zonas:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [companyId]);
 
-  useEffect(() => {
-    if (!mapRef.current || !L || zones.length === 0) return;
+  if (!mounted || loading) {
+    return (
+      <div className="w-full h-[500px] flex items-center justify-center bg-muted rounded-lg">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-    // ➤ Resetear el mapa si existe
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-    }
+  if (zones.length === 0) {
+    return (
+      <div className="w-full h-[500px] flex items-center justify-center bg-muted rounded-lg border">
+        <p className="text-muted-foreground">No hay zonas disponibles para mostrar</p>
+      </div>
+    );
+  }
 
-    // ➤ Calcular centro
-    const avgLat =
-      zones.reduce((sum, z) => sum + parseFloat(z.latitud), 0) / zones.length;
-    const avgLng =
-      zones.reduce((sum, z) => sum + parseFloat(z.longitud), 0) / zones.length;
-
-    const map = L.map(mapRef.current).setView([avgLat, avgLng], 15);
-    mapInstanceRef.current = map;
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-
-    // ➤ Renderizar zonas
-    zones.forEach((zone) => {
-      const lat = parseFloat(zone.latitud);
-      const lng = parseFloat(zone.longitud);
-
-      const popupContent = `
-        <div style="font-family: Arial; padding: 5px 0;">
-          <strong style="font-size: 16px;">📍 ${zone.nombreZona}</strong><br/>
-          <span style="font-size: 14px;">📷 Cámaras: <b>${zone.total_camaras}</b></span><br/>
-          <span style="font-size: 14px;">👷 Trabajadores: <b>${zone.total_trabajadores}</b></span>
-        </div>
-      `;
-
-      const tooltipContent = `
-        <strong>${zone.nombreZona}</strong><br/>
-        Cámaras: ${zone.total_camaras} | Trabajadores: ${zone.total_trabajadores}
-      `;
-
-      // Marcador circular
-      const marker = L.circleMarker([lat, lng], {
-        radius: 9,
-        fillColor: "#2563eb",
-        fillOpacity: 0.9,
-        color: "#ffffff",
-        weight: 2,
-      })
-        .addTo(map)
-        .bindPopup(popupContent)
-        .bindTooltip(tooltipContent, {
-          permanent: false,
-          direction: "top",
-          offset: [0, -8],
-        });
-
-      // 🔵 Mostrar popup al hacer clic
-      marker.on("click", () => {
-        marker.openPopup();
-      });
-
-
-      // Cuadrado delimitador
-      const square = generarCuadrado(lat, lng);
-      L.polygon(square as any, {
-        color: "#2563eb",
-        fillColor: "#3b82f6",
-        fillOpacity: 0.2,
-        weight: 2,
-      }).addTo(map);
-    });
-  }, [zones]);
-
-  return (
-    <div
-      ref={mapRef}
-      className="w-full h-[500px] rounded-lg border shadow-sm"
-    />
-  );
+  return <DynamicZonesMap zones={zones} />;
 }

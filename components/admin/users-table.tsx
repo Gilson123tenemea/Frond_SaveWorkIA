@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Pencil, Trash2 } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, Eye, EyeOff } from "lucide-react"
 import toast from "react-hot-toast"
 import { listarEmpresas } from "@/servicios/empresa"
 
@@ -20,7 +20,6 @@ import {
 } from "@/servicios/supervisor"
 
 import { obtenerEmpresasDisponibles } from "@/servicios/supervisor"
-
 
 import {
   Dialog,
@@ -99,15 +98,17 @@ export function SupervisoresTable() {
   const [search, setSearch] = useState("")
   const [supervisores, setSupervisores] = useState<SupervisorRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [empresasDisponibles, setEmpresasDisponibles] = useState<any[]>([]);
-  const [empresasTodas, setEmpresasTodas] = useState<any[]>([]);
-
+  const [empresasDisponibles, setEmpresasDisponibles] = useState<any[]>([])
+  const [empresasTodas, setEmpresasTodas] = useState<any[]>([])
 
   // Modal
   const [openDialog, setOpenDialog] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<SupervisorRow | null>(null)
+
+  // 👁️ Mostrar/ocultar contraseña en el modal
+  const [showPassword, setShowPassword] = useState(false)
 
   // ERRORES FRONT
   const [errors, setErrors] = useState<any>({})
@@ -139,28 +140,24 @@ export function SupervisoresTable() {
     cargarEmpresasTodas()
   }, [])
 
-
   const cargarEmpresasDisponibles = async () => {
     try {
-      const data = await obtenerEmpresasDisponibles();
-      setEmpresasDisponibles(data);
+      const data = await obtenerEmpresasDisponibles()
+      setEmpresasDisponibles(data)
     } catch (error) {
-      console.error("Error al cargar empresas disponibles:", error);
+      console.error("Error al cargar empresas disponibles:", error)
     }
-  };
-
+  }
 
   const cargarEmpresasTodas = async () => {
     try {
-      const data = await listarEmpresas();
-      const activas = data.filter((e: any) => e.borrado === true || e.borrado === 1);
-      setEmpresasTodas(activas);
+      const data = await listarEmpresas()
+      const activas = data.filter((e: any) => e.borrado === true || e.borrado === 1)
+      setEmpresasTodas(activas)
     } catch (error) {
-      console.error("Error al cargar todas las empresas:", error);
+      console.error("Error al cargar todas las empresas:", error)
     }
-  };
-
-
+  }
 
   const cargarSupervisores = async () => {
     try {
@@ -185,6 +182,7 @@ export function SupervisoresTable() {
   const openNewSupervisor = () => {
     setIsEditing(false)
     setErrors({})
+    setShowPassword(false)
 
     setForm({
       persona: {
@@ -201,8 +199,6 @@ export function SupervisoresTable() {
       especialidad_seguridad: "",
       experiencia: 0,
       id_empresa_supervisor: empresasDisponibles[0]?.id_Empresa ?? undefined,
-
-
     })
 
     setOpenDialog(true)
@@ -215,6 +211,7 @@ export function SupervisoresTable() {
     setIsEditing(true)
     setEditing(row)
     setErrors({})
+    setShowPassword(false)
 
     setForm({
       persona: {
@@ -235,7 +232,6 @@ export function SupervisoresTable() {
 
     setOpenDialog(true)
   }
-
 
   // ===================================================
   // VALIDAR FORMULARIO COMPLETO (ANTES DE GUARDAR)
@@ -275,7 +271,6 @@ export function SupervisoresTable() {
     return Object.keys(newErrors).length === 0
   }
 
-
   // ===================================================
   // HANDLE SAVE (CREAR / EDITAR)
   // ===================================================
@@ -313,7 +308,6 @@ export function SupervisoresTable() {
         )
 
         await promise
-
       } else {
         const promise = registrarSupervisor(form)
 
@@ -340,7 +334,6 @@ export function SupervisoresTable() {
         )
 
         await promise
-
       }
       await cargarEmpresasDisponibles()
       await cargarEmpresasTodas()
@@ -358,37 +351,37 @@ export function SupervisoresTable() {
   // HANDLE CHANGE EN TIEMPO REAL (VALIDA AL ESCRIBIR)
   // ===================================================
   const onChangePersona = (field: keyof SupervisorPayload["persona"], value: string) => {
-    let formateado = value;
+    let formateado = value
 
     // Filtrar caracteres según campo
-    if (field === "cedula") formateado = value.replace(/[^0-9]/g, "").slice(0, 10);
-    if (field === "telefono") formateado = value.replace(/[^0-9]/g, "").slice(0, 10);
-    if (field === "nombre") formateado = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
-    if (field === "apellido") formateado = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
-    if (field === "direccion") formateado = value.replace(/[^A-Za-z0-9ÁÉÍÓÚáéíóúñÑ #.,-]/g, "");
+    if (field === "cedula") formateado = value.replace(/[^0-9]/g, "").slice(0, 10)
+    if (field === "telefono") formateado = value.replace(/[^0-9]/g, "").slice(0, 10)
+    if (field === "nombre") formateado = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "")
+    if (field === "apellido") formateado = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "")
+    if (field === "direccion") formateado = value.replace(/[^A-Za-z0-9ÁÉÍÓÚáéíóúñÑ #.,-]/g, "")
 
     // Guarda valor formateado
     setForm((prev) => ({
       ...prev,
       persona: { ...prev.persona, [field]: formateado },
-    }));
+    }))
 
     // =====================================================
     // VALIDACIÓN INSTANTÁNEA LOCAL (front)
     // =====================================================
-    let error = null;
-    if (field === "cedula") error = validarCedulaEcuatoriana(formateado);
-    if (field === "nombre") error = validarNombre(formateado);
-    if (field === "apellido") error = validarApellido(formateado);
-    if (field === "telefono") error = validarTelefono(formateado);
-    if (field === "correo") error = validarCorreo(formateado);
-    if (field === "direccion") error = validarDireccion(formateado);
-    if (field === "genero") error = validarGenero(formateado);
-    if (field === "fecha_nacimiento") error = validarFechaNacimiento(formateado);
-    if (field === "contrasena" && !isEditing) error = validarContrasena(formateado);
+    let error = null
+    if (field === "cedula") error = validarCedulaEcuatoriana(formateado)
+    if (field === "nombre") error = validarNombre(formateado)
+    if (field === "apellido") error = validarApellido(formateado)
+    if (field === "telefono") error = validarTelefono(formateado)
+    if (field === "correo") error = validarCorreo(formateado)
+    if (field === "direccion") error = validarDireccion(formateado)
+    if (field === "genero") error = validarGenero(formateado)
+    if (field === "fecha_nacimiento") error = validarFechaNacimiento(formateado)
+    if (field === "contrasena" && !isEditing) error = validarContrasena(formateado)
 
     // Actualiza errores locales
-    setErrors((prev: any) => ({ ...prev, [field]: error }));
+    setErrors((prev: any) => ({ ...prev, [field]: error }))
 
     // =====================================================
     // VALIDACIÓN DE CÉDULA EN EL BACKEND (EXISTENTE)
@@ -400,15 +393,14 @@ export function SupervisoresTable() {
           setErrors((prev: any) => ({
             ...prev,
             cedula: "Ya existe un usuario activo con esta cédula",
-          }));
+          }))
         } else {
           // limpiar error si estaba marcado
-          setErrors((prev: any) => ({ ...prev, cedula: null }));
+          setErrors((prev: any) => ({ ...prev, cedula: null }))
         }
-      });
+      })
     }
-  };
-
+  }
 
   // ===================================================
   // HANDLE CHANGE PARA CAMPOS DE SUPERVISOR
@@ -437,16 +429,16 @@ export function SupervisoresTable() {
   // 🔹 Eliminar supervisor con confirmación visual
   const handleDelete = async (idSupervisor: number, nombreSupervisor: string) => {
     // Crear fondo semitransparente (overlay)
-    const overlay = document.createElement("div");
-    overlay.style.position = "fixed";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
-    overlay.style.width = "100vw";
-    overlay.style.height = "100vh";
-    overlay.style.background = "rgba(0,0,0,0.4)";
-    overlay.style.zIndex = "999";
-    overlay.style.transition = "opacity 0.3s ease";
-    document.body.appendChild(overlay);
+    const overlay = document.createElement("div")
+    overlay.style.position = "fixed"
+    overlay.style.top = "0"
+    overlay.style.left = "0"
+    overlay.style.width = "100vw"
+    overlay.style.height = "100vh"
+    overlay.style.background = "rgba(0,0,0,0.4)"
+    overlay.style.zIndex = "999"
+    overlay.style.transition = "opacity 0.3s ease"
+    document.body.appendChild(overlay)
 
     // Mostrar confirmación
     const confirmToast = toast(
@@ -459,8 +451,8 @@ export function SupervisoresTable() {
           <div className="flex justify-center gap-3">
             <button
               onClick={() => {
-                toast.dismiss(t.id);
-                document.body.removeChild(overlay);
+                toast.dismiss(t.id)
+                document.body.removeChild(overlay)
               }}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
             >
@@ -469,20 +461,20 @@ export function SupervisoresTable() {
 
             <button
               onClick={async () => {
-                toast.dismiss(t.id);
-                document.body.removeChild(overlay);
-
+                toast.dismiss(t.id)
+                document.body.removeChild(overlay)
 
                 const promise = eliminarSupervisor(idSupervisor).catch((err) => {
-                  const msg = err?.message || "";
+                  const msg = err?.message || ""
 
                   if (msg.includes("inspectores asignados")) {
-                    throw new Error("❌ Este supervisor está relacionado con uno o más inspectores. Debe eliminarlos primero.");
+                    throw new Error(
+                      "❌ Este supervisor está relacionado con uno o más inspectores. Debe eliminarlos primero."
+                    )
                   }
 
-                  throw new Error(msg);
-                });
-
+                  throw new Error(msg)
+                })
 
                 toast.promise(
                   promise,
@@ -490,7 +482,6 @@ export function SupervisoresTable() {
                     loading: "Eliminando supervisor...",
                     success: `Supervisor "${nombreSupervisor}" eliminado correctamente`,
                     error: (err: any) => err.message || "❌ Error desconocido",
-
                   },
                   {
                     style: {
@@ -505,18 +496,15 @@ export function SupervisoresTable() {
                       secondary: "#b91c1c",
                     },
                   }
-                );
+                )
 
                 try {
-                  await promise;
+                  await promise
 
-                  await cargarSupervisores();
-                  await cargarEmpresasDisponibles();
-                  await cargarEmpresasTodas();
-
-                } catch (err) {
-                }
-
+                  await cargarSupervisores()
+                  await cargarEmpresasDisponibles()
+                  await cargarEmpresasTodas()
+                } catch (err) {}
               }}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
             >
@@ -537,17 +525,17 @@ export function SupervisoresTable() {
           width: "380px",
         },
       }
-    );
+    )
 
     setTimeout(() => {
       if (document.body.contains(overlay)) {
-        overlay.style.opacity = "0";
+        overlay.style.opacity = "0"
         setTimeout(() => {
-          if (document.body.contains(overlay)) document.body.removeChild(overlay);
-        }, 300);
+          if (document.body.contains(overlay)) document.body.removeChild(overlay)
+        }, 300)
       }
-    }, 8000);
-  };
+    }, 8000)
+  }
 
   // ===================================================
   // FILTRADO TABLA
@@ -560,7 +548,6 @@ export function SupervisoresTable() {
       s.correo.toLowerCase().includes(q)
     )
   })
-
 
   return (
     <>
@@ -622,7 +609,9 @@ export function SupervisoresTable() {
                             <AvatarFallback>{s.nombre.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium">{s.nombre} {s.apellido}</p>
+                            <p className="font-medium">
+                              {s.nombre} {s.apellido}
+                            </p>
                             <p className="text-xs text-muted-foreground">Cédula: {s.cedula}</p>
                           </div>
                         </div>
@@ -631,8 +620,8 @@ export function SupervisoresTable() {
                       <TableCell>{s.especialidad_seguridad}</TableCell>
                       <TableCell>{s.experiencia}</TableCell>
                       <TableCell>
-                        {empresasTodas.find((e) => e.id_Empresa === s.id_empresa_supervisor)?.nombreEmpresa || "—"}
-
+                        {empresasTodas.find((e) => e.id_Empresa === s.id_empresa_supervisor)
+                          ?.nombreEmpresa || "—"}
                       </TableCell>
 
                       <TableCell>
@@ -682,13 +671,11 @@ export function SupervisoresTable() {
       {/* ===================================== */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border bg-white">
-
           <DialogHeader>
             <DialogTitle>{isEditing ? "Editar Supervisor" : "Registrar Supervisor"}</DialogTitle>
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 py-4">
-
             {/* === CÉDULA === */}
             <div className="flex flex-col gap-1">
               <Label>Cédula</Label>
@@ -794,11 +781,24 @@ export function SupervisoresTable() {
             {!isEditing && (
               <div className="flex flex-col gap-1 md:col-span-2">
                 <Label>Contraseña</Label>
-                <Input
-                  type="password"
-                  value={form.persona.contrasena}
-                  onChange={(e) => onChangePersona("contrasena", e.target.value)}
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={form.persona.contrasena}
+                    onChange={(e) => onChangePersona("contrasena", e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
                 {errors.contrasena && (
                   <p className="text-red-500 text-sm">{errors.contrasena}</p>
                 )}
@@ -823,9 +823,7 @@ export function SupervisoresTable() {
               <Label>Empresa</Label>
               <Select
                 value={form.id_empresa_supervisor ? String(form.id_empresa_supervisor) : ""}
-                onValueChange={(value) =>
-                  onChangeField("id_empresa_supervisor", Number(value))
-                }
+                onValueChange={(value) => onChangeField("id_empresa_supervisor", Number(value))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar empresa" />
@@ -842,7 +840,6 @@ export function SupervisoresTable() {
                       No hay empresas activas
                     </div>
                   )}
-
                 </SelectContent>
               </Select>
               {errors.id_empresa_supervisor && (
