@@ -28,19 +28,25 @@ import {
 
 import { WorkerHistoryDialog } from "./worker-history-dialog";
 
+
+// ===============================
+// 🔥 ICONOS PARA CADA IMPLEMENTO
+// ===============================
 const ICON_MAP: any = {
   casco: HardHat,
   chaleco: Shirt,
   botas: Shield,
+  guantes: Shield, // Puedes cambiarlo por otro ícono más representativo
   lentes: Glasses,
 };
+
+
 
 export function LiveDetections() {
   const [grouped, setGrouped] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
   const [openHistorial, setOpenHistorial] = useState(false);
-
   const [historial, setHistorial] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
 
@@ -60,29 +66,31 @@ export function LiveDetections() {
         const transformado = data.map((item: any, index: number) => {
           const detalle = item.evidencia.detalle.toLowerCase();
 
+          // ===============================
+          // 🔥 LISTA COMPLETA DE IMPLEMENTOS
+          // ===============================
           const detecciones = [
             { item: "Casco", key: "casco" },
             { item: "Chaleco", key: "chaleco" },
             { item: "Botas", key: "botas" },
-            { item: "Gafas", key: "lentes" },
+            { item: "Guantes", key: "guantes" },
+            { item: "Lentes", key: "lentes" },
           ].map((det) => {
-            let detected;
-            if (det.key === "lentes") detected = detalle.includes("lentes");
-            else detected = !detalle.includes(det.key);
-
+            const detected = !detalle.includes(det.key);
             const Icon = ICON_MAP[det.key];
 
             return {
               item: det.item,
+              key: det.key,
               detected,
               icon: Icon,
             };
           });
 
-          const fails = detecciones.filter(
-            (d) => !d.detected && d.item !== "Gafas"
-          ).length;
-          const severity = fails >= 2 ? "high" : fails === 1 ? "medium" : "safe";
+          const fails = detecciones.filter((d) => !d.detected).length;
+
+          const severity =
+            fails >= 3 ? "high" : fails === 2 ? "medium" : fails === 1 ? "low" : "safe";
 
           return {
             id: index + 1,
@@ -102,6 +110,7 @@ export function LiveDetections() {
           };
         });
 
+        // AGRUPAR POR ZONA
         const groupedByZone: any = {};
 
         transformado.forEach((item) => {
@@ -125,7 +134,7 @@ export function LiveDetections() {
   }, []);
 
   // ---------------------------
-  // VER HISTORIAL POR CÉDULA
+  // VER HISTORIAL DEL TRABAJADOR
   // ---------------------------
   async function verHistorial(detection: any) {
     try {
@@ -135,11 +144,8 @@ export function LiveDetections() {
       setHistorialWorker(detection.worker);
 
       const data = await obtenerHistorialTrabajador({ cedula });
-
-      // EXTRAER estadísticas e historial DEL BACKEND
       const { estadisticas, historial } = data;
 
-      // Transformar historial igual que antes
       const transformado = historial.map((item: any, index: number) => {
         const detalle = item.evidencia.detalle.toLowerCase();
 
@@ -147,7 +153,8 @@ export function LiveDetections() {
           { item: "Casco", key: "casco" },
           { item: "Chaleco", key: "chaleco" },
           { item: "Botas", key: "botas" },
-          { item: "Gafas", key: "lentes" },
+          { item: "Guantes", key: "guantes" },
+          { item: "Lentes", key: "lentes" },
         ].map((det) => {
           const detected = !detalle.includes(det.key);
           const Icon = ICON_MAP[det.key];
@@ -155,9 +162,7 @@ export function LiveDetections() {
           return { item: det.item, detected, icon: Icon };
         });
 
-        const fails = detecciones.filter(
-          (d) => !d.detected && d.item !== "Gafas"
-        ).length;
+        const fails = detecciones.filter((d) => !d.detected).length;
 
         return {
           id: index + 1,
@@ -176,11 +181,9 @@ export function LiveDetections() {
         };
       });
 
-      // GUARDAR ESTADÍSTICAS Y LISTA
       setStats(estadisticas);
       setHistorial(transformado);
       setOpenHistorial(true);
-
     } catch (err) {
       console.error("Error cargando historial:", err);
     }
@@ -203,27 +206,22 @@ export function LiveDetections() {
         />
       )}
 
-
       <div className="space-y-8">
         {Object.entries(grouped).map(([zona, data]: any) => (
           <Card key={zona}>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Camera className="w-5 h-5" />
-                    Zona: {zona}
-                  </CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5" />
+                Zona: {zona}
+              </CardTitle>
 
-                  <CardDescription className="flex items-center gap-2 mt-2">
-                    <UserCheck className="w-4 h-4" />
-                    Inspector:
-                    <span className="font-medium text-foreground">
-                      {data.inspector}
-                    </span>
-                  </CardDescription>
-                </div>
-              </div>
+              <CardDescription className="flex items-center gap-2 mt-2">
+                <UserCheck className="w-4 h-4" />
+                Inspector:
+                <span className="font-medium text-foreground">
+                  {data.inspector}
+                </span>
+              </CardDescription>
             </CardHeader>
 
             <CardContent>
@@ -231,12 +229,13 @@ export function LiveDetections() {
                 {data.registros.map((detection: any) => (
                   <Card
                     key={detection.id}
-                    className={`${detection.severity === "high"
+                    className={`border ${
+                      detection.severity === "high"
                         ? "border-destructive"
                         : detection.severity === "medium"
-                          ? "border-yellow-500"
-                          : "border-border"
-                      }`}
+                        ? "border-yellow-500"
+                        : "border-border"
+                    }`}
                   >
                     <CardContent className="p-4">
                       <div className="grid gap-4 md:grid-cols-[300px_1fr]">
@@ -277,20 +276,18 @@ export function LiveDetections() {
                               return (
                                 <div
                                   key={item.item}
-                                  className={`flex items-center gap-3 p-2 rounded-lg border ${item.detected
-                                      ? "bg-success/5 border-success/20"
-                                      : item.item === "Gafas"
-                                        ? "bg-yellow-50 border-yellow-400"
-                                        : "bg-destructive/5 border-destructive/20"
-                                    }`}
+                                  className={`flex items-center gap-3 p-2 rounded-lg border ${
+                                    item.detected
+                                      ? "bg-green-50 border-green-400"
+                                      : "bg-red-50 border-red-400"
+                                  }`}
                                 >
                                   <Icon
-                                    className={`w-4 h-4 ${item.detected
-                                        ? "text-success"
-                                        : item.item === "Gafas"
-                                          ? "text-yellow-600"
-                                          : "text-destructive"
-                                      }`}
+                                    className={`w-4 h-4 ${
+                                      item.detected
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }`}
                                   />
 
                                   <div className="flex-1">
@@ -299,18 +296,15 @@ export function LiveDetections() {
                                     </p>
 
                                     <p
-                                      className={`text-xs ${item.detected
-                                          ? "text-success"
-                                          : item.item === "Gafas"
-                                            ? "text-yellow-600"
-                                            : "text-destructive"
-                                        }`}
+                                      className={`text-xs ${
+                                        item.detected
+                                          ? "text-green-600"
+                                          : "text-red-600"
+                                      }`}
                                     >
                                       {item.detected
                                         ? "Detectado"
-                                        : item.item === "Gafas"
-                                          ? "Opcional (no detectado)"
-                                          : "No detectado"}
+                                        : "No detectado"}
                                     </p>
                                   </div>
                                 </div>
