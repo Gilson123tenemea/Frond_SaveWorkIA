@@ -28,3 +28,23 @@ export async function guardarEvidenciaFallo(evidencia) {
     return { error: err.message };
   }
 }
+
+export async function actualizarEvidenciaFallo(id_evidencia, cambios) {
+  try {
+    const res = await fetch(`${BASE_URL}/evidencias-fallo/actualizar/${id_evidencia}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cambios),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.detail || "❌ Error al actualizar evidencia");
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("❌ actualizarEvidenciaFallo:", err.message);
+    return { error: err.message };
+  }
+}

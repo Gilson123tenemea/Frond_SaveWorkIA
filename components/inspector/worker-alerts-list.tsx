@@ -1,226 +1,396 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useEffect, useState } from "react";
+import { getUser } from "@/lib/auth";
+
+import { obtenerIncumplimientosPorInspector } from "@/servicios/reporte_inspector_incumplimiento";
+import { actualizarEvidenciaFallo } from "@/servicios/evidencia_fallo";
+
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
+  DialogFooter,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { AlertTriangle, Plus } from "lucide-react"
-import { getWorkerAlerts, addObservationToAlert, updateAlertStatus } from "@/lib/storage"
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+import {
+  AlertTriangle,
+  Camera,
+  Clock,
+  HardHat,
+  Shield,
+  Glasses,
+  Shirt,
+  Plus,
+} from "lucide-react";
+
+// =============================================
+// 🔥 ICONOS DE EPP
+// =============================================
+const ICON_MAP: any = {
+  casco: HardHat,
+  chaleco: Shirt,
+  botas: Shield,
+  guantes: Shield,
+  lentes: Glasses,
+};
+
+// =============================================
+// 🔥 MODELO UI
+// =============================================
+interface WorkerAlert {
+  id: number;
+  idEvidencia: number;   // ← 🔥 NECESARIO
+  workerName: string;
+  workerDni: string;
+  camera: string;
+  zoneName: string;
+  violation: string;
+  photoUrl: string;
+  severity: "high" | "medium" | "low";
+  timestamp: string;
+  observations: string[];
+  detections: any[];
+  estado: boolean | null;
+  observacionesTexto?: string | null;
+}
+
 
 export function WorkerAlertsList() {
-  const [alerts, setAlerts] = useState(getWorkerAlerts())
-  const [selectedAlert, setSelectedAlert] = useState<number | null>(null)
-  const [observation, setObservation] = useState("")
-  const [filter, setFilter] = useState<"all" | "pending" | "reviewed">("all")
+  const user = getUser();
+  const idInspector = user?.id_inspector ?? null;
 
-  const filteredAlerts = alerts.filter((alert) => filter === "all" || alert.status === filter)
+  const [alerts, setAlerts] = useState<WorkerAlert[]>([]);
+  const [selectedAlert, setSelectedAlert] = useState<number | null>(null);
+  const [observation, setObservation] = useState("");
 
-  const handleAddObservation = () => {
-    if (selectedAlert && observation.trim()) {
-      addObservationToAlert(selectedAlert, observation)
-      setAlerts(getWorkerAlerts())
-      setObservation("")
-      setSelectedAlert(null)
+  const [filter, setFilter] = useState<"todos" | "pendientes" | "revisados">(
+    "todos"
+  );
+
+  // ===========================================================
+  // 🔥 1. Obtener datos desde backend
+  // ===========================================================
+  useEffect(() => {
+    if (!idInspector) return;
+
+    async function cargar() {
+      const data = await obtenerIncumplimientosPorInspector(idInspector as number);
+
+      setAlerts(transformarDatos(data));
+    }
+
+    cargar();
+  }, [idInspector]);
+
+  // ===========================================================
+  // 🔥 2. Transformar datos backend → UI
+  // ===========================================================
+  function transformarDatos(data: any[]): WorkerAlert[] {
+    return data.map((item: any, index: number) => {
+      const detalle = item.evidencia.detalle.toLowerCase();
+
+      const detections = [
+        { item: "Casco", key: "casco" },
+        { item: "Chaleco", key: "chaleco" },
+        { item: "Botas", key: "botas" },
+        { item: "Guantes", key: "guantes" },
+        { item: "Lentes", key: "lentes" },
+      ].map((det) => ({
+        item: det.item,
+        key: det.key,
+        icon: ICON_MAP[det.key],
+        detected: !detalle.includes(det.key),
+      }));
+
+      const fails = detections.filter((d) => !d.detected).length;
+
+      return {
+        id: index + 1,
+        idEvidencia: item.evidencia.id_evidencia,
+        workerName: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
+        workerDni: item.trabajador.cedula,
+        camera: item.camara.codigo,
+        zoneName: item.camara.zona,
+        violation: item.evidencia.detalle,
+        photoUrl: `data:image/jpeg;base64,${item.evidencia.foto_base64}`,
+        timestamp: item.fecha_registro,
+        severity: fails >= 3 ? "high" : fails === 2 ? "medium" : "low",
+        observations: item.evidencia.observaciones ? [item.evidencia.observaciones] : [],
+        detections,
+        estado: item.evidencia.estado,
+        observacionesTexto: item.evidencia.observaciones,
+      };
+
+    });
+  }
+
+  // ===========================================================
+  // 🔥 3. Guardar observación
+  // ===========================================================
+  async function agregarObservacion() {
+    if (!selectedAlert || observation.trim() === "") return;
+
+    const alert = alerts.find((a) => a.id === selectedAlert);
+    if (!alert) return;
+
+    const idEvidencia = alert.idEvidencia;
+
+    const res = await actualizarEvidenciaFallo(idEvidencia, {
+      observaciones: observation,
+    });
+
+    if (!res.error) {
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.id === alert.id
+            ? { ...a, observations: [...a.observations, observation] }
+            : a
+        )
+      );
+    }
+
+    setObservation("");
+    setSelectedAlert(null);
+  }
+
+  // ===========================================================
+  // 🔥 4. Marcar Revisado
+  // ===========================================================
+  async function marcarRevisado(alert: WorkerAlert) {
+    const idEvidencia = alert.idEvidencia;
+
+    const res = await actualizarEvidenciaFallo(idEvidencia, {
+      estado: false,
+    });
+
+    if (!res.error) {
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.id === alert.id ? { ...a, estado: false } : a
+        )
+      );
     }
   }
 
-  const selectedAlertData = alerts.find((a) => a.id === selectedAlert)
+  // ===========================================================
+  // 🔥 5. Filtrar lista según estado
+  // ===========================================================
+  const filteredAlerts = alerts.filter((alert) => {
+    if (filter === "todos") return true;
+    if (filter === "pendientes") return alert.estado === true || alert.estado === null;
+    if (filter === "revisados") return alert.estado === false;
+    return true;
+  });
 
+  // ===========================================================
+  // 🔥 UI COMPLETA
+  // ===========================================================
   return (
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Alertas de Trabajadores</CardTitle>
-              <CardDescription>Incumplimientos de equipos de protección personal detectados</CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button variant={filter === "all" ? "default" : "outline"} size="sm" onClick={() => setFilter("all")}>
-                Todas
-              </Button>
-              <Button
-                variant={filter === "pending" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter("pending")}
-              >
-                Pendientes
-              </Button>
-              <Button
-                variant={filter === "reviewed" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter("reviewed")}
-              >
-                Revisadas
-              </Button>
-            </div>
+          <CardTitle>Incumplimientos Detectados</CardTitle>
+          <CardDescription>
+            Reportes generados automáticamente para este inspector
+          </CardDescription>
+
+          {/* 🔥 BOTONES DE FILTRO */}
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant={filter === "todos" ? "default" : "outline"}
+              onClick={() => setFilter("todos")}
+            >
+              Todos
+            </Button>
+
+            <Button
+              variant={filter === "pendientes" ? "default" : "outline"}
+              onClick={() => setFilter("pendientes")}
+            >
+              Pendientes
+            </Button>
+
+            <Button
+              variant={filter === "revisados" ? "default" : "outline"}
+              onClick={() => setFilter("revisados")}
+            >
+              Revisados
+            </Button>
           </div>
         </CardHeader>
+
         <CardContent>
-          <div className="space-y-4">
+          {filteredAlerts.length === 0 && (
+            <div className="py-12 text-center">
+              <AlertTriangle className="w-12 h-12 mx-auto text-muted-foreground" />
+              <p className="text-muted-foreground mt-2">No se encontraron resultados</p>
+            </div>
+          )}
+
+          <div className="space-y-6">
             {filteredAlerts.map((alert) => (
-              <div key={alert.id} className="border rounded-lg overflow-hidden">
-                <div className="grid md:grid-cols-[200px,1fr] gap-4">
-                  {/* Photo */}
-                  <div className="relative bg-muted aspect-square md:aspect-auto">
-                    <img
-                      src={alert.photoUrl || "/placeholder.svg"}
-                      alt={`Alerta de ${alert.workerName}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-2 right-2">
+              <Card
+                key={alert.id}
+                className={`border ${alert.severity === "high"
+                  ? "border-destructive"
+                  : alert.severity === "medium"
+                    ? "border-yellow-500"
+                    : "border-border"
+                  }`}
+              >
+                <CardContent className="p-4">
+                  <div className="grid gap-4 md:grid-cols-[300px_1fr]">
+
+                    {/* FOTO */}
+                    <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
+                      <img
+                        src={alert.photoUrl}
+                        className="w-full h-full object-cover"
+                      />
+
                       <Badge
-                        variant={
-                          alert.severity === "high"
-                            ? "destructive"
-                            : alert.severity === "medium"
-                              ? "default"
-                              : "secondary"
-                        }
+                        className="absolute top-2 right-2"
+                        variant={alert.estado === false ? "default" : "secondary"}
                       >
-                        {alert.severity === "high" ? "Alta" : alert.severity === "medium" ? "Media" : "Baja"}
+                        {alert.estado === false ? "Revisado" : "Pendiente"}
                       </Badge>
                     </div>
-                  </div>
 
-                  {/* Details */}
-                  <div className="p-4 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle
-                            className={`w-5 h-5 ${
-                              alert.severity === "high"
-                                ? "text-destructive"
-                                : alert.severity === "medium"
-                                  ? "text-orange-600"
-                                  : "text-yellow-600"
-                            }`}
-                          />
-                          <h3 className="font-semibold text-lg">{alert.workerName}</h3>
+                    {/* INFO */}
+                    <div className="space-y-4">
+
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold">{alert.workerName}</h4>
+
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                            <Camera className="w-3 h-3" />
+                            {alert.camera} • {alert.zoneName}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">DNI: </span>
-                            <span className="font-medium">{alert.workerDni}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Zona: </span>
-                            <span className="font-medium">{alert.zoneName}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">Violación: </span>
-                            <span className="font-medium text-destructive">{alert.violation}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">Fecha y hora: </span>
-                            <span className="font-medium">{new Date(alert.timestamp).toLocaleString("es-ES")}</span>
-                          </div>
+
+                        <div className="text-xs flex items-center gap-1 text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          {new Date(alert.timestamp).toLocaleString()}
                         </div>
                       </div>
-                      <Badge variant={alert.status === "pending" ? "destructive" : "default"}>
-                        {alert.status === "pending"
-                          ? "Pendiente"
-                          : alert.status === "reviewed"
-                            ? "Revisada"
-                            : "Resuelta"}
-                      </Badge>
-                    </div>
 
-                    {/* Observations */}
-                    {alert.observations.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-xs font-semibold">Observaciones:</Label>
-                        <div className="space-y-2">
-                          {alert.observations.map((obs, idx) => (
-                            <div key={idx} className="text-sm p-2 bg-muted rounded">
-                              {obs}
+                      {/* DETECCIONES */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {alert.detections.map((det) => {
+                          const Icon = det.icon;
+                          return (
+                            <div key={det.item} className={`flex items-center gap-3 p-2 rounded-lg border ${det.detected
+                              ? "bg-green-50 border-green-400"
+                              : "bg-red-50 border-red-400"
+                              }`}>
+                              <Icon className={`w-4 h-4 ${det.detected ? "text-green-600" : "text-red-600"}`} />
+
+                              <div>
+                                <p className="text-sm font-medium">{det.item}</p>
+                                <p className={`text-xs ${det.detected ? "text-green-600" : "text-red-600"}`}>
+                                  {det.detected ? "Detectado" : "No detectado"}
+                                </p>
+                              </div>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-2">
-                      <Button size="sm" variant="outline" onClick={() => setSelectedAlert(alert.id)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Agregar Observación
-                      </Button>
-                      {alert.status === "pending" && (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => {
-                            updateAlertStatus(alert.id, "resolved")
-                            setAlerts(getWorkerAlerts())
-                          }}
-                        >
-                          Marcar como Resuelta
-                        </Button>
+                      {/* 🔥 OBSERVACIÓN GUARDADA */}
+                      {alert.observacionesTexto && (
+                        <div className="mt-3 p-3 border rounded-lg bg-blue-50">
+                          <p className="text-sm font-semibold text-blue-900">Observación del inspector:</p>
+                          <p className="text-sm text-blue-800">{alert.observacionesTexto}</p>
+                        </div>
                       )}
+
+
+                      {/* ACCIONES */}
+                      <div className="flex gap-2 mt-2">
+                        {/* 🔥 Solo mostrar si NO tiene observación */}
+                        {!alert.observacionesTexto && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setSelectedAlert(alert.id)}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Agregar Observación
+                          </Button>
+                        )}
+
+
+                        {(alert.estado === null || alert.estado === true) && (
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-blue-900 hover:bg-blue-900 text-white"
+                            onClick={() => marcarRevisado(alert)}
+                          >
+                            Marcar Revisado
+                          </Button>
+                        )}
+                      </div>
+
                     </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
-
-            {filteredAlerts.length === 0 && (
-              <div className="py-12 text-center">
-                <AlertTriangle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No hay alertas {filter !== "all" && filter}</p>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Add Observation Dialog */}
-      <Dialog open={selectedAlert !== null} onOpenChange={() => setSelectedAlert(null)}>
+      {/* DIALOG OBSERVACIÓN */}
+      <Dialog
+        open={selectedAlert !== null}
+        onOpenChange={() => setSelectedAlert(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Agregar Observación</DialogTitle>
-            <DialogDescription>Agrega una observación sobre esta alerta de incumplimiento</DialogDescription>
+            <DialogDescription>
+              Añade un comentario sobre esta alerta.
+            </DialogDescription>
           </DialogHeader>
-          {selectedAlertData && (
+
+          {alerts.find((a) => a.id === selectedAlert) && (
             <div className="space-y-4">
-              <div className="p-3 bg-muted rounded-lg space-y-1">
-                <p className="font-medium">{selectedAlertData.workerName}</p>
-                <p className="text-sm text-muted-foreground">{selectedAlertData.violation}</p>
-                <p className="text-xs text-muted-foreground">{selectedAlertData.zoneName}</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="observation">Observación</Label>
-                <Textarea
-                  id="observation"
-                  placeholder="Describe las acciones tomadas o comentarios sobre esta alerta..."
-                  value={observation}
-                  onChange={(e) => setObservation(e.target.value)}
-                  rows={4}
-                />
-              </div>
+              <Textarea
+                rows={4}
+                placeholder="Describe la observación..."
+                value={observation}
+                onChange={(e) => setObservation(e.target.value)}
+              />
             </div>
           )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedAlert(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleAddObservation} disabled={!observation.trim()}>
-              Agregar Observación
+            <Button onClick={agregarObservacion} disabled={!observation.trim()}>
+              Guardar Observación
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
-  )
+  );
 }
