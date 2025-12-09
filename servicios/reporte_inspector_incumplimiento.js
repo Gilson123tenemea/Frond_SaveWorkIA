@@ -46,3 +46,28 @@ export async function obtenerIncumplimientosPorInspector(
     throw error;
   }
 }
+
+
+export async function obtenerIncumplimientosPorCedula(cedula) {
+  try {
+    if (!cedula) {
+      throw new Error("❌ La cédula es obligatoria");
+    }
+
+    const params = new URLSearchParams();
+    params.append("cedula", cedula);
+
+    const url = `${BASE_URL}/reportes/inspectores/trabajador?${params.toString()}`;
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      throw new Error(`❌ Error en la API: ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("❌ Error obteniendo incumplimientos por cédula:", error);
+    throw error;
+  }
+}
