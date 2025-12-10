@@ -71,3 +71,27 @@ export async function obtenerIncumplimientosPorCedula(cedula) {
     throw error;
   }
 }
+
+export async function obtenerZonasPorInspector(idInspector) {
+  try {
+    if (!idInspector) {
+      throw new Error("❌ idInspector es obligatorio");
+    }
+
+    const params = new URLSearchParams();
+    params.append("id_inspector", idInspector);
+
+    const url = `${BASE_URL}/reportes/inspectores/zonas?${params.toString()}`;
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      throw new Error(`❌ Error en la API al obtener zonas: ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("❌ Error obteniendo zonas del inspector:", error);
+    throw error;
+  }
+}
