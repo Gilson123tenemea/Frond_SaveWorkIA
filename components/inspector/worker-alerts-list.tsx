@@ -6,7 +6,7 @@ import { getUser } from "@/lib/auth";
 import {
   obtenerIncumplimientosPorInspector,
   obtenerIncumplimientosPorCedula,
-  obtenerZonasPorInspector, // <-- 🔥 AGREGADO
+  obtenerZonasPorInspector,
 } from "@/servicios/reporte_inspector_incumplimiento";
 
 import { actualizarEvidenciaFallo } from "@/servicios/evidencia_fallo";
@@ -82,7 +82,7 @@ export function WorkerAlertsList() {
     "todos"
   );
 
-  // 🔥 NUEVOS ESTADOS PARA FILTROS
+  // NUEVOS FILTROS
   const [zonas, setZonas] = useState<any[]>([]);
   const [zonaSeleccionada, setZonaSeleccionada] = useState<number | null>(null);
   const [fechaDesde, setFechaDesde] = useState<string | null>(null);
@@ -95,29 +95,24 @@ export function WorkerAlertsList() {
   const [historyWorkerName, setHistoryWorkerName] = useState("");
 
   // ===========================================================
-  // 🔥 CARGA INICIAL SIN FILTROS
+  // CARGA INICIAL
   // ===========================================================
-   useEffect(() => {
+  useEffect(() => {
     if (idInspector == null) return;
 
     async function cargar() {
       const data = await obtenerIncumplimientosPorInspector(idInspector as number);
-
-
       setAlerts(transformarDatos(data));
     }
 
     cargar();
   }, [idInspector]);
 
-
-
-
   // ===========================================================
-  // 🔥 CARGAR ZONAS DEL INSPECTOR
+  // CARGAR ZONAS
   // ===========================================================
   useEffect(() => {
-    if (idInspector == null) return;
+    if (!idInspector) return;
 
     async function cargarZonasInspector() {
       const data = await obtenerZonasPorInspector(idInspector);
@@ -128,10 +123,10 @@ export function WorkerAlertsList() {
   }, [idInspector]);
 
   // ===========================================================
-  // 🔥 RECARGAR DATOS CUANDO CAMBIAN LOS FILTROS
+  // RECARGAR AL CAMBIAR FILTROS
   // ===========================================================
   useEffect(() => {
-    if (idInspector == null) return;
+    if (!idInspector) return;
 
     async function cargarFiltrado() {
       const data = await obtenerIncumplimientosPorInspector(
@@ -148,7 +143,7 @@ export function WorkerAlertsList() {
   }, [zonaSeleccionada, fechaDesde, fechaHasta]);
 
   // ===========================================================
-  // 🔥 TRANSFORMAR DATA BACKEND → UI
+  // TRANSFORMAR DATA BACKEND → UI
   // ===========================================================
   function transformarDatos(data: any[]): WorkerAlert[] {
     return data.map((item: any, index: number) => {
@@ -191,7 +186,7 @@ export function WorkerAlertsList() {
   }
 
   // ===========================================================
-  // 🔥 ABRIR HISTORIAL
+  // VER HISTORIAL COMPLETO
   // ===========================================================
   async function verHistorialCompleto(alert: WorkerAlert) {
     const data = await obtenerIncumplimientosPorCedula(alert.workerDni);
@@ -232,7 +227,7 @@ export function WorkerAlertsList() {
   }
 
   // ===========================================================
-  // 🔥 GUARDAR OBSERVACIÓN
+  // GUARDAR OBSERVACIÓN
   // ===========================================================
   async function agregarObservacion() {
     if (!selectedAlert || observation.trim() === "") return;
@@ -261,26 +256,28 @@ export function WorkerAlertsList() {
   }
 
   // ===========================================================
-  // 🔥 MARCAR REVISADO
+  // 🔥 MARCAR REVISADO + EMITIR EVENTO GLOBAL PARA LA CAMPANITA
   // ===========================================================
   async function marcarRevisado(alert: WorkerAlert) {
-    const idEvidencia = alert.idEvidencia;
+  const idEvidencia = alert.idEvidencia;
 
-    const res = await actualizarEvidenciaFallo(idEvidencia, {
-      estado: false,
-    });
+  const res = await actualizarEvidenciaFallo(idEvidencia, { estado: false });
 
-    if (!res.error) {
-      setAlerts((prev) =>
-        prev.map((a) =>
-          a.id === alert.id ? { ...a, estado: false } : a
-        )
-      );
-    }
+  if (!res.error) {
+    setAlerts((prev) =>
+      prev.map((a) =>
+        a.id === alert.id ? { ...a, estado: false } : a
+      )
+    );
+
+    console.log("📢 ENVIANDO EVENTO notification-updated");
+
+    window.dispatchEvent(new CustomEvent("notification-updated"));
   }
+}
 
   // ===========================================================
-  // 🔥 FILTRO FINAL (Todos/Pendientes/Revisados)
+  // FILTROS
   // ===========================================================
   const filteredAlerts = alerts.filter((alert) => {
     if (filter === "todos") return true;
@@ -291,7 +288,7 @@ export function WorkerAlertsList() {
   });
 
   // ===========================================================
-  // 🔥 UI COMPLETA
+  // UI COMPLETA
   // ===========================================================
   return (
     <>
@@ -302,10 +299,9 @@ export function WorkerAlertsList() {
             Reportes generados automáticamente para este inspector
           </CardDescription>
 
-          {/* 🔥 NUEVOS FILTROS AÑADIDOS */}
+          {/* FILTROS */}
           <div className="flex gap-4 items-center mt-4">
 
-            {/* ZONAS */}
             <select
               className="border rounded-lg px-3 py-2 text-sm"
               value={zonaSeleccionada ?? ""}
@@ -323,7 +319,6 @@ export function WorkerAlertsList() {
               ))}
             </select>
 
-            {/* FECHA DESDE */}
             <input
               type="date"
               className="border rounded-lg px-3 py-2 text-sm"
@@ -331,7 +326,6 @@ export function WorkerAlertsList() {
               onChange={(e) => setFechaDesde(e.target.value || null)}
             />
 
-            {/* FECHA HASTA */}
             <input
               type="date"
               className="border rounded-lg px-3 py-2 text-sm"
@@ -340,7 +334,7 @@ export function WorkerAlertsList() {
             />
           </div>
 
-          {/* BOTONES DE FILTRO (NO TOCADO) */}
+          {/* BOTONES DE FILTRO */}
           <div className="flex justify-end gap-2 mt-4">
             <Button
               variant={filter === "todos" ? "default" : "outline"}
@@ -365,9 +359,6 @@ export function WorkerAlertsList() {
           </div>
         </CardHeader>
 
-        {/* ----------------------------------------
-            LISTA DE RESULTADOS (NO MODIFICADA)
-        ---------------------------------------- */}
         <CardContent>
           {filteredAlerts.length === 0 && (
             <div className="py-12 text-center">
@@ -395,10 +386,7 @@ export function WorkerAlertsList() {
 
                     {/* FOTO */}
                     <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                      <img
-                        src={alert.photoUrl}
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={alert.photoUrl} className="w-full h-full object-cover" />
 
                       <Badge
                         className="absolute top-2 right-2"

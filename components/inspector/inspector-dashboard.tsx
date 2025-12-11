@@ -31,9 +31,6 @@ import { obtenerZonasPorInspector } from "@/servicios/inspector";
 import { NotificationsPopover } from "./notifications-popover";
 import { InspectorProfile } from "./inspector-profile";
 
-// ======================================
-// 📌 Tipado local
-// ======================================
 type ZonaAsignada = {
   id_Zona: number;
   nombreZona: string;
@@ -44,29 +41,25 @@ type ZonaAsignada = {
   total_camaras: number;
 };
 
-// ======================================
-// 📌 COMPONENTE PRINCIPAL
-// ======================================
 export function InspectorDashboard() {
-  const user = getUser();
-
-  if (!user) return <div>Cargando...</div>;
-
-  // 👉 No se recibe por props — se toma del usuario logueado
-  const inspectorId = user.id_inspector ?? user.id ?? null;
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   const [activeTab, setActiveTab] = useState("overview");
   const [assignedZones, setAssignedZones] = useState<ZonaAsignada[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // 👉 Modal del perfil
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // =====================================================
-  // 📌 Cargar zonas asignadas
-  // =====================================================
   useEffect(() => {
-    if (!inspectorId) return;
+    setMounted(true);
+    const u = getUser();
+    setUser(u);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !user) return;
+
+    const inspectorId = user.id_inspector ?? user.id;
 
     async function loadZones() {
       try {
@@ -80,49 +73,51 @@ export function InspectorDashboard() {
     }
 
     loadZones();
-  }, [inspectorId]);
+  }, [mounted, user]);
+
+  if (!mounted) {
+    return <div className="min-h-screen bg-background"></div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex justify-center items-center">
+        Cargando...
+      </div>
+    );
+  }
+
+  const inspectorId = user.id_inspector ?? user.id ?? null;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* =====================================================
-          ENCABEZADO SUPERIOR
-      ===================================================== */}
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            {/* LOGO */}
+
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
                 <Shield className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
                 <h1 className="text-xl font-bold">SaveWorkIA</h1>
-                <p className="text-xs text-muted-foreground">
-                  Panel de Inspector
-                </p>
+                <p className="text-xs text-muted-foreground">Panel de Inspector</p>
               </div>
             </div>
 
-            {/* DERECHA */}
             <div className="flex items-center gap-3">
-              <NotificationsPopover unreadCount={5} />
+              {inspectorId && (
+                <NotificationsPopover idInspector={inspectorId} />
+              )}
 
-              {/* 👉 Tuerquita → Perfil */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setProfileOpen(true)}
-              >
+              <Button variant="ghost" size="icon" onClick={() => setProfileOpen(true)}>
                 <Settings className="w-5 h-5" />
               </Button>
 
-              {/* Usuario */}
               <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
                   <p className="text-sm font-medium">{user.nombre}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Inspector de Seguridad
-                  </p>
+                  <p className="text-xs text-muted-foreground">Inspector de Seguridad</p>
                 </div>
 
                 <Avatar>
@@ -133,43 +128,33 @@ export function InspectorDashboard() {
               </div>
 
               <Button variant="outline" size="sm" onClick={logout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Salir
+                <LogOut className="w-4 h-4 mr-2" /> Salir
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* =====================================================
-          CONTENIDO PRINCIPAL
-      ===================================================== */}
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="gap-2">
-              <MapPin className="w-4 h-4" />
-              Mi Zona
+              <MapPin className="w-4 h-4" /> Mi Zona
             </TabsTrigger>
 
             <TabsTrigger value="reports" className="gap-2">
-              <FileText className="w-4 h-4" />
-              Reportes
+              <FileText className="w-4 h-4" /> Reportes
             </TabsTrigger>
 
             <TabsTrigger value="alerts" className="gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              Alertas
+              <AlertTriangle className="w-4 h-4" /> Alertas
             </TabsTrigger>
           </TabsList>
 
-          {/* ------------------ MI ZONA ------------------ */}
           <TabsContent value="overview" className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold">Mi Zona Asignada</h2>
-              <p className="text-muted-foreground">
-                Información de la zona bajo tu supervisión
-              </p>
+              <p className="text-muted-foreground">Información de la zona bajo tu supervisión</p>
             </div>
 
             <InspectorStats zoneId={assignedZones[0]?.id_Zona ?? null} />
@@ -184,9 +169,7 @@ export function InspectorDashboard() {
               ) : assignedZones.length === 0 ? (
                 <Card className="lg:col-span-2">
                   <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">
-                      No tienes zonas asignadas.
-                    </p>
+                    <p className="text-muted-foreground">No tienes zonas asignadas.</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -209,12 +192,9 @@ export function InspectorDashboard() {
                         <p className="text-sm text-muted-foreground">Latitud</p>
                         <p className="font-medium">{assignedZones[0].latitud}</p>
                       </div>
-
                       <div>
                         <p className="text-sm text-muted-foreground">Longitud</p>
-                        <p className="font-medium">
-                          {assignedZones[0].longitud}
-                        </p>
+                        <p className="font-medium">{assignedZones[0].longitud}</p>
                       </div>
                     </div>
 
@@ -239,19 +219,16 @@ export function InspectorDashboard() {
             </div>
           </TabsContent>
 
-          {/* ------------------ REPORTES ------------------ */}
           <TabsContent value="reports">
             <ReportsList />
           </TabsContent>
 
-          {/* ------------------ ALERTAS ------------------ */}
           <TabsContent value="alerts">
             <WorkerAlertsList />
           </TabsContent>
         </Tabs>
       </main>
 
-      {/* ------------------ MODAL → PERFIL ------------------ */}
       <InspectorProfile open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
