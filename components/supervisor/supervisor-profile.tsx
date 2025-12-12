@@ -1,253 +1,232 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { obtenerPerfilSupervisor, actualizarPerfilSupervisor } from "@/servicios/supervisor";
-import { Camera } from "lucide-react";
-import { actualizarFotoPersona } from "@/servicios/persona";
-import toast from "react-hot-toast";
+import { useEffect, useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Camera } from "lucide-react"
+import toast from "react-hot-toast"
+
+import {
+  obtenerPerfilSupervisor,
+  actualizarPerfilSupervisor,
+} from "@/servicios/supervisor"
+import { actualizarFotoPersona } from "@/servicios/persona"
 
 interface SupervisorProfileProps {
-  open: boolean;
-  onClose: () => void;
-  idSupervisor?: number | null;
+  open: boolean
+  onClose: () => void
+  idSupervisor?: number | null
 }
 
-export function SupervisorProfile({ open, onClose, idSupervisor }: SupervisorProfileProps) {
-  const [data, setData] = useState<any>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+export function SupervisorProfile({
+  open,
+  onClose,
+  idSupervisor,
+}: SupervisorProfileProps) {
+  const [data, setData] = useState<any>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [profileImage, setProfileImage] = useState<string | null>(null)
 
-  // Campos editables
   const [form, setForm] = useState({
     nombre: "",
     correo: "",
     telefono: "",
-  });
+  })
 
-  // ==============================
-  // 🔵 Obtener perfil completo
-  // ==============================
   useEffect(() => {
     if (open && idSupervisor) {
-      obtenerPerfilSupervisor(idSupervisor)
-        .then((res) => {
-          setData(res);
-
-          setForm({
-            nombre: res.nombre,
-            correo: res.correo,
-            telefono: res.telefono ?? "",
-          });
-
-          if (res.foto) {
-            setProfileImage(`data:image/jpeg;base64,${res.foto}`);
-          }
+      obtenerPerfilSupervisor(idSupervisor).then((res) => {
+        setData(res)
+        setForm({
+          nombre: res.nombre,
+          correo: res.correo,
+          telefono: res.telefono ?? "",
         })
-        .catch(console.error);
+
+        if (res.foto) {
+          setProfileImage(`data:image/jpeg;base64,${res.foto}`)
+        }
+      })
     }
-  }, [open, idSupervisor]);
+  }, [open, idSupervisor])
 
-  // ==============================
-  // 🔵 SUBIR FOTO
-  // ==============================
   const handleImageUpload = async (e: any) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]
+    if (!file) return
 
-    const reader = new FileReader();
+    const reader = new FileReader()
     reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      setProfileImage(base64);
+      const base64 = reader.result as string
+      setProfileImage(base64)
 
       try {
-        await actualizarFotoPersona(data.id_persona, base64);
-        toast.success("Foto actualizada correctamente");
+        await actualizarFotoPersona(data.id_persona, base64)
+        toast.success("Foto actualizada")
       } catch {
-        toast.error("Error al actualizar la foto");
+        toast.error("Error al subir foto")
       }
-    };
-    reader.readAsDataURL(file);
-  };
+    }
+    reader.readAsDataURL(file)
+  }
 
-  // ==============================
-  // 🔵 Manejar cambios
-  // ==============================
   const handleChange = (e: any) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
 
-  // ==============================
-  // 🔵 Guardar cambios en Backend
-  // ==============================
   const handleSave = async () => {
-    if (!idSupervisor) return;
-
-    // Validación simple
-    if (!form.nombre.trim()) return toast.error("El nombre es obligatorio");
-    if (!form.correo.trim()) return toast.error("El correo es obligatorio");
-    if (!form.telefono.trim()) return toast.error("El teléfono es obligatorio");
+    if (!form.nombre || !form.correo || !form.telefono) {
+      return toast.error("Completa todos los campos")
+    }
 
     try {
-      await actualizarPerfilSupervisor(idSupervisor, form);
-      toast.success("Perfil actualizado correctamente");
-
-      // Refrescar datos visuales
-      setData({ ...data, ...form });
-
-      setEditMode(false);
+      await actualizarPerfilSupervisor(idSupervisor!, form)
+      toast.success("Perfil actualizado")
+      setData({ ...data, ...form })
+      setEditMode(false)
     } catch {
-      toast.error("Error al actualizar el perfil");
+      toast.error("Error al guardar")
     }
-  };
+  }
 
-  if (!data) return null;
+  if (!data) return null
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-xl">
-        
-        {/* ==============================
-            HEADER
-        ============================== */}
-        <div className="bg-primary text-primary-foreground px-6 py-4">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0 rounded-xl">
+
+        {/* HEADER */}
+        <div className="bg-primary text-primary-foreground px-5 py-3">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-semibold tracking-wide">
+            <DialogTitle className="text-lg font-semibold">
               Perfil del Supervisor
             </DialogTitle>
           </DialogHeader>
         </div>
 
-        <div className="p-6">
+        <div className="p-5 space-y-5">
 
-          {/* ==============================
-              FOTO + NOMBRE
-          ============================== */}
-          <div className="flex items-center gap-6 mb-6">
+          {/* FOTO + NOMBRE */}
+          <div className="flex items-center gap-4">
             <div className="relative">
               <img
                 src={profileImage || "/default-avatar.png"}
-                className="w-28 h-28 rounded-full object-cover border-4 border-gray-200 shadow"
-                alt="profile"
+                className="w-20 h-20 rounded-full object-cover border"
               />
-
-              <label className="absolute bottom-0 right-0 bg-primary text-white p-1 rounded-full cursor-pointer">
-                <Camera className="w-4 h-4" />
-                <input type="file" className="hidden" onChange={handleImageUpload} />
+              <label className="absolute -bottom-1 -right-1 bg-primary p-1 rounded-full cursor-pointer">
+                <Camera className="w-4 h-4 text-white" />
+                <input type="file" hidden onChange={handleImageUpload} />
               </label>
             </div>
 
             <div>
               {editMode ? (
-                <>
-                  <Label>Nombre</Label>
-                  <Input name="nombre" value={form.nombre} onChange={handleChange} />
-                </>
+                <Input
+                  name="nombre"
+                  value={form.nombre}
+                  onChange={handleChange}
+                />
               ) : (
-                <h2 className="text-xl font-bold">
-                  {data?.nombre} {data?.apellido}
+                <h2 className="font-semibold text-lg">
+                  {data.nombre} {data.apellido}
                 </h2>
               )}
-
-              <p className="text-sm text-gray-500">Supervisor</p>
+              <p className="text-sm text-muted-foreground">Supervisor</p>
             </div>
           </div>
 
-          {/* ==============================
-              INFORMACIÓN PERSONAL
-          ============================== */}
-          <h3 className="text-lg font-semibold mb-3">Información Personal</h3>
+          {/* INFO PERSONAL */}
+          <section>
+            <h3 className="font-semibold mb-2">Información Personal</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div>
+                <Label>Correo</Label>
+                {editMode ? (
+                  <Input name="correo" value={form.correo} onChange={handleChange} />
+                ) : (
+                  <p>{data.correo}</p>
+                )}
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Teléfono</Label>
+                {editMode ? (
+                  <Input
+                    name="telefono"
+                    value={form.telefono}
+                    onChange={handleChange}
+                  />
+                ) : (
+                  <p>{data.telefono}</p>
+                )}
+              </div>
 
-            <div>
-              <Label>Correo</Label>
-              {editMode ? (
-                <Input name="correo" value={form.correo} onChange={handleChange} />
-              ) : (
-                <p>{data?.correo}</p>
-              )}
+              <div>
+                <Label>Dirección</Label>
+                <p>{data.direccion}</p>
+              </div>
+
+              <div>
+                <Label>Género</Label>
+                <p>{data.genero}</p>
+              </div>
             </div>
+          </section>
 
-            <div>
-              <Label>Teléfono</Label>
-              {editMode ? (
-                <Input name="telefono" value={form.telefono} onChange={handleChange} />
-              ) : (
-                <p>{data?.telefono}</p>
-              )}
+          {/* LABORAL */}
+          <section>
+            <h3 className="font-semibold mb-2">Información Laboral</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div>
+                <Label>Especialidad</Label>
+                <p>{data.especialidad_seguridad}</p>
+              </div>
+              <div>
+                <Label>Experiencia</Label>
+                <p>{data.experiencia} años</p>
+              </div>
             </div>
+          </section>
 
-            <div>
-              <Label>Dirección</Label>
-              <p>{data?.direccion}</p>
+          {/* EMPRESA */}
+          <section>
+            <h3 className="font-semibold mb-2">Empresa</h3>
+            <div className="bg-muted p-3 rounded text-sm space-y-1">
+              <p><b>Nombre:</b> {data.empresa?.nombre}</p>
+              <p><b>RUC:</b> {data.empresa?.ruc}</p>
+              <p><b>Dirección:</b> {data.empresa?.direccion}</p>
+              <p><b>Teléfono:</b> {data.empresa?.telefono}</p>
             </div>
+          </section>
 
-            <div>
-              <Label>Género</Label>
-              <p>{data?.genero}</p>
-            </div>
-
-            <div>
-              <Label>Fecha Nacimiento</Label>
-              <p>{data?.fecha_nacimiento}</p>
-            </div>
-          </div>
-
-          {/* ==============================
-              INFORMACIÓN LABORAL
-          ============================== */}
-          <h3 className="text-lg font-semibold mt-6 mb-3">Información Laboral</h3>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Especialidad</Label>
-              <p>{data?.especialidad_seguridad}</p>
-            </div>
-
-            <div>
-              <Label>Experiencia</Label>
-              <p>{data?.experiencia} años</p>
-            </div>
-          </div>
-
-          {/* ==============================
-              EMPRESA
-          ============================== */}
-          <h3 className="text-lg font-semibold mt-6 mb-3">Empresa</h3>
-
-          <div className="bg-gray-50 p-4 rounded-lg border">
-            <p><strong>Nombre:</strong> {data?.empresa?.nombre}</p>
-            <p><strong>RUC:</strong> {data?.empresa?.ruc}</p>
-            <p><strong>Dirección:</strong> {data?.empresa?.direccion}</p>
-            <p><strong>Teléfono:</strong> {data?.empresa?.telefono}</p>
-          </div>
-
-          {/* ==============================
-              BOTONES
-          ============================== */}
-          <div className="flex justify-end mt-6 gap-3">
-            <Button variant="outline" onClick={onClose}>Cerrar</Button>
+          {/* BOTONES */}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Cerrar
+            </Button>
 
             {!editMode ? (
-              <Button variant="default" onClick={() => setEditMode(true)}>
-                Editar Perfil
+              <Button size="sm" onClick={() => setEditMode(true)}>
+                Editar
               </Button>
             ) : (
               <Button
-                onClick={handleSave}
+                size="sm"
                 className="bg-green-600 hover:bg-green-700"
+                onClick={handleSave}
               >
-                Guardar Cambios
+                Guardar
               </Button>
             )}
           </div>
-
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
