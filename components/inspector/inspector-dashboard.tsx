@@ -153,10 +153,13 @@ export function InspectorDashboard() {
 
           <TabsContent value="overview" className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold">Mi Zona Asignada</h2>
-              <p className="text-muted-foreground">Información de la zona bajo tu supervisión</p>
+              <h2 className="text-2xl font-bold">Mis Zonas Asignadas</h2>
+              <p className="text-muted-foreground">
+                Información de las zonas bajo tu supervisión
+              </p>
             </div>
 
+            {/* Estadísticas (se mantiene usando la primera zona) */}
             <InspectorStats zoneId={assignedZones[0]?.id_Zona ?? null} />
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -173,51 +176,54 @@ export function InspectorDashboard() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="lg:col-span-2 shadow-md">
-                  <CardHeader>
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                        <MapPin className="w-6 h-6 text-success" />
+                assignedZones.map((zona) => (
+                  <Card key={zona.id_Zona} className="lg:col-span-2 shadow-md">
+                    <CardHeader>
+                      <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                          <MapPin className="w-6 h-6 text-success" />
+                        </div>
+                        <div>
+                          <CardTitle>{zona.nombreZona}</CardTitle>
+                          <CardDescription>Zona asignada</CardDescription>
+                        </div>
                       </div>
-                      <div>
-                        <CardTitle>{assignedZones[0].nombreZona}</CardTitle>
-                        <CardDescription>Zona asignada</CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
+                    </CardHeader>
 
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Latitud</p>
-                        <p className="font-medium">{assignedZones[0].latitud}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Longitud</p>
-                        <p className="font-medium">{assignedZones[0].longitud}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-6 pt-4 border-t">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-primary" />
-                        <p className="font-medium">
-                          {assignedZones[0].total_trabajadores} trabajadores
-                        </p>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Latitud</p>
+                          <p className="font-medium">{zona.latitud}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Longitud</p>
+                          <p className="font-medium">{zona.longitud}</p>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <Camera className="w-5 h-5 text-primary" />
-                        <p className="font-medium">
-                          {assignedZones[0].total_camaras} cámaras
-                        </p>
+                      <div className="grid grid-cols-2 gap-6 pt-4 border-t">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-5 h-5 text-primary" />
+                          <p className="font-medium">
+                            {zona.total_trabajadores} trabajadores
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Camera className="w-5 h-5 text-primary" />
+                          <p className="font-medium">
+                            {zona.total_camaras} cámaras
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                ))
               )}
             </div>
           </TabsContent>
+
 
           <TabsContent value="reports">
             <ReportsList />

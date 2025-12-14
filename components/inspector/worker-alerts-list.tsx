@@ -188,10 +188,17 @@ export function WorkerAlertsList() {
   // ===========================================================
   // VER HISTORIAL COMPLETO
   // ===========================================================
+  // ===========================================================
+  // VER HISTORIAL COMPLETO
+  // ===========================================================
   async function verHistorialCompleto(alert: WorkerAlert) {
     const data = await obtenerIncumplimientosPorCedula(alert.workerDni);
 
-    const formatted = data.map((item: any) => {
+    // 🔥 FIX: Acceder a data.historial (no data directamente)
+    const historialArray = data.historial || [];
+    const estadisticas = data.estadisticas || {};
+
+    const formatted = historialArray.map((item: any) => {
       const detalle = item.evidencia.detalle.toLowerCase();
 
       return {
@@ -210,15 +217,12 @@ export function WorkerAlertsList() {
       };
     });
 
-    const revisados = data.filter((r: any) => r.evidencia.estado === false).length;
-    const pendientes = data.filter((r: any) => r.evidencia.estado !== false).length;
-
+    // 🔥 FIX: Usar estadisticas del backend en lugar de calcularlas
     setHistoryStats({
-      total: data.length,
-      revisados,
-      pendientes,
-      tasa_revisado:
-        data.length > 0 ? ((revisados / data.length) * 100).toFixed(1) : 0,
+      total: estadisticas.total || 0,
+      revisados: estadisticas.cumple || 0,
+      pendientes: estadisticas.incumple || 0,
+      tasa_revisado: estadisticas.tasa || 0,
     });
 
     setHistoryWorkerName(alert.workerName);
@@ -259,22 +263,22 @@ export function WorkerAlertsList() {
   // 🔥 MARCAR REVISADO + EMITIR EVENTO GLOBAL PARA LA CAMPANITA
   // ===========================================================
   async function marcarRevisado(alert: WorkerAlert) {
-  const idEvidencia = alert.idEvidencia;
+    const idEvidencia = alert.idEvidencia;
 
-  const res = await actualizarEvidenciaFallo(idEvidencia, { estado: false });
+    const res = await actualizarEvidenciaFallo(idEvidencia, { estado: false });
 
-  if (!res.error) {
-    setAlerts((prev) =>
-      prev.map((a) =>
-        a.id === alert.id ? { ...a, estado: false } : a
-      )
-    );
+    if (!res.error) {
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.id === alert.id ? { ...a, estado: false } : a
+        )
+      );
 
-    console.log("📢 ENVIANDO EVENTO notification-updated");
+      console.log("📢 ENVIANDO EVENTO notification-updated");
 
-    window.dispatchEvent(new CustomEvent("notification-updated"));
+      window.dispatchEvent(new CustomEvent("notification-updated"));
+    }
   }
-}
 
   // ===========================================================
   // FILTROS
@@ -373,13 +377,12 @@ export function WorkerAlertsList() {
             {filteredAlerts.map((alert) => (
               <Card
                 key={alert.id}
-                className={`border ${
-                  alert.severity === "high"
+                className={`border ${alert.severity === "high"
                     ? "border-destructive"
                     : alert.severity === "medium"
-                    ? "border-yellow-500"
-                    : "border-border"
-                }`}
+                      ? "border-yellow-500"
+                      : "border-border"
+                  }`}
               >
                 <CardContent className="p-4">
                   <div className="grid gap-4 md:grid-cols-[300px_1fr]">
@@ -421,26 +424,23 @@ export function WorkerAlertsList() {
                           return (
                             <div
                               key={det.item}
-                              className={`flex items-center gap-3 p-2 rounded-lg border ${
-                                det.detected
+                              className={`flex items-center gap-3 p-2 rounded-lg border ${det.detected
                                   ? "bg-green-50 border-green-400"
                                   : "bg-red-50 border-red-400"
-                              }`}
+                                }`}
                             >
                               <Icon
-                                className={`w-4 h-4 ${
-                                  det.detected ? "text-green-600" : "text-red-600"
-                                }`}
+                                className={`w-4 h-4 ${det.detected ? "text-green-600" : "text-red-600"
+                                  }`}
                               />
 
                               <div>
                                 <p className="text-sm font-medium">{det.item}</p>
                                 <p
-                                  className={`text-xs ${
-                                    det.detected
+                                  className={`text-xs ${det.detected
                                       ? "text-green-600"
                                       : "text-red-600"
-                                  }`}
+                                    }`}
                                 >
                                   {det.detected ? "Detectado" : "No detectado"}
                                 </p>
