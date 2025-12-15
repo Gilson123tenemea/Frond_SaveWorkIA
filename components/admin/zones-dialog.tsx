@@ -12,11 +12,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, MapPin, Pencil, Trash2, Camera } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Plus,
+  Search,
+  MapPin,
+  Pencil,
+  Trash2,
+  Camera,
+  ShieldCheck,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 import { listarZonasPorEmpresa, eliminarZona } from "@/servicios/zona";
+import { obtenerEppPorZona } from "@/servicios/zona_epp";
 import { ZoneFormDialog } from "./zone-form-dialog";
 import { CamerasDialog } from "./cameras-dialog";
 
@@ -25,10 +41,9 @@ interface Zona {
   nombreZona: string;
   latitud: string;
   longitud: string;
-  id_empresa_zona: number;
-  id_administrador_zona?: number;
   borrado: boolean;
   cameras?: number;
+  epps?: string[];
 }
 
 interface ZonesDialogProps {
@@ -38,7 +53,12 @@ interface ZonesDialogProps {
   onSuccess: () => void;
 }
 
-export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesDialogProps) {
+export function ZonesDialog({
+  open,
+  onOpenChange,
+  companyId,
+  onSuccess,
+}: ZonesDialogProps) {
   const [search, setSearch] = useState("");
   const [zones, setZones] = useState<Zona[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -56,28 +76,39 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
     nombre: "",
   });
 
-  // =====================================================
-  // 🔹 Cargar zonas por empresa
-  // =====================================================
+  // =========================
+  // Cargar zonas + EPP
+  // =========================
   const loadZones = async () => {
     if (!companyId) return;
 
     try {
       const data = await listarZonasPorEmpresa(companyId);
 
-      const zonasConCamaras = data.map((z: any) => ({
-        ...z,
-        cameras:
-          z.cameras ??
-          z.total_camaras ??
-          z.camaras ??
-          z.cameras_count ??
-          0,
-      }));
+      const zonasCompletas = await Promise.all(
+        data.map(async (z: any) => {
+          let epps: string[] = [];
+          try {
+            const resp = await obtenerEppPorZona(z.id_Zona);
+            epps = resp.map((e: any) => e.tipo_epp);
+          } catch { }
 
-      setZones(zonasConCamaras);
-    } catch (error: any) {
-      toast.error(error.message || "❌ Error al cargar zonas");
+          return {
+            ...z,
+            cameras:
+              z.cameras ??
+              z.total_camaras ??
+              z.camaras ??
+              z.cameras_count ??
+              0,
+            epps,
+          };
+        })
+      );
+
+      setZones(zonasCompletas);
+    } catch (err: any) {
+      toast.error(err.message || "❌ Error al cargar zonas");
     }
   };
 
@@ -85,38 +116,24 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
     if (open && companyId) loadZones();
   }, [open, companyId]);
 
-  // =====================================================
-  // 🔍 Filtro de búsqueda
-  // =====================================================
-  const filteredZones = zones.filter((zone) =>
-    (zone.nombreZona ?? "").toLowerCase().includes(search.toLowerCase())
+  const filteredZones = zones.filter((z) =>
+    z.nombreZona.toLowerCase().includes(search.toLowerCase())
   );
 
-  // =====================================================
-  // ➕ Agregar zona
-  // =====================================================
+  // =========================
+  // Acciones
+  // =========================
   const handleAdd = () => {
     setEditingZone(null);
     setIsFormOpen(true);
   };
 
-  // =====================================================
-  // ✏️ Editar zona
-  // =====================================================
   const handleEdit = (zone: Zona) => {
     setEditingZone(zone);
     setIsFormOpen(true);
   };
 
-  // =====================================================
-  // 📸 Ver cámaras de la zona
-  // =====================================================
   const handleViewCameras = (zone: Zona) => {
-    if (!zone.id_Zona) {
-      toast.error("❌ Zona inválida");
-      return;
-    }
-
     setCamerasDialog({
       open: true,
       id: zone.id_Zona,
@@ -124,53 +141,28 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
     });
   };
 
-  // =====================================================
-  // 🗑️ Confirmar eliminación
-  // =====================================================
   const confirmDelete = (id: number, nombre: string) => {
     setDeleteDialog({ open: true, id, nombre });
   };
 
-  // =====================================================
-  // 🔥 Ejecutar eliminación con manejo correcto de errores
-  // =====================================================
- const handleConfirmDelete = async () => {
-  if (!deleteDialog.id) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteDialog.id) return;
 
-  toast.loading("Eliminando zona...");
+    toast.loading("Eliminando zona...");
+    const result = await eliminarZona(deleteDialog.id);
+    toast.dismiss();
 
-  const result = await eliminarZona(deleteDialog.id);
+    if (!result.ok) {
+      toast.error("⚠️ " + result.message);
+      return;
+    }
 
-  toast.dismiss();
+    toast.success(`Zona "${deleteDialog.nombre}" eliminada`);
+    await loadZones();
+    onSuccess();
+    setDeleteDialog({ open: false, id: undefined, nombre: "" });
+  };
 
-  if (!result.ok) {
-    toast.error("⚠️ " + result.message, {
-      style: {
-        background: "#dc2626",
-        color: "white",
-      },
-      iconTheme: { primary: "white", secondary: "#7f1d1d" },
-    });
-
-    return;
-  }
-
-  toast.success(`Zona "${deleteDialog.nombre}" eliminada correctamente`, {
-    style: {
-      background: "#059669",
-      color: "white",
-    },
-  });
-
-  await loadZones();
-  onSuccess();
-
-  setDeleteDialog({ open: false, id: undefined, nombre: "" });
-};
-
-  // =====================================================
-  // ✔ Zona creada o editada
-  // =====================================================
   const handleFormSuccess = () => {
     loadZones();
     setIsFormOpen(false);
@@ -178,9 +170,9 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
     onSuccess();
   };
 
-  // =====================================================
-  // 🔥 UI COMPLETO
-  // =====================================================
+  // =========================
+  // UI
+  // =========================
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -191,15 +183,15 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
               Zonas de Empresa {companyId}
             </DialogTitle>
             <DialogDescription>
-              Administra las zonas registradas dentro de esta empresa.
+              Administra zonas y los EPP obligatorios.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Input + botón agregar */}
-            <div className="flex items-center justify-between gap-4">
+            {/* Buscar + agregar */}
+            <div className="flex items-center gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
                 <Input
                   placeholder="Buscar zona..."
                   value={search}
@@ -207,7 +199,6 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
                   className="pl-9"
                 />
               </div>
-
               <Button onClick={handleAdd}>
                 <Plus className="w-4 h-4 mr-2" />
                 Agregar Zona
@@ -215,13 +206,14 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
             </div>
 
             {/* Tabla */}
-            <div className="border rounded-lg shadow-sm w-full">
+            <div className="border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Zona</TableHead>
                     <TableHead>Coordenadas</TableHead>
                     <TableHead>Cámaras</TableHead>
+                    <TableHead>EPP</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -230,21 +222,26 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
                 <TableBody>
                   {filteredZones.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No hay zonas registradas
+                      <TableCell colSpan={6} className="text-center py-6">
+                        No hay zonas
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredZones.map((zone) => (
-                      <TableRow key={zone.id_Zona} className="hover:bg-muted/50 transition">
+                      <TableRow key={zone.id_Zona} className="align-top">
+                        {/* 🔥 ZONA GRANDE (NO SE TOCA) */}
                         <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                          <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mt-1">
                               <MapPin className="w-5 h-5 text-green-600" />
                             </div>
                             <div>
-                              <p className="font-medium">{zone.nombreZona}</p>
-                              <p className="text-xs text-muted-foreground">ID: {zone.id_Zona}</p>
+                              <p className="font-semibold text-base">
+                                {zone.nombreZona}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                ID: {zone.id_Zona}
+                              </p>
                             </div>
                           </div>
                         </TableCell>
@@ -256,9 +253,29 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
 
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Camera className="w-4 h-4 text-muted-foreground" />
-                            <span>{zone.cameras}</span>
+                            <Camera className="w-4 h-4" />
+                            {zone.cameras}
                           </div>
+                        </TableCell>
+
+                        {/* EPP */}
+                        <TableCell>
+                          {zone.epps && zone.epps.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {zone.epps.map((epp, index) => (
+                                <Badge
+                                  key={`${zone.id_Zona}-epp-${epp}-${index}`}  // ✅ SOLUCIÓN
+                                  variant="secondary"
+                                  className="flex items-center gap-1"
+                                >
+                                  {epp}
+                                </Badge>
+                              ))}
+
+                            </div>
+                          ) : (
+                            <Badge variant="outline">Sin EPP</Badge>
+                          )}
                         </TableCell>
 
                         <TableCell>
@@ -268,21 +285,30 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
                         </TableCell>
 
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleViewCameras(zone)}>
-                              <Camera className="w-4 h-4 mr-2" />
-                              Cámaras
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewCameras(zone)}
+                            >
+                              <Camera className="w-4 h-4" />
                             </Button>
 
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(zone)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(zone)}
+                            >
                               <Pencil className="w-4 h-4 text-blue-600" />
                             </Button>
 
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-600 hover:bg-red-50"
-                              onClick={() => confirmDelete(zone.id_Zona, zone.nombreZona)}
+                              className="text-red-600"
+                              onClick={() =>
+                                confirmDelete(zone.id_Zona, zone.nombreZona)
+                              }
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -298,8 +324,13 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
         </DialogContent>
       </Dialog>
 
-      {/* Confirmación eliminar */}
-      <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open })) }>
+      {/* Confirm delete */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open) =>
+          setDeleteDialog((p) => ({ ...p, open }))
+        }
+      >
         <DialogContent className="sm:max-w-[380px]">
           <DialogHeader>
             <DialogTitle>
@@ -309,22 +340,26 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
               Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
-
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDeleteDialog(prev => ({ ...prev, open: false }))}>
+              onClick={() =>
+                setDeleteDialog({ open: false, id: undefined, nombre: "" })
+              }
+            >
               Cancelar
             </Button>
-
-            <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleConfirmDelete}>
+            <Button
+              className="bg-red-600 text-white"
+              onClick={handleConfirmDelete}
+            >
               Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Formulario zona */}
+      {/* Modales */}
       <ZoneFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
@@ -333,14 +368,13 @@ export function ZonesDialog({ open, onOpenChange, companyId, onSuccess }: ZonesD
         onSuccess={handleFormSuccess}
       />
 
-      {/* Modal cámaras */}
       <CamerasDialog
         open={camerasDialog.open}
         onOpenChange={(open) =>
-          setCamerasDialog((prev) => ({
-            ...prev,
+          setCamerasDialog((p) => ({
+            ...p,
             open,
-            id: open ? prev.id : null,
+            id: open ? p.id : null,
           }))
         }
         zoneId={camerasDialog.id ?? 0}

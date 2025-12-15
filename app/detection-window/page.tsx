@@ -5,12 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, AlertCircle, Scan } from "lucide-react";
+import { Camera, AlertCircle, Scan, ShieldCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { obtenerTrabajadorPorCodigo } from "@/servicios/trabajador";
 import { obtenerUrlStreamWebcamIA, detenerStreamWebcamIA } from "@/servicios/camara_ia";
 import { verificarEPP } from "@/servicios/verificar_epp";
+import { obtenerEppPorZona } from "@/servicios/zona_epp"; // 🔥 NUEVO
 
 export default function DetectionWindow() {
   const [workerCode, setWorkerCode] = useState("");
@@ -23,6 +24,8 @@ export default function DetectionWindow() {
   const [idCamaraActiva, setIdCamaraActiva] = useState<number | null>(null);
 
   const [cargandoAnalisis, setCargandoAnalisis] = useState(false);
+
+  const [eppZona, setEppZona] = useState<string[]>([]); // 🔥 NUEVO
 
   const videoRef = useRef<HTMLImageElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -55,6 +58,7 @@ export default function DetectionWindow() {
     setWorkerCode("");
     setCameraStreamUrl(null);
     setCargandoAnalisis(false);
+    setEppZona([]); // 🔥 NUEVO
 
     console.log("🔌 Cámara apagada, modelo detenido, formulario reiniciado.");
   };
@@ -89,9 +93,17 @@ export default function DetectionWindow() {
       setWorkerInfo(nombreCompleto);
 
       const idCamara = trabajador.camara?.id_camara;
+      const idZona = trabajador.camara?.zona?.id_Zona; // 🔥 NUEVO
+
       if (!idCamara) {
         setWorkerError("❌ El trabajador no tiene cámara asignada");
         return;
+      }
+
+      // 🔥 OBTENER EPP DE LA ZONA (SOLO INFO)
+      if (idZona) {
+        const epps = await obtenerEppPorZona(idZona);
+        setEppZona(epps.map((e: any) => e.tipo_epp));
       }
 
       setIsDetecting(true);
@@ -135,7 +147,6 @@ export default function DetectionWindow() {
       setWorkerError("⚠ Error analizando EPP");
     }
 
-    // 🔥 APAGAR MODELO AUTOMÁTICAMENTE Y VOLVER AL FORMULARIO
     await detenerCamara();
   };
 
@@ -189,10 +200,10 @@ export default function DetectionWindow() {
 
           {/* ANIMACIÓN SCAN */}
           {isDetecting && (
-            <div className="py-8">
+            <div className="py-8 space-y-4">
 
               {/* Estado */}
-              <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="flex items-center justify-center gap-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
                 <p className="text-sm font-semibold text-blue-700">
                   Escaneando EPP…
@@ -201,19 +212,32 @@ export default function DetectionWindow() {
 
               {/* Nombre */}
               {workerInfo && (
-                <p className="text-sm font-semibold text-center mb-4">{workerInfo}</p>
+                <p className="text-sm font-semibold text-center">{workerInfo}</p>
+              )}
+
+              {/* 🔥 EPP DE LA ZONA */}
+              {eppZona.length > 0 && (
+                <div className="border rounded-lg p-3 bg-muted">
+                  <p className="text-sm font-semibold flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-primary" />
+                    EPP requeridos en esta zona
+                  </p>
+
+                  <ul className="list-disc ml-6 text-sm mt-2">
+                    {eppZona.map((epp) => (
+                      <li key={epp}>{epp}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
               {/* ANIMACIÓN */}
               <div className="relative w-full h-80 flex items-center justify-center overflow-hidden">
-
-                {/* GRID */}
                 <div className="absolute inset-0 
                   bg-[linear-gradient(rgba(59,130,246,0.10)_1px,transparent_1px),
                   linear-gradient(90deg,rgba(59,130,246,0.10)_1px,transparent_1px)]
                   bg-[size:22px_22px]" />
 
-                {/* PERSONA GIRANDO */}
                 <div className="relative w-32 h-56 animate-[spin_3s_linear]">
                   <svg viewBox="0 0 100 150" className="w-full h-full">
                     <circle cx="50" cy="20" r="12" fill="none" stroke="rgb(59,130,246)" strokeWidth="2" />
@@ -225,18 +249,11 @@ export default function DetectionWindow() {
                   </svg>
                 </div>
 
-                {/* LÁSER */}
                 <div
                   className="absolute left-0 right-0 h-1 
                   bg-gradient-to-r from-transparent via-primary to-transparent 
                   animate-[scanLine_3s_ease-in-out]"
                 />
-
-                {/* TEXTO */}
-                <div className="absolute bottom-4 left-0 right-0 text-center">
-                  <p className="text-primary font-mono text-sm animate-pulse">ANALIZANDO…</p>
-                  <p className="text-xs text-muted-foreground mt-1">Código: {workerCode}</p>
-                </div>
               </div>
 
             </div>

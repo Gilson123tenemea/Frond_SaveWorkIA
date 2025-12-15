@@ -15,11 +15,13 @@ L.Icon.Default.mergeOptions({
 });
 
 interface Zone {
+  id_Zona: number;
   nombreZona: string;
   latitud: string;
   longitud: string;
-  total_camaras: number;
-  total_trabajadores: number;
+  total_camaras?: number;
+  total_trabajadores?: number;
+  epps?: string[]; // 👈 EPP activos de la zona
 }
 
 interface ZonesMapCoreProps {
@@ -39,100 +41,84 @@ const generarCuadrado = (lat: number, lng: number, dist = 40) => {
 export default function ZonesMapCore({ zones }: ZonesMapCoreProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const layerGroupRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
     if (!mapRef.current || zones.length === 0) return;
 
-    // ⛔ NO volver a crear el mapa si ya existe
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
+    // =====================================================
+    // 🗺️ Crear mapa SOLO UNA VEZ
+    // =====================================================
+    if (!mapInstanceRef.current) {
+      const avgLat =
+        zones.reduce((s, z) => s + parseFloat(z.latitud), 0) / zones.length;
+      const avgLng =
+        zones.reduce((s, z) => s + parseFloat(z.longitud), 0) / zones.length;
+
+      const map = L.map(mapRef.current).setView([avgLat, avgLng], 15);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      mapInstanceRef.current = map;
+      layerGroupRef.current = L.layerGroup().addTo(map);
     }
 
-    // ➤ Eliminar zonas duplicadas por nombreZona
-    const uniqueZones = zones.reduce((acc: Zone[], current) => {
-      const exists = acc.find((z) => z.nombreZona === current.nombreZona);
-      if (!exists) {
-        acc.push(current);
-      }
-      return acc;
-    }, []);
+    // =====================================================
+    // 🧹 Limpiar capas anteriores (NO el mapa)
+    // =====================================================
+    layerGroupRef.current?.clearLayers();
 
-    // ➤ Calcular centro
-    const avgLat =
-      uniqueZones.reduce((sum: number, z) => sum + parseFloat(z.latitud), 0) /
-      uniqueZones.length;
-    const avgLng =
-      uniqueZones.reduce((sum: number, z) => sum + parseFloat(z.longitud), 0) /
-      uniqueZones.length;
-
-    // ✅ Crear mapa
-    const map = L.map(mapRef.current).setView([avgLat, avgLng], 15);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-    }).addTo(map);
-
-    mapInstanceRef.current = map;
-
-    // ➤ Renderizar zonas (primero los cuadrados, luego los marcadores)
-    uniqueZones.forEach((zone) => {
+    // =====================================================
+    // 📍 Dibujar zonas
+    // =====================================================
+    zones.forEach((zone) => {
       const lat = parseFloat(zone.latitud);
       const lng = parseFloat(zone.longitud);
 
-      // 1️⃣ Dibujar el cuadrado PRIMERO (abajo en el z-index)
+      // 🟦 Polígono zona
       const square = generarCuadrado(lat, lng);
-      const polygon = L.polygon(square, {
+      L.polygon(square, {
         color: "#2563eb",
         fillColor: "#3b82f6",
         fillOpacity: 0.15,
         weight: 2,
-      }).addTo(map);
+      }).addTo(layerGroupRef.current!);
+
+      // =====================================================
+      // 📦 Popup HTML
+      // =====================================================
+      const eppHtml =
+        zone.epps && zone.epps.length > 0
+          ? zone.epps
+              .map((e) => `<div style="margin:4px 0;">✔ ${e}</div>`)
+              .join("")
+          : `<span style="color:#64748b;">Sin EPP configurado</span>`;
 
       const popupContent = `
-        <div style="
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          padding: 12px;
-          min-width: 200px;
-        ">
-          <div style="
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #e2e8f0;
-          ">
-            <strong style="
-              font-size: 15px;
-              color: #0f172a;
-              font-weight: 600;
-            ">${zone.nombreZona}</strong>
+        <div style="font-family: system-ui; padding:12px; min-width:230px;">
+          <strong style="font-size:15px;">${zone.nombreZona}</strong>
+          <hr style="margin:8px 0;" />
+
+          <div style="margin-bottom:8px;">
+            📷 Cámaras: <b>${zone.total_camaras ?? 0}</b>
           </div>
-          
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 13px; color: #64748b;">📷 Cámaras</span>
-              <span style="font-size: 15px; color: #0f172a; font-weight: 600;">${zone.total_camaras}</span>
-            </div>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 13px; color: #64748b;">👷 Trabajadores</span>
-              <span style="font-size: 15px; color: #0f172a; font-weight: 600;">${zone.total_trabajadores}</span>
-            </div>
+
+          <div style="margin-bottom:8px;">
+            👷 Trabajadores: <b>${zone.total_trabajadores ?? 0}</b>
+          </div>
+
+          <div style="margin-top:8px;">
+            <b>EPP requeridos:</b>
+            <div style="margin-top:6px;">${eppHtml}</div>
           </div>
         </div>
       `;
 
-      // ✨ Tooltip simple y limpio
-      const tooltipContent = `
-        <div style="
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          padding: 4px 10px;
-          color: #1e293b;
-        ">${zone.nombreZona}</div>
-      `;
-
-      // 2️⃣ Dibujar el marcador DESPUÉS (arriba en el z-index)
+      // =====================================================
+      // 🔵 Marker
+      // =====================================================
       const marker = L.circleMarker([lat, lng], {
         radius: 12,
         fillColor: "#2563eb",
@@ -140,45 +126,24 @@ export default function ZonesMapCore({ zones }: ZonesMapCoreProps) {
         color: "#ffffff",
         weight: 3,
       })
-        .addTo(map)
-        .bindPopup(popupContent, {
-          maxWidth: 250,
-          closeButton: true,
-          autoClose: true,
-        })
-        .bindTooltip(tooltipContent, {
-          permanent: false,
+        .addTo(layerGroupRef.current!)
+        .bindPopup(popupContent)
+        // 🏷️ Tooltip nombre
+        .bindTooltip(zone.nombreZona, {
           direction: "top",
-          offset: [0, -15],
+          offset: [0, -14],
           opacity: 0.95,
         });
 
-      // 3️⃣ Eventos mejorados
+      // ✨ Hover efecto
       marker.on("mouseover", () => {
-        marker.setStyle({
-          radius: 14,
-          fillOpacity: 1,
-        });
+        marker.setStyle({ radius: 15, fillOpacity: 1 });
       });
 
       marker.on("mouseout", () => {
-        marker.setStyle({
-          radius: 12,
-          fillOpacity: 0.9,
-        });
+        marker.setStyle({ radius: 12, fillOpacity: 0.9 });
       });
-
-      // NO agregar popup al polígono para evitar duplicados
-      // Solo el marcador tiene popup
     });
-
-    // Cleanup cuando el componente se desmonta
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
   }, [zones]);
 
   return (
