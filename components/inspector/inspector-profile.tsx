@@ -1,4 +1,3 @@
-// src/components/inspector/inspector-profile.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -26,6 +25,16 @@ import {
 import { getUser } from "@/lib/auth";
 import { obtenerPerfilInspector } from "@/servicios/inspector";
 
+/* =========================
+   TYPES CORREGIDOS
+========================= */
+
+type ZonaAsignada = {
+  id_Zona: number;
+  nombreZona: string;
+  fecha_asignacion: string;
+};
+
 type InspectorPerfil = {
   id_inspector: number;
   id_persona: number;
@@ -37,9 +46,8 @@ type InspectorPerfil = {
   direccion: string;
   genero: string;
   fecha_nacimiento: string;
-  zona_asignada: string;
   frecuenciaVisita?: string | null;
-  fecha_asignacion?: string | null;
+  zonas_asignadas: ZonaAsignada[];
   fotoBase64?: string | null;
 };
 
@@ -80,10 +88,6 @@ export function InspectorProfile({ open, onOpenChange }: InspectorProfileProps) 
     ? new Date(perfil.fecha_nacimiento).toLocaleDateString()
     : "-";
 
-  const fechaAsig = perfil?.fecha_asignacion
-    ? new Date(perfil.fecha_asignacion).toLocaleDateString()
-    : "-";
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[650px]">
@@ -108,7 +112,7 @@ export function InspectorProfile({ open, onOpenChange }: InspectorProfileProps) 
         ) : (
           <Card className="border-none shadow-none">
             <CardContent className="space-y-6 pt-4">
-              {/* Cabezera con avatar */}
+              {/* CABECERA */}
               <div className="flex items-center gap-4">
                 <Avatar className="w-16 h-16">
                   {perfil.fotoBase64 ? (
@@ -132,13 +136,10 @@ export function InspectorProfile({ open, onOpenChange }: InspectorProfileProps) 
                   <p className="text-xs text-muted-foreground">
                     ID Inspector: {perfil.id_inspector}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Zona asignada: <strong>{perfil.zona_asignada}</strong>
-                  </p>
                 </div>
               </div>
 
-              {/* Datos personales */}
+              {/* DATOS PERSONALES */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="flex items-center gap-2 text-sm">
@@ -181,50 +182,55 @@ export function InspectorProfile({ open, onOpenChange }: InspectorProfileProps) 
                 </div>
               </div>
 
-              {/* Datos de rol */}
-              <div className="border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    Zona Asignada
-                  </p>
-                  <p className="text-sm">{perfil.zona_asignada}</p>
-                </div>
+              {/* ZONAS ASIGNADAS */}
+              <div className="border-t pt-4 space-y-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Zonas Asignadas
+                </p>
 
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    Frecuencia de visita
+                {perfil.zonas_asignadas.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No hay zonas asignadas
                   </p>
-                  <p className="text-sm">
-                    {perfil.frecuenciaVisita || "No definida"}
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    Fecha de asignación
-                  </p>
-                  <p className="text-sm">{fechaAsig}</p>
-                </div>
+                ) : (
+                  perfil.zonas_asignadas.map((zona) => (
+                    <div
+                      key={zona.id_Zona}
+                      className="flex items-center justify-between rounded-md border p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">
+                          {zona.nombreZona}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Asignado el{" "}
+                          {new Date(
+                            zona.fecha_asignacion
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant="secondary">Zona</Badge>
+                    </div>
+                  ))
+                )}
               </div>
 
-              {/* Botones acción (solo visual por ahora) */}
+              {/* FRECUENCIA */}
+              <div className="border-t pt-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Frecuencia de visita
+                </p>
+                <p className="text-sm">
+                  {perfil.frecuenciaVisita || "No definida"}
+                </p>
+              </div>
+
+              {/* BOTONES */}
               <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  disabled
-                  title="Funcionalidad pendiente"
-                >
+                <Button variant="outline" size="sm" disabled>
                   Cambiar foto
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  disabled
-                  title="Funcionalidad pendiente"
-                >
+                <Button variant="outline" size="sm" disabled>
                   Editar datos
                 </Button>
               </div>

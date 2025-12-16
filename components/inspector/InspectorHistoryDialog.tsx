@@ -10,6 +10,7 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 import {
   AlertTriangle,
@@ -17,7 +18,55 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  HardHat,
+  Shield,
+  Glasses,
+  Shirt,
 } from "lucide-react";
+
+// ========================================================
+// MAPEO DE EPP CON NOMBRES E ICONOS
+// ========================================================
+const EPP_CONFIG = {
+  casco: {
+    nombre: "Casco",
+    icon: HardHat,
+  },
+  chaleco: {
+    nombre: "Chaleco",
+    icon: Shirt,
+  },
+  guantes: {
+    nombre: "Guantes",
+    icon: Shield,
+  },
+  botas: {
+    nombre: "Botas",
+    icon: Shield,
+  },
+  lentes: {
+    nombre: "Lentes",
+    icon: Glasses,
+  },
+  gafas: {
+    nombre: "Gafas",
+    icon: Glasses,
+  },
+  mascarilla: {
+    nombre: "Mascarilla",
+    icon: Shield,
+  },
+};
+
+// ========================================================
+// NORMALIZAR TEXTO
+// ========================================================
+function normalizar(texto: string | null | undefined): string {
+  return (texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
 export function InspectorHistoryDialog({
   open,
@@ -26,7 +75,82 @@ export function InspectorHistoryDialog({
   stats,
   historial,
 }: any) {
-  const grouped = historial.reduce((acc: any, rec: any) => {
+  
+  // 🔥 DEBUG: Ver qué datos llegan
+  console.log("📦 InspectorHistoryDialog recibió:", { stats, historial });
+
+  // ========================================================
+  // TRANSFORMAR DETECCIONES - SOLO EPP DE LA ZONA
+  // ========================================================
+  function transformarDetecciones(record: any): any[] {
+    console.log("🔍 Transformando record:", record);
+    
+    const eppsZonaRequeridos = record.epps_zona || [];
+    const deteccionesArray = record.detecciones || [];
+
+    console.log("  - epps_zona:", eppsZonaRequeridos);
+    console.log("  - detecciones:", deteccionesArray);
+
+    // 🔥 Si no viene epps_zona, retornar vacío (no mostrar nada)
+    if (eppsZonaRequeridos.length === 0) {
+      console.log("  ⚠️ epps_zona vacío, retornando array vacío");
+      return [];
+    }
+
+    // 🔥 Normalizar array de detecciones para comparar
+    const deteccionesNormalizadas = deteccionesArray.map((det: string) => 
+      normalizar(det)
+    );
+
+    console.log("  - detecciones normalizadas:", deteccionesNormalizadas);
+
+    // 🔥 Crear detecciones SOLO para los EPP de la zona
+    const resultado = eppsZonaRequeridos
+      .map((eppKey: string) => {
+        const config = EPP_CONFIG[eppKey as keyof typeof EPP_CONFIG];
+
+        if (!config) {
+          console.warn(`⚠️ EPP no configurado: ${eppKey}`);
+          return null;
+        }
+
+        // 🔥 VERIFICAR SI ESTÁ EN EL ARRAY DE DETECCIONES
+        const eppKeyNorm = normalizar(eppKey);
+        const esFaltante = deteccionesNormalizadas.some((detNorm: string) => 
+          detNorm.includes(eppKeyNorm)
+        );
+
+        console.log(`    📍 ${eppKey} (${eppKeyNorm}): faltante=${esFaltante}`);
+
+        return {
+          item: config.nombre,
+          key: eppKey,
+          icon: config.icon,
+          detected: !esFaltante, // verde si NO está en detecciones, rojo si está
+        };
+      })
+      .filter((item: any): item is NonNullable<any> => item !== null);
+
+    console.log("  - resultado final:", resultado);
+    return resultado;
+  }
+
+  // ========================================================
+  // TRANSFORMAR HISTORIAL - AGREGAR DETECCIONES Y TIMESTAMP
+  // ========================================================
+  const historialTransformado = historial.map((rec: any) => {
+    const detections = transformarDetecciones(rec);
+    const timestamp = rec.timestamp || new Date(rec.fecha_registro).toLocaleString("es-EC");
+    
+    return {
+      ...rec,
+      detections,
+      timestamp,
+    };
+  });
+
+  // Agrupar por fecha
+  const grouped = historialTransformado.reduce((acc: any, rec: any) => {
     const [fecha] = rec.timestamp.split(",");
     if (!acc[fecha]) acc[fecha] = [];
     acc[fecha].push(rec);
@@ -84,7 +208,9 @@ export function InspectorHistoryDialog({
                 {/* REGISTROS */}
                 {records.map((r: any, index: number) => {
 
-                  const hasViolation = r.detections.some((d: any) => !d.detected);
+                  // 🔥 YA VIENEN TRANSFORMADAS DESDE ARRIBA
+                  const detections = r.detections;
+                  const hasViolation = detections.some((d: any) => !d.detected);
 
                   return (
                       <Card key={`${fecha}-${index}`} className="border rounded-xl shadow-sm">
@@ -94,19 +220,30 @@ export function InspectorHistoryDialog({
                           {/* FOTO */}
                           <div className="relative rounded-lg overflow-hidden bg-muted h-[120px]">
                             <img
-                              src={r.image}
+                              src={
+                                r.evidencia?.foto_base64
+                                  ? `data:image/jpeg;base64,${r.evidencia.foto_base64}`
+                                  : r.image || "/placeholder.png"
+                              }
                               className="w-full h-full object-cover"
                             />
 
-                            <span
-                              className={`absolute top-2 right-2 text-xs px-2 py-1 rounded ${
-                                hasViolation
-                                  ? "bg-red-500 text-white"
-                                  : "bg-green-500 text-white"
-                              }`}
+                            <Badge
+                              variant={hasViolation ? "destructive" : "default"}
+                              className="absolute top-2 right-2 text-xs"
                             >
-                              {hasViolation ? "Incumplimiento" : "Cumplimiento"}
-                            </span>
+                              {hasViolation ? (
+                                <>
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  Incumplimiento
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  Cumplimiento
+                                </>
+                              )}
+                            </Badge>
                           </div>
 
                           {/* INFO */}
@@ -116,14 +253,14 @@ export function InspectorHistoryDialog({
                               {r.timestamp}
                               <span>•</span>
                               <Camera className="w-3 h-3" />
-                              {r.camera}
+                              {r.camara?.codigo || r.camera}
                               <span>•</span>
-                              {r.zone}
+                              {r.camara?.zona || r.zone}
                             </div>
 
                             {/* DETECCIONES */}
                             <div className="grid grid-cols-3 gap-2">
-                              {r.detections.map((det: any) => {
+                              {detections.map((det: any) => {
                                 const Icon = det.icon;
 
                                 return (
@@ -143,9 +280,9 @@ export function InspectorHistoryDialog({
                             </div>
 
                             {/* OBSERVACIÓN */}
-                            {r.observacionesTexto && (
+                            {r.evidencia?.observaciones && (
                               <div className="mt-2 p-2 rounded bg-blue-50 border text-xs">
-                                <strong>Observación:</strong> {r.observacionesTexto}
+                                <strong>Observación:</strong> {r.evidencia.observaciones}
                               </div>
                             )}
                           </div>

@@ -44,14 +44,49 @@ import {
 
 import { InspectorHistoryDialog } from "./InspectorHistoryDialog";
 
-// ICONOS
-const ICON_MAP: any = {
-  casco: HardHat,
-  chaleco: Shirt,
-  botas: Shield,
-  guantes: Shield,
-  lentes: Glasses,
+// ========================================================
+// MAPEO DE EPP CON NOMBRES E ICONOS
+// ========================================================
+const EPP_CONFIG = {
+  casco: {
+    nombre: "Casco",
+    icon: HardHat,
+  },
+  chaleco: {
+    nombre: "Chaleco",
+    icon: Shirt,
+  },
+  guantes: {
+    nombre: "Guantes",
+    icon: Shield,
+  },
+  botas: {
+    nombre: "Botas",
+    icon: Shield,
+  },
+  lentes: {
+    nombre: "Lentes",
+    icon: Glasses,
+  },
+  gafas: {
+    nombre: "Gafas",
+    icon: Glasses,
+  },
+  mascarilla: {
+    nombre: "Mascarilla",
+    icon: Shield,
+  },
 };
+
+// ========================================================
+// NORMALIZAR TEXTO
+// ========================================================
+function normalizar(texto: string | null | undefined): string {
+  return (texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
 interface WorkerAlert {
   id: number;
@@ -93,6 +128,70 @@ export function WorkerAlertsList() {
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [historyStats, setHistoryStats] = useState<any>(null);
   const [historyWorkerName, setHistoryWorkerName] = useState("");
+
+  // ===========================================================
+  // TRANSFORMAR DATA - SOLO MOSTRAR EPP DE LA ZONA
+  // ===========================================================
+  function transformarDatos(data: any[]): WorkerAlert[] {
+    return data
+      .map((item: any, index: number): WorkerAlert | null => {
+        const detalleTexto = item.evidencia.detalle.toLowerCase();
+
+        // 🔥 EPP que la ZONA requiere detectar
+        const eppsZonaRequeridos = item.epps_zona || [];
+
+        // 🔥 Si la zona no tiene EPP requeridos, no mostrar nada
+        if (eppsZonaRequeridos.length === 0) {
+          return null;
+        }
+
+        // 🔥 Crear detecciones SOLO para los EPP de la zona
+        const detections = eppsZonaRequeridos
+          .map((eppKey: string) => {
+            const config = EPP_CONFIG[eppKey as keyof typeof EPP_CONFIG];
+
+            if (!config) {
+              console.warn(`⚠️ EPP no configurado: ${eppKey}`);
+              return null;
+            }
+
+            // Verificar si el EPP está faltante en el detalle
+            const esFaltante =
+              detalleTexto.includes("falta") &&
+              detalleTexto.includes(normalizar(eppKey));
+
+            return {
+              item: config.nombre,
+              key: eppKey,
+              icon: config.icon,
+              detected: !esFaltante, // verde si se detectó, rojo si falta
+            };
+          })
+          .filter(Boolean);
+
+        const fails = detections.filter((d: any) => !d.detected).length;
+
+        return {
+          id: index + 1,
+          idEvidencia: item.evidencia.id_evidencia,
+          workerName: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
+          workerDni: item.trabajador.cedula,
+          camera: item.camara.codigo,
+          zoneName: item.camara.zona,
+          violation: item.evidencia.detalle,
+          photoUrl: `data:image/jpeg;base64,${item.evidencia.foto_base64}`,
+          timestamp: item.fecha_registro,
+          severity: fails >= 3 ? "high" : fails === 2 ? "medium" : "low",
+          observations: item.evidencia.observaciones
+            ? [item.evidencia.observaciones]
+            : [],
+          detections,
+          estado: item.evidencia.estado,
+          observacionesTexto: item.evidencia.observaciones,
+        };
+      })
+      .filter((item): item is WorkerAlert => item !== null);
+  }
 
   // ===========================================================
   // CARGA INICIAL
@@ -143,54 +242,9 @@ export function WorkerAlertsList() {
   }, [zonaSeleccionada, fechaDesde, fechaHasta]);
 
   // ===========================================================
-  // TRANSFORMAR DATA BACKEND → UI
-  // ===========================================================
-  function transformarDatos(data: any[]): WorkerAlert[] {
-    return data.map((item: any, index: number) => {
-      const detalle = item.evidencia.detalle.toLowerCase();
-
-      const detections = [
-        { item: "Casco", key: "casco" },
-        { item: "Chaleco", key: "chaleco" },
-        { item: "Botas", key: "botas" },
-        { item: "Guantes", key: "guantes" },
-        { item: "Lentes", key: "lentes" },
-      ].map((det) => ({
-        item: det.item,
-        key: det.key,
-        icon: ICON_MAP[det.key],
-        detected: !detalle.includes(det.key),
-      }));
-
-      const fails = detections.filter((d) => !d.detected).length;
-
-      return {
-        id: index + 1,
-        idEvidencia: item.evidencia.id_evidencia,
-        workerName: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
-        workerDni: item.trabajador.cedula,
-        camera: item.camara.codigo,
-        zoneName: item.camara.zona,
-        violation: item.evidencia.detalle,
-        photoUrl: `data:image/jpeg;base64,${item.evidencia.foto_base64}`,
-        timestamp: item.fecha_registro,
-        severity: fails >= 3 ? "high" : fails === 2 ? "medium" : "low",
-        observations: item.evidencia.observaciones
-          ? [item.evidencia.observaciones]
-          : [],
-        detections,
-        estado: item.evidencia.estado,
-        observacionesTexto: item.evidencia.observaciones,
-      };
-    });
-  }
-
-  // ===========================================================
   // VER HISTORIAL COMPLETO
   // ===========================================================
-  // ===========================================================
-  // VER HISTORIAL COMPLETO
-  // ===========================================================
+
   async function verHistorialCompleto(alert: WorkerAlert) {
     const data = await obtenerIncumplimientosPorCedula(alert.workerDni);
 
@@ -198,26 +252,8 @@ export function WorkerAlertsList() {
     const historialArray = data.historial || [];
     const estadisticas = data.estadisticas || {};
 
-    const formatted = historialArray.map((item: any) => {
-      const detalle = item.evidencia.detalle.toLowerCase();
-
-      return {
-        timestamp: new Date(item.fecha_registro).toLocaleString("es-EC"),
-        image: `data:image/jpeg;base64,${item.evidencia.foto_base64}`,
-        camera: item.camara.codigo,
-        zone: item.camara.zona,
-        detections: [
-          { item: "Casco", icon: ICON_MAP.casco, detected: !detalle.includes("casco") },
-          { item: "Chaleco", icon: ICON_MAP.chaleco, detected: !detalle.includes("chaleco") },
-          { item: "Botas", icon: ICON_MAP.botas, detected: !detalle.includes("botas") },
-          { item: "Guantes", icon: ICON_MAP.guantes, detected: !detalle.includes("guantes") },
-          { item: "Lentes", icon: ICON_MAP.lentes, detected: !detalle.includes("lentes") },
-        ],
-        observacionesTexto: item.evidencia.observaciones ?? null,
-      };
-    });
-
-    // 🔥 FIX: Usar estadisticas del backend en lugar de calcularlas
+    // 🔥 PASAR LOS DATOS CRUDOS SIN TRANSFORMAR
+    // El dialog se encargará de transformarlos correctamente
     setHistoryStats({
       total: estadisticas.total || 0,
       revisados: estadisticas.cumple || 0,
@@ -226,7 +262,7 @@ export function WorkerAlertsList() {
     });
 
     setHistoryWorkerName(alert.workerName);
-    setHistoryData(formatted);
+    setHistoryData(historialArray); // 🔥 PASAR DATOS CRUDOS
     setHistoryOpen(true);
   }
 
@@ -260,7 +296,7 @@ export function WorkerAlertsList() {
   }
 
   // ===========================================================
-  // 🔥 MARCAR REVISADO + EMITIR EVENTO GLOBAL PARA LA CAMPANITA
+  // MARCAR REVISADO + EMITIR EVENTO GLOBAL PARA LA CAMPANITA
   // ===========================================================
   async function marcarRevisado(alert: WorkerAlert) {
     const idEvidencia = alert.idEvidencia;
@@ -305,7 +341,6 @@ export function WorkerAlertsList() {
 
           {/* FILTROS */}
           <div className="flex gap-4 items-center mt-4">
-
             <select
               className="border rounded-lg px-3 py-2 text-sm"
               value={zonaSeleccionada ?? ""}
@@ -377,23 +412,28 @@ export function WorkerAlertsList() {
             {filteredAlerts.map((alert) => (
               <Card
                 key={alert.id}
-                className={`border ${alert.severity === "high"
+                className={`border ${
+                  alert.severity === "high"
                     ? "border-destructive"
                     : alert.severity === "medium"
-                      ? "border-yellow-500"
-                      : "border-border"
-                  }`}
+                    ? "border-yellow-500"
+                    : "border-border"
+                }`}
               >
                 <CardContent className="p-4">
                   <div className="grid gap-4 md:grid-cols-[300px_1fr]">
-
                     {/* FOTO */}
                     <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                      <img src={alert.photoUrl} className="w-full h-full object-cover" />
+                      <img
+                        src={alert.photoUrl}
+                        className="w-full h-full object-cover"
+                      />
 
                       <Badge
                         className="absolute top-2 right-2"
-                        variant={alert.estado === false ? "default" : "secondary"}
+                        variant={
+                          alert.estado === false ? "default" : "secondary"
+                        }
                       >
                         {alert.estado === false ? "Revisado" : "Pendiente"}
                       </Badge>
@@ -403,7 +443,9 @@ export function WorkerAlertsList() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-semibold">{alert.workerName}</h4>
+                          <h4 className="font-semibold">
+                            {alert.workerName}
+                          </h4>
 
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Camera className="w-3 h-3" />
@@ -424,23 +466,30 @@ export function WorkerAlertsList() {
                           return (
                             <div
                               key={det.item}
-                              className={`flex items-center gap-3 p-2 rounded-lg border ${det.detected
+                              className={`flex items-center gap-3 p-2 rounded-lg border ${
+                                det.detected
                                   ? "bg-green-50 border-green-400"
                                   : "bg-red-50 border-red-400"
-                                }`}
+                              }`}
                             >
                               <Icon
-                                className={`w-4 h-4 ${det.detected ? "text-green-600" : "text-red-600"
-                                  }`}
+                                className={`w-4 h-4 ${
+                                  det.detected
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
                               />
 
                               <div>
-                                <p className="text-sm font-medium">{det.item}</p>
+                                <p className="text-sm font-medium">
+                                  {det.item}
+                                </p>
                                 <p
-                                  className={`text-xs ${det.detected
+                                  className={`text-xs ${
+                                    det.detected
                                       ? "text-green-600"
                                       : "text-red-600"
-                                    }`}
+                                  }`}
                                 >
                                   {det.detected ? "Detectado" : "No detectado"}
                                 </p>
@@ -494,7 +543,6 @@ export function WorkerAlertsList() {
                           Ver Historial
                         </Button>
                       </div>
-
                     </div>
                   </div>
                 </CardContent>
@@ -532,7 +580,10 @@ export function WorkerAlertsList() {
             <Button variant="outline" onClick={() => setSelectedAlert(null)}>
               Cancelar
             </Button>
-            <Button onClick={agregarObservacion} disabled={!observation.trim()}>
+            <Button
+              onClick={agregarObservacion}
+              disabled={!observation.trim()}
+            >
               Guardar Observación
             </Button>
           </DialogFooter>

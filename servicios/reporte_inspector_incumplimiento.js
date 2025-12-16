@@ -92,6 +92,6 @@ export async function obtenerZonasPorInspector(idInspector) {
     return await res.json();
   } catch (error) {
     console.error("❌ Error obteniendo zonas del inspector:", error);
-    throw error;
+    throw error;  
   }
 }
