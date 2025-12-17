@@ -23,7 +23,6 @@ interface WorkerHistoryDialogProps {
   onOpenChange: (open: boolean) => void;
   workerName: string;
 
-  // Cambió → ahora vienen del backend
   stats: {
     total: number;
     cumple: number;
@@ -42,13 +41,12 @@ export function WorkerHistoryDialog({
   historial,
 }: WorkerHistoryDialogProps) {
 
-  // --- AHORA YA NO SE CALCULAN AQUÍ ---
   const total = stats.total;
   const compliant = stats.cumple;
   const violations = stats.incumple;
   const rate = stats.tasa;
 
-  // Agrupar por fecha (se mantiene igual)
+  // Agrupar por fecha
   const grouped = historial.reduce((acc: any, rec: any) => {
     const [fecha] = rec.timestamp.split(",");
     if (!acc[fecha]) acc[fecha] = [];
@@ -177,30 +175,39 @@ export function WorkerHistoryDialog({
                               {r.zone}
                             </div>
 
-                            {/* DETECCIONES */}
-                            <div className="grid grid-cols-3 gap-2">
-                              {r.detections.map((det: any) => {
-                                const Icon = det.icon;
-                                const isGafas =
-                                  det.item?.toLowerCase() === "gafas" ||
-                                  det.key?.toLowerCase() === "lentes";
+                            {/* DETECCIONES - GRID 2 COLUMNAS - SOLO LOS DE LA ZONA */}
+                            <div className="grid grid-cols-2 gap-2">
+                              {r.detections
+                                .filter((det: any) => {
+                                  if (!r.eppsZona) return false;
+                                  const normalizar = (s: string) =>
+                                    (s || "")
+                                      .toLowerCase()
+                                      .normalize("NFD")
+                                      .replace(/[\u0300-\u036f]/g, "");
+                                  
+                                  const detNormalizado = normalizar(det.item);
+                                  return r.eppsZona.some((epp: string) => 
+                                    normalizar(epp) === detNormalizado
+                                  );
+                                })
+                                .map((det: any) => {
+                                  const Icon = det.icon;
 
-                                const classes = det.detected
-                                  ? "bg-green-50 border-green-200 text-green-600"
-                                  : isGafas
-                                    ? "bg-yellow-50 border-yellow-400 text-yellow-700"
-                                    : "bg-red-50 border-red-200 text-red-600";
+                                  const classes = det.detected
+                                    ? "bg-green-50 border-green-400 text-green-700"
+                                    : "bg-red-50 border-red-400 text-red-700";
 
-                                return (
-                                  <div
-                                    key={det.item}
-                                    className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${classes}`}
-                                  >
-                                    <Icon className="w-3 h-3" />
-                                    {det.item}
-                                  </div>
-                                );
-                              })}
+                                  return (
+                                    <div
+                                      key={det.item}
+                                      className={`flex items-center gap-2 px-3 py-2 rounded border text-xs font-medium ${classes}`}
+                                    >
+                                      <Icon className="w-4 h-4" />
+                                      <span>{det.item}</span>
+                                    </div>
+                                  );
+                                })}
                             </div>
 
                           </div>

@@ -52,9 +52,6 @@ const EPP_RULES = [
   { item: "Orejeras", ok: "ear-protectors", no: "no-ear-protectors", icon: Shield },
 ];
 
-// ===============================
-// 🔥 ICONOS IMPLEMENTOS
-// ===============================
 const ICON_MAP: any = {
   casco: HardHat,
   chaleco: Shirt,
@@ -132,7 +129,7 @@ export function LiveDetections() {
 
       return {
         item: regla?.item ?? eppKey,
-        detected: !esFaltante, // 🟢 si NO aparece en "Falta ..."
+        detected: !esFaltante,
         icon: regla?.icon ?? Shield,
       };
     });
@@ -165,10 +162,8 @@ export function LiveDetections() {
     };
   });
 
-  // 🔥 Quitar nulls (zonas sin EPP)
   const filtrado = transformado.filter(Boolean);
 
-  // 🔥 Agrupar por zona
   const groupedByZone: any = {};
   filtrado.forEach((item: any) => {
     if (!groupedByZone[item.zone]) {
@@ -183,7 +178,6 @@ export function LiveDetections() {
   return groupedByZone;
 }
 
-
   // ======================================
   // 🔥 Cargar datos iniciales
   // ======================================
@@ -191,15 +185,12 @@ export function LiveDetections() {
     async function cargarInicial() {
       if (!empresaId || !user?.id_supervisor) return;
 
-      // Inspectores
       const insp = await obtenerInspectores(empresaId);
       setInspectores(insp);
 
-      // Zonas sin inspector
       const zonasBD = await obtenerZonas(empresaId);
       setZonas(zonasBD);
 
-      // Datos del día
       const data = await obtenerIncumplimientos(user.id_supervisor);
       setGrouped(transformarRegistros(data));
       setLoading(false);
@@ -261,10 +252,7 @@ export function LiveDetections() {
     const { estadisticas, historial } = data;
 
     const transformado = historial.map((item: any, index: number) => {
-      // 🔥 Clases detectadas por YOLO (nuevo sistema)
       const clasesDetectadas: string[] = item.detecciones || [];
-
-      // 🔁 Fallback para registros antiguos
       const detalle = (item.evidencia?.detalle || "").toLowerCase();
 
       const detections = EPP_RULES.map((epp) => {
@@ -289,6 +277,9 @@ export function LiveDetections() {
 
       const fails = detections.filter((d) => !d.detected).length;
 
+      // Convertir eppsZona normalizada a string original para el historial
+      const eppsZonaOriginal = Array.isArray(item.epps_zona) ? item.epps_zona : [];
+
       return {
         id: index + 1,
         timestamp: new Date(item.fecha_registro).toLocaleString(),
@@ -303,6 +294,7 @@ export function LiveDetections() {
           ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
           : null,
         severity: fails > 0 ? "high" : "safe",
+        eppsZona: eppsZonaOriginal,
       };
     });
 
@@ -318,7 +310,6 @@ export function LiveDetections() {
 
   return (
     <>
-      {/* MODAL HISTORIAL */}
       {openHistorial && stats && (
         <WorkerHistoryDialog
           open={openHistorial}
@@ -329,11 +320,7 @@ export function LiveDetections() {
         />
       )}
 
-      {/* ==========================================
-          🔥 FILTROS (Tiempo real)
-      ========================================== */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        {/* INSPECTOR */}
         <div>
           <p className="text-sm font-medium mb-1">Inspector</p>
           <Select onValueChange={cambiarInspector}>
@@ -342,7 +329,6 @@ export function LiveDetections() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-
               {inspectores.map((i) => (
                 <SelectItem key={i.id} value={String(i.id)}>
                   {i.nombre} {i.apellido}
@@ -352,7 +338,6 @@ export function LiveDetections() {
           </Select>
         </div>
 
-        {/* ZONA */}
         <div>
           <p className="text-sm font-medium mb-1">Zona</p>
           <Select onValueChange={(v) => setFiltroZona(v)}>
@@ -361,7 +346,6 @@ export function LiveDetections() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
-
               {zonas.map((z) => (
                 <SelectItem key={z.id} value={String(z.id)}>
                   {z.nombre}
@@ -371,7 +355,6 @@ export function LiveDetections() {
           </Select>
         </div>
 
-        {/* FECHAS */}
         <div>
           <p className="text-sm font-medium mb-1">Desde</p>
           <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
@@ -383,9 +366,6 @@ export function LiveDetections() {
         </div>
       </div>
 
-      {/* ===============================
-          🔥 REPORTES
-      =============================== */}
       <div className="space-y-8">
         {Object.entries(grouped).map(([zona, data]: any) => (
           <Card key={zona}>
@@ -422,7 +402,6 @@ export function LiveDetections() {
                     >
                       <CardContent className="p-4">
                         <div className="grid gap-4 md:grid-cols-[300px_1fr]">
-                          {/* IMAGEN */}
                           <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
                             <img
                               src={detection.image}
@@ -431,77 +410,56 @@ export function LiveDetections() {
                             />
                           </div>
 
-                          {/* INFO */}
                           <div className="space-y-4">
-
-                            {/* 🔥 MENSAJE HUMANO */}
-                            {detection.detalleTexto && (
-                              <div className="flex items-start gap-3 p-3 rounded-lg border border-red-400 bg-red-50">
-                                <span className="text-red-600 text-lg">⚠️</span>
-                                <div>
-                                  <p className="text-sm font-semibold text-red-700">
-                                    Incumplimiento detectado
-                                  </p>
-                                  <p className="text-sm text-red-600">
-                                    {detection.detalleTexto}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-
-                            {faltantes.length > 0 && (
-                              <div>
-                                <p className="text-sm font-semibold text-red-700 mb-2">
-                                  ❌ Implementos faltantes
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between">
+                                <h3 className="text-lg font-bold text-foreground">
+                                  {detection.worker}
+                                </h3>
+                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  {detection.timestamp}
                                 </p>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                  {faltantes.map((item: any) => {
-                                    const Icon = item.icon;
-                                    return (
-                                      <div
-                                        key={item.item}
-                                        className="flex items-center gap-3 p-2 rounded-lg border bg-red-50 border-red-400"
-                                      >
-                                        <Icon className="w-4 h-4 text-red-600" />
-                                        <div>
-                                          <p className="text-sm font-medium">{item.item}</p>
-                                          <p className="text-xs text-red-600">No detectado</p>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
                               </div>
-                            )}
-                            {detectados.length > 0 && (
-                              <div>
-                                <p className="text-sm font-semibold text-green-700 mb-2">
-                                  ✅ Implementos detectados
-                                </p>
+                              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                <Camera className="w-4 h-4" />
+                                {detection.camera} • {detection.zone}
+                              </p>
+                            </div>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                  {detectados.map((item: any) => {
-                                    const Icon = item.icon;
-                                    return (
-                                      <div
-                                        key={item.item}
-                                        className="flex items-center gap-3 p-2 rounded-lg border bg-green-50 border-green-400"
-                                      >
-                                        <Icon className="w-4 h-4 text-green-600" />
-                                        <div>
-                                          <p className="text-sm font-medium">{item.item}</p>
-                                          <p className="text-xs text-green-600">Detectado</p>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
+                            <div className="grid grid-cols-2 gap-3">
+                              {faltantes.map((item: any) => {
+                                const Icon = item.icon;
+                                return (
+                                  <div
+                                    key={item.item}
+                                    className="flex items-center gap-3 p-3 rounded-lg border bg-red-50 border-red-400"
+                                  >
+                                    <Icon className="w-4 h-4 text-red-600" />
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium">{item.item}</p>
+                                      <p className="text-xs text-red-600">No detectado</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {detectados.map((item: any) => {
+                                const Icon = item.icon;
+                                return (
+                                  <div
+                                    key={item.item}
+                                    className="flex items-center gap-3 p-3 rounded-lg border bg-green-50 border-green-400"
+                                  >
+                                    <Icon className="w-4 h-4 text-green-600" />
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium">{item.item}</p>
+                                      <p className="text-xs text-green-600">Detectado</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
 
-
-                            {/* ACCIONES */}
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -511,12 +469,6 @@ export function LiveDetections() {
                               >
                                 Ver Historial
                               </Button>
-
-                              {detection.severity !== "safe" && (
-                                <Button size="sm" className="flex-1">
-                                  Notificar Trabajador
-                                </Button>
-                              )}
                             </div>
                           </div>
                         </div>
