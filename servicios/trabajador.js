@@ -28,6 +28,19 @@ export async function validarCodigoInstantaneo(codigo) {
   }
 }
 
+export async function verificarCorreoTrabajador(correo) {
+  try {
+    const res = await fetch(`${TRABAJADOR_URL}/validar-correo/${encodeURIComponent(correo)}`);
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    return data.disponible; // true = disponible, false = ya existe
+  } catch (err) {
+    console.error("❌ Error verificando correo:", err);
+    return null;
+  }
+}
 
 // =======================================
 // 📌 Registrar un nuevo TRABAJADOR

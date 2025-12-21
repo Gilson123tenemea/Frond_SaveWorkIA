@@ -17,6 +17,21 @@ export async function verificarCedula(cedula) {
     return false;
   }
 }
+
+export async function verificarCorreo(correo) {
+  try {
+    const res = await fetch(`${INSPECTOR_URL}/validar-correo/${encodeURIComponent(correo)}`);
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    return data.disponible; 
+  } catch (err) {
+    console.error("❌ Error verificando correo:", err);
+    return null;
+  }
+}
+
 // ============================
 // 📌 Registrar un nuevo inspector
 // ============================

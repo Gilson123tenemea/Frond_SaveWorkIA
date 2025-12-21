@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import {
   validarCedulaInstantanea,
   validarCorreoInstantaneo,
   validarCodigoInstantaneo,
+  verificarCorreoTrabajador, // ✨ NUEVO
 } from "../../servicios/trabajador";
 
 import {
@@ -56,6 +57,17 @@ export function WorkerDialog({ open, onClose, worker }: any) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<any>({});
 
+  // ✨ NUEVO: Estado para validación de correo
+  const [correoValidacion, setCorreoValidacion] = useState<{
+    validando: boolean;
+    disponible: boolean | null;
+  }>({
+    validando: false,
+    disponible: null,
+  });
+
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // 👉 Tipo para evitar error TS7006
   type FormDataType = typeof formData;
 
@@ -78,6 +90,50 @@ export function WorkerDialog({ open, onClose, worker }: any) {
     id_supervisor_trabajador: 0,
   });
 
+  // ✨ NUEVA FUNCIÓN: Validar correo en tiempo real
+  const validarCorreoEnTiempoReal = async (correo: string) => {
+    // Limpiar timeout anterior
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Si está vacío o inválido, no validar en servidor
+    if (!correo.trim()) {
+      setCorreoValidacion({ validando: false, disponible: null });
+      return;
+    }
+
+    // Validar formato primero
+    const errorFormato = validarCorreo(correo);
+    if (errorFormato) {
+      setCorreoValidacion({ validando: false, disponible: null });
+      return;
+    }
+
+    // Si estamos editando y el correo es el mismo, no validar en servidor
+    if (isEditing && correo === worker.persona.correo) {
+      setCorreoValidacion({ validando: false, disponible: true });
+      return;
+    }
+
+    // Mostrar estado "validando"
+    setCorreoValidacion({ validando: true, disponible: null });
+
+    // Debounce: esperar 500ms
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        const disponible = await verificarCorreoTrabajador(correo);
+        setCorreoValidacion({
+          validando: false,
+          disponible: disponible,
+        });
+      } catch (error) {
+        console.error("Error validando correo:", error);
+        setCorreoValidacion({ validando: false, disponible: null });
+      }
+    }, 500);
+  };
+
   // -------------------------------------------------
   // VALIDAR CAMPO
   // -------------------------------------------------
@@ -95,9 +151,11 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
       case "correo":
         error = validarCorreo(value);
-        if (!error && !isEditing) {
-          const existe = await validarCorreoInstantaneo(value);
-          if (existe) error = "Este correo ya está registrado";
+        // ✨ NUEVO: Validar en tiempo real
+        if (!error || error === null) {
+          validarCorreoEnTiempoReal(value);
+        } else {
+          setCorreoValidacion({ validando: false, disponible: null });
         }
         break;
 
@@ -211,6 +269,8 @@ export function WorkerDialog({ open, onClose, worker }: any) {
         id_empresa: worker.id_empresa,
         id_supervisor_trabajador: worker.id_supervisor_trabajador,
       });
+      // Al editar, correo ya validado
+      setCorreoValidacion({ validando: false, disponible: true });
     } else {
       setFormData({
         cedula: "",
@@ -232,14 +292,12 @@ export function WorkerDialog({ open, onClose, worker }: any) {
       });
 
       cargarEmpresa();
+      setCorreoValidacion({ validando: false, disponible: null });
     }
   }, [worker, open]);
 
   // -------------------------------------------------
-  // SUBMIT FINAL (CON TOAST.PROMISE)
-  // -------------------------------------------------
-  // -------------------------------------------------
-  // SUBMIT FINAL (CON TOAST.PROMISE STYLE)
+  // SUBMIT FINAL
   // -------------------------------------------------
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -254,6 +312,12 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           fontWeight: 500,
         },
       });
+      return;
+    }
+
+    // ✨ NUEVO: Verificar que correo esté disponible
+    if (!isEditing && correoValidacion.disponible === false) {
+      toast.error("❌ El correo ya está registrado");
       return;
     }
 
@@ -462,17 +526,22 @@ export function WorkerDialog({ open, onClose, worker }: any) {
             {renderError("telefono")}
           </div>
 
-          {/* CORREO */}
+          {/* CORREO CON VALIDACIÓN EN TIEMPO REAL */}
           <div>
             <Label>Correo</Label>
             <Input
               value={formData.correo}
+              disabled={isEditing}
               onChange={(e) => {
                 const value = e.target.value;
                 setFormData({ ...formData, correo: value });
                 validateField("correo", value);
               }}
             />
+            {/* ✨ SOLO MOSTRAR SI EL CORREO YA EXISTE */}
+            {!isEditing && correoValidacion.disponible === false && (
+              <p className="text-sm text-red-600 mt-1">Este correo ya está registrado</p>
+            )}
             {renderError("correo")}
           </div>
 
@@ -631,8 +700,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
             {renderError("codigo_trabajador")}
 
-
-
           </div>
 
           {/* BOTONES */}
@@ -640,7 +707,7 @@ export function WorkerDialog({ open, onClose, worker }: any) {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || (!isEditing && correoValidacion.disponible === false)}>
               {loading ? "Guardando..." : isEditing ? "Guardar cambios" : "Registrar"}
             </Button>
           </div>

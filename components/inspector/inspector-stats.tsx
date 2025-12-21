@@ -95,7 +95,7 @@ export function InspectorStats({ zoneId }: InspectorStatsProps) {
           <CardTitle className="text-sm font-medium">Incumplimientos</CardTitle>
           <XCircle className="w-4 h-4 text-destructive" />
         </CardHeader>
-        <CardContent>
+        <CardContent>a
           <div className="text-2xl font-bold text-destructive">
             {data.incumplimientos_alta}
           </div>

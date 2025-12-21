@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,7 @@ import {
   registrarInspector,
   editarInspector,
   verificarCedula,
+  verificarCorreo, // ✨ NUEVO
 } from "../../servicios/inspector";
 
 interface InspectorDialogProps {
@@ -57,6 +58,17 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
 
   const [errors, setErrors] = useState<any>({});
   const [cedulaVerificada, setCedulaVerificada] = useState<boolean | null>(null);
+  
+  // ✨ NUEVO: Estado para validación de correo
+  const [correoValidacion, setCorreoValidacion] = useState<{
+    validando: boolean;
+    disponible: boolean | null;
+  }>({
+    validando: false,
+    disponible: null,
+  });
+
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 📋 Estado del formulario
   const [formData, setFormData] = useState({
@@ -89,6 +101,8 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           zona_asignada: inspector.zona_asignada || "",
           frecuenciaVisita: inspector.frecuenciaVisita || "",
         });
+        // Al editar, correo ya validado
+        setCorreoValidacion({ validando: false, disponible: true });
       } else {
         setFormData({
           cedula: "",
@@ -103,10 +117,55 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           zona_asignada: "",
           frecuenciaVisita: "",
         });
+        setCorreoValidacion({ validando: false, disponible: null });
       }
+      setCedulaVerificada(null);
     }
   }, [open, inspector, isEditing]);
 
+  // ✨ NUEVA FUNCIÓN: Validar correo en tiempo real
+  const validarCorreoEnTiempoReal = async (correo: string) => {
+    // Limpiar timeout anterior
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Si está vacío o inválido, no validar en servidor
+    if (!correo.trim()) {
+      setCorreoValidacion({ validando: false, disponible: null });
+      return;
+    }
+
+    // Validar formato primero
+    const errorFormato = validarCorreo(correo);
+    if (errorFormato) {
+      setCorreoValidacion({ validando: false, disponible: null });
+      return;
+    }
+
+    // Si estamos editando y el correo es el mismo, no validar en servidor
+    if (isEditing && correo === inspector.correo) {
+      setCorreoValidacion({ validando: false, disponible: true });
+      return;
+    }
+
+    // Mostrar estado "validando"
+    setCorreoValidacion({ validando: true, disponible: null });
+
+    // Debounce: esperar 500ms
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        const disponible = await verificarCorreo(correo);
+        setCorreoValidacion({
+          validando: false,
+          disponible: disponible,
+        });
+      } catch (error) {
+        console.error("Error validando correo:", error);
+        setCorreoValidacion({ validando: false, disponible: null });
+      }
+    }, 500);
+  };
 
   // 🟦 Validación por campo
   const onChange = async (field: string, value: string) => {
@@ -143,7 +202,15 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
     if (field === "nombre") error = validarNombre(formateado);
     if (field === "apellido") error = validarApellido(formateado);
     if (field === "telefono") error = validarTelefono(formateado);
-    if (field === "correo") error = validarCorreo(formateado);
+    if (field === "correo") {
+      error = validarCorreo(formateado);
+      // ✨ NUEVO: Validar en tiempo real
+      if (!error || error === null) {
+        validarCorreoEnTiempoReal(formateado);
+      } else {
+        setCorreoValidacion({ validando: false, disponible: null });
+      }
+    }
     if (field === "direccion") error = validarDireccion(formateado);
     if (field === "genero") error = validarGenero(formateado);
     if (field === "fecha_nacimiento") error = validarFechaNacimiento(formateado);
@@ -156,9 +223,15 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
 
   // 🟦 Validación general
   const formularioValido = () => {
+    // Si el correo no está disponible, formulario inválido
+    if (!isEditing && correoValidacion.disponible === false) {
+      return false;
+    }
+
     return Object.values(errors).every((e) => e === null) &&
       (!isEditing ? !cedulaVerificada : true);
   };
+
   // 🔵 Validar todos los campos al enviar
   const validarTodo = () => {
     const nuevosErrores: any = {};
@@ -192,6 +265,12 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
     const todoOk = validarTodo();
     if (!todoOk) {
       toast.error("❌ Debe completar todos los campos obligatorios");
+      return;
+    }
+
+    // ✨ NUEVO: Verificar que correo esté disponible
+    if (!isEditing && correoValidacion.disponible === false) {
+      toast.error("❌ El correo ya está registrado");
       return;
     }
 
@@ -351,13 +430,20 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
               {errors.apellido && <p className="text-red-500 text-sm">{errors.apellido}</p>}
             </div>
 
-            {/* CORREO */}
+            {/* CORREO CON VALIDACIÓN EN TIEMPO REAL */}
             <div>
               <Label>Correo</Label>
               <Input
                 value={formData.correo}
+                disabled={isEditing}
                 onChange={(e) => onChange("correo", e.target.value)}
               />
+              
+              {/* ✨ SOLO MOSTRAR SI EL CORREO YA EXISTE */}
+              {!isEditing && correoValidacion.disponible === false && (
+                <p className="text-sm text-red-600 mt-1">Este correo ya está registrado</p>
+              )}
+              
               {errors.correo && <p className="text-red-500 text-sm">{errors.correo}</p>}
             </div>
 
