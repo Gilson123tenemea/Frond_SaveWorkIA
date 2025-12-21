@@ -5,17 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, CheckCircle2, AlertTriangle, Camera as CameraIcon } from "lucide-react";
 import { obtenerZonasYCamarasPorEmpresa } from "@/servicios/monitorio";
-import { obtenerDashboardSupervisor } from "@/servicios/dashboardSupervisor";  // ✅ NUEVO
+import { obtenerDashboardSupervisor } from "@/servicios/dashboardSupervisor";
 import { getUser } from "@/lib/auth";
 
 export function SupervisorStats() {
   const [loading, setLoading] = useState(true);
   const [monitoreo, setMonitoreo] = useState<any>(null);
-
-  // 🔥 Datos para las tarjetas
   const [stats, setStats] = useState<any>(null);
-
-  // Estado para mostrar video por cámara
   const [cameraVideoOpen, setCameraVideoOpen] = useState<number | null>(null);
 
   useEffect(() => {
@@ -27,11 +23,9 @@ export function SupervisorStats() {
           return;
         }
 
-        // 🔹 Cargar los datos de monitoreo
         const dataMonitoreo = await obtenerZonasYCamarasPorEmpresa(user.id_empresa_supervisor);
         setMonitoreo(dataMonitoreo);
 
-        // 🔹 Cargar los datos de estadísticas
         const dataStats = await obtenerDashboardSupervisor(user.id_empresa_supervisor);
         setStats(dataStats);
 
@@ -51,12 +45,9 @@ export function SupervisorStats() {
   return (
     <div className="space-y-8">
 
-      {/* ╔══════════════════════════╗ */}
-      {/*     🔹 TARJETAS ARRIBA      */}
-      {/* ╚══════════════════════════╝ */}
+      {/* 🔹 TARJETAS ESTADÍSTICAS */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 
-        {/* 🔵 Trabajadores activos */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Trabajadores Activos</CardTitle>
@@ -70,7 +61,6 @@ export function SupervisorStats() {
           </CardContent>
         </Card>
 
-        {/* 🟢 EPP Completo */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">EPP Completo</CardTitle>
@@ -84,7 +74,6 @@ export function SupervisorStats() {
           </CardContent>
         </Card>
 
-        {/* 🔴 Alertas activas */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Alertas Activas</CardTitle>
@@ -98,7 +87,6 @@ export function SupervisorStats() {
           </CardContent>
         </Card>
 
-        {/* 📷 Cámaras activas */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Cámaras Activas</CardTitle>
@@ -114,75 +102,81 @@ export function SupervisorStats() {
 
       </div>
 
-      {/* ╔══════════════════════════╗ */}
-      {/* 🔹 ZONAS Y SUS CÁMARAS     */}
-      {/* ╚══════════════════════════╝ */}
-      <div className="space-y-6">
-        {/* 🔥 No se toca nada aquí, se mantiene igual */}
-        {monitoreo?.zonas?.map((zona: any, index: number) => (
-          <Card key={`zona_${index}_${zona.id_Zona}`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CameraIcon className="w-5 h-5" />
-                Zona: {zona.nombreZona}
-              </CardTitle>
-            </CardHeader>
+      {/* 🔹 ZONAS EN GRID ORDENADO */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Zonas de Monitoreo</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {monitoreo?.zonas?.map((zona: any, index: number) => (
+            <Card key={`zona_${index}_${zona.id_Zona}`} className="flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CameraIcon className="w-5 h-5 text-blue-500" />
+                  {zona.nombreZona}
+                </CardTitle>
+              </CardHeader>
 
-            <CardContent>
-              {zona.camaras.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay cámaras en esta zona.</p>
-              ) : (
-                <ul className="space-y-4">
-                  {zona.camaras.map((cam: any) => (
-                    <li key={`cam_${zona.id_Zona}_${cam.id_camara}`} className="border p-3 rounded-md space-y-2">
-                      <div className="flex justify-between items-center gap-4">
-                        <div>
-                          <strong>{cam.codigo}</strong> — {cam.tipo}
-                          <p className="text-xs text-muted-foreground">{cam.ipAddress}</p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
+              <CardContent className="flex-1">
+                {zona.camaras.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No hay cámaras</p>
+                ) : (
+                  <div className="space-y-3">
+                    {zona.camaras.map((cam: any) => (
+                      <div 
+                        key={`cam_${zona.id_Zona}_${cam.id_camara}`} 
+                        className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{cam.codigo}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{cam.tipo}</p>
+                          </div>
                           <span
-                            className={`text-sm px-2 py-1 rounded ${
+                            className={`text-xs px-2 py-1 rounded-full whitespace-nowrap font-medium ${
                               cam.estado === "activa"
                                 ? "bg-green-100 text-green-700"
-                                : "bg-gray-200 text-gray-700"
-                            }`}>
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
                             {cam.estado}
                           </span>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setCameraVideoOpen((prev) =>
-                                prev === cam.id_camara ? null : cam.id_camara
-                              )
-                            }
-                            disabled={cam.estado !== "activa"}
-                          >
-                            {cameraVideoOpen === cam.id_camara ? "Ocultar video" : "Ver video"}
-                          </Button>
                         </div>
-                      </div>
 
-                      {cameraVideoOpen === cam.id_camara && (
-                        <div className="mt-2">
-                          <div className="aspect-video bg-black rounded-md overflow-hidden">
-                            <img src={cam.ipAddress} alt={`Video de ${cam.codigo}`} className="w-full h-full object-contain" />
+                        {cameraVideoOpen === cam.id_camara && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="aspect-video bg-black rounded-md overflow-hidden">
+                              <img 
+                                src={cam.ipAddress} 
+                                alt={`Video de ${cam.codigo}`} 
+                                className="w-full h-full object-contain" 
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Transmisión en vivo
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Transmisión en vivo desde la cámara
-                          </p>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                        )}
+
+                        <Button
+                          size="sm"
+                          variant={cameraVideoOpen === cam.id_camara ? "default" : "outline"}
+                          onClick={() =>
+                            setCameraVideoOpen((prev) =>
+                              prev === cam.id_camara ? null : cam.id_camara
+                            )
+                          }
+                          disabled={cam.estado !== "activa"}
+                          className="w-full mt-2"
+                        >
+                          {cameraVideoOpen === cam.id_camara ? "Ocultar transmisión" : "Ver transmisión"}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
