@@ -12,8 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, HardHat, Shield, Eye, Footprints, Shirt, Headphones } from "lucide-react";
 import toast from "react-hot-toast";
+
 
 import { crearZona, actualizarZona } from "@/servicios/zona";
 import {
@@ -59,6 +60,17 @@ export function ZoneFormDialog({
 
   const [eppSeleccionados, setEppSeleccionados] = useState<string[]>([]);
 
+  // Mapeo de iconos para cada EPP
+  const eppIcons: Record<string, any> = {
+    casco: HardHat,
+    gafas: Eye,
+    guantes: Shield,
+    chaleco: Shirt,
+    botas: Footprints,
+    mascarilla: Shield,
+    protectores: Headphones,
+  };
+
   const getAdminId = () => {
     const user = JSON.parse(localStorage.getItem("user") || "null");
     return user?.id_administrador ?? 0;
@@ -89,7 +101,15 @@ export function ZoneFormDialog({
           const activos = epps.map((e: any) => e.tipo_epp);
           setEppSeleccionados(activos);
         } catch {
-          toast.error("❌ Error al cargar EPP de la zona");
+          toast.error("Error al cargar EPP de la zona", {
+            style: {
+              background: "#DC2626",
+              color: "#fff",
+              borderRadius: "10px",
+              padding: "12px 16px",
+            },
+            icon: "❌",
+          });
           setEppSeleccionados([]);
         }
       })();
@@ -114,21 +134,43 @@ export function ZoneFormDialog({
       latitud: lat.toString(),
       longitud: lng.toString(),
     }));
+    // Limpiar errores de coordenadas
+    setErrors((prev: any) => ({
+      ...prev,
+      latitud: null,
+      longitud: null,
+    }));
   };
 
   const validarFormulario = () => {
     const newErrors: any = {};
-    newErrors.nombreZona = validarNombreZona(formData.nombreZona);
-    newErrors.latitud = validarCoordenada(formData.latitud, "latitud");
-    newErrors.longitud = validarCoordenada(formData.longitud, "longitud");
+    
+    // Solo validar si los campos están vacíos o inválidos
+    const nombreError = validarNombreZona(formData.nombreZona);
+    const latitudError = validarCoordenada(formData.latitud, "latitud");
+    const longitudError = validarCoordenada(formData.longitud, "longitud");
+    
+    // Solo asignar errores si existen
+    if (nombreError) newErrors.nombreZona = nombreError;
+    if (latitudError) newErrors.latitud = latitudError;
+    if (longitudError) newErrors.longitud = longitudError;
+    
     setErrors(newErrors);
 
     if (!zone && eppSeleccionados.length === 0) {
-      toast.error("Seleccione al menos un EPP");
+      toast.error("Seleccione al menos un EPP", {
+        style: {
+          background: "#DC2626",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+        icon: "❌",
+      });
       return false;
     }
 
-    return !Object.values(newErrors).some((e) => e !== null);
+    return Object.keys(newErrors).length === 0;
   };
 
   // -------------------------------
@@ -153,14 +195,24 @@ export function ZoneFormDialog({
       let zonaResp;
 
       if (zone) {
+        // EDITAR - Toast AZUL
         zonaResp = await actualizarZona(zone.id_Zona, dataToSend);
-
-        // 👇 ACTUALIZAR EPP
         await actualizarEppZona(zone.id_Zona, eppSeleccionados);
+        
+        toast.success("Zona actualizada correctamente", {
+          style: {
+            background: "#2563EB",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+          icon: "✏️",
+        });
       } else {
+        // CREAR - Toast VERDE
         zonaResp = await crearZona(dataToSend);
-
         const idZona = zonaResp.id_Zona;
+        
         await Promise.all(
           eppSeleccionados.map((epp) =>
             crearEppZona({
@@ -170,13 +222,30 @@ export function ZoneFormDialog({
             })
           )
         );
+        
+        toast.success("Zona creada correctamente", {
+          style: {
+            background: "#16A34A",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+          icon: "✅",
+        });
       }
 
-      toast.success("Zona guardada correctamente");
       onSuccess();
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(err.message || "Error al guardar");
+      toast.error(err.message || "Error al guardar", {
+        style: {
+          background: "#DC2626",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+        icon: "❌",
+      });
     } finally {
       setLoading(false);
     }
@@ -197,15 +266,19 @@ export function ZoneFormDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label>Nombre</Label>
+            <Label className="mb-2 block">Nombre</Label>
             <Input
               value={formData.nombreZona}
-              onChange={(e) =>
-                setFormData({ ...formData, nombreZona: e.target.value })
-              }
+              onChange={(e) => {
+                setFormData({ ...formData, nombreZona: e.target.value });
+                // Limpiar error al escribir
+                if (errors.nombreZona) {
+                  setErrors({ ...errors, nombreZona: null });
+                }
+              }}
             />
             {errors.nombreZona && (
-              <p className="text-red-500 text-sm">{errors.nombreZona}</p>
+              <p className="text-red-500 text-sm mt-1">{errors.nombreZona}</p>
             )}
           </div>
 
@@ -218,47 +291,70 @@ export function ZoneFormDialog({
           />
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              placeholder="Latitud"
-              value={formData.latitud}
-              onChange={(e) =>
-                setFormData({ ...formData, latitud: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Longitud"
-              value={formData.longitud}
-              onChange={(e) =>
-                setFormData({ ...formData, longitud: e.target.value })
-              }
-            />
+            <div>
+              <Input
+                placeholder="Latitud"
+                value={formData.latitud}
+                onChange={(e) => {
+                  setFormData({ ...formData, latitud: e.target.value });
+                  // Limpiar error al escribir
+                  if (errors.latitud) {
+                    setErrors({ ...errors, latitud: null });
+                  }
+                }}
+              />
+              {errors.latitud && (
+                <p className="text-red-500 text-sm mt-1">{errors.latitud}</p>
+              )}
+            </div>
+            <div>
+              <Input
+                placeholder="Longitud"
+                value={formData.longitud}
+                onChange={(e) => {
+                  setFormData({ ...formData, longitud: e.target.value });
+                  // Limpiar error al escribir
+                  if (errors.longitud) {
+                    setErrors({ ...errors, longitud: null });
+                  }
+                }}
+              />
+              {errors.longitud && (
+                <p className="text-red-500 text-sm mt-1">{errors.longitud}</p>
+              )}
+            </div>
           </div>
 
           {/* EPP */}
           <div>
-            <Label>EPP obligatorios en la zona</Label>
+            <Label className="mb-2 block">EPP obligatorios en la zona</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
-              {TIPOS_EPP.map((epp) => (
-                <label
-                  key={epp.key}
-                  className="flex items-center gap-2 border rounded-lg p-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={eppSeleccionados.includes(epp.key)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setEppSeleccionados((p) => [...p, epp.key]);
-                      } else {
-                        setEppSeleccionados((p) =>
-                          p.filter((x) => x !== epp.key)
-                        );
-                      }
-                    }}
-                  />
-                  {epp.label}
-                </label>
-              ))}
+              {TIPOS_EPP.map((epp) => {
+                const IconComponent = eppIcons[epp.key] || Shield;
+                return (
+                  <label
+                    key={epp.key}
+                    className="flex items-center gap-2 border rounded-lg p-2 cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={eppSeleccionados.includes(epp.key)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setEppSeleccionados((p) => [...p, epp.key]);
+                        } else {
+                          setEppSeleccionados((p) =>
+                            p.filter((x) => x !== epp.key)
+                          );
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <IconComponent className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm">{epp.label}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

@@ -108,7 +108,15 @@ export function ZonesDialog({
 
       setZones(zonasCompletas);
     } catch (err: any) {
-      toast.error(err.message || "❌ Error al cargar zonas");
+      toast.error(err.message || "Error al cargar zonas", {
+        style: {
+          background: "#DC2626",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+        icon: "❌",
+      });
     }
   };
 
@@ -153,11 +161,28 @@ export function ZonesDialog({
     toast.dismiss();
 
     if (!result.ok) {
-      toast.error("⚠️ " + result.message);
+      toast.error(result.message, {
+        style: {
+          background: "#DC2626",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+        icon: "⚠️",
+      });
       return;
     }
 
-    toast.success(`Zona "${deleteDialog.nombre}" eliminada`);
+    toast.success(`Zona "${deleteDialog.nombre}" eliminada`, {
+      style: {
+        background: "#DC2626",
+        color: "#fff",
+        borderRadius: "10px",
+        padding: "12px 16px",
+      },
+      icon: "🗑️",
+    });
+    
     await loadZones();
     onSuccess();
     setDeleteDialog({ open: false, id: undefined, nombre: "" });
@@ -264,7 +289,7 @@ export function ZonesDialog({
                             <div className="flex flex-wrap gap-1">
                               {zone.epps.map((epp, index) => (
                                 <Badge
-                                  key={`${zone.id_Zona}-epp-${epp}-${index}`}  // ✅ SOLUCIÓN
+                                  key={`${zone.id_Zona}-epp-${epp}-${index}`}
                                   variant="secondary"
                                   className="flex items-center gap-1"
                                 >

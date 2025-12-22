@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2, Loader2 } from "lucide-react";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import { crearEmpresa, actualizarEmpresa } from "@/servicios/empresa";
 import { getUser } from "@/lib/auth";
 
@@ -145,7 +145,21 @@ export function EmpresaDialog({
     e.preventDefault();
 
     if (!validateForm()) {
-      toast.error("⚠️ Corrige los campos marcados en rojo.");
+      toast.error("⚠️ Corrige los campos marcados en rojo.", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 600,
+          padding: "16px",
+          maxWidth: "450px",
+        },
+        iconTheme: {
+          primary: "#fff",
+          secondary: "#dc2626",
+        },
+        duration: 4000,
+      });
       return;
     }
 
@@ -224,7 +238,23 @@ export function EmpresaDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+        gutter={8}
+        containerStyle={{
+          top: 20,
+          right: 20,
+        }}
+        toastOptions={{
+          duration: 4000,
+          style: {
+            maxWidth: '400px',
+          },
+        }}
+      />
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -239,10 +269,10 @@ export function EmpresaDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
+          <div className="space-y-3 py-3">
             {/* Nombre */}
-            <div>
-              <Label>Nombre de la Empresa</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Nombre de la Empresa</Label>
               <Input
                 maxLength={50}
                 className={errors.nombreEmpresa ? "border-red-500" : ""}
@@ -256,13 +286,13 @@ export function EmpresaDialog({
                 placeholder="Ej: Constructora ABC"
               />
               {errors.nombreEmpresa && (
-                <p className="text-red-500 text-sm">{errors.nombreEmpresa}</p>
+                <p className="text-red-500 text-sm mt-1">{errors.nombreEmpresa}</p>
               )}
             </div>
 
             {/* RUC */}
-            <div>
-              <Label>RUC</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">RUC</Label>
               <Input
                 maxLength={13}
                 disabled={!!empresa}
@@ -273,12 +303,12 @@ export function EmpresaDialog({
                 }
                 placeholder="Ej: 1790012345001"
               />
-              {errors.ruc && <p className="text-red-500 text-sm">{errors.ruc}</p>}
+              {errors.ruc && <p className="text-red-500 text-sm mt-1">{errors.ruc}</p>}
             </div>
 
             {/* Dirección */}
-            <div>
-              <Label>Dirección</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Dirección</Label>
               <Input
                 className={errors.direccion ? "border-red-500" : ""}
                 value={formData.direccion}
@@ -286,13 +316,13 @@ export function EmpresaDialog({
                 placeholder="Dirección completa"
               />
               {errors.direccion && (
-                <p className="text-red-500 text-sm">{errors.direccion}</p>
+                <p className="text-red-500 text-sm mt-1">{errors.direccion}</p>
               )}
             </div>
 
             {/* Teléfono */}
-            <div>
-              <Label>Teléfono</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Teléfono</Label>
               <Input
                 maxLength={10}
                 className={errors.telefono ? "border-red-500" : ""}
@@ -303,13 +333,13 @@ export function EmpresaDialog({
                 placeholder="0998887766"
               />
               {errors.telefono && (
-                <p className="text-red-500 text-sm">{errors.telefono}</p>
+                <p className="text-red-500 text-sm mt-1">{errors.telefono}</p>
               )}
             </div>
 
             {/* Correo */}
-            <div>
-              <Label>Correo Electrónico</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Correo Electrónico</Label>
               <Input
                 type="email"
                 className={errors.correo ? "border-red-500" : ""}
@@ -318,21 +348,26 @@ export function EmpresaDialog({
                 placeholder="contacto@empresa.com"
               />
               {errors.correo && (
-                <p className="text-red-500 text-sm">{errors.correo}</p>
+                <p className="text-red-500 text-sm mt-1">{errors.correo}</p>
               )}
             </div>
 
             {/* Sector */}
-            <div>
-              <Label>Sector</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Sector</Label>
               <Input
                 className={errors.sector ? "border-red-500" : ""}
                 value={formData.sector}
-                onChange={(e) => handleChange("sector", e.target.value)}
+                onChange={(e) =>
+                  handleChange(
+                    "sector",
+                    e.target.value.replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ /\-]/g, "")
+                  )
+                }
                 placeholder="Ej: Construcción / Tecnología"
               />
               {errors.sector && (
-                <p className="text-red-500 text-sm">{errors.sector}</p>
+                <p className="text-red-500 text-sm mt-1">{errors.sector}</p>
               )}
             </div>
           </div>
@@ -350,5 +385,6 @@ export function EmpresaDialog({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

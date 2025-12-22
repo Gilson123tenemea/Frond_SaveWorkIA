@@ -230,9 +230,6 @@ export function CompaniesTable() {
                         </div>
                         <div>
                           <p className="font-medium">{empresa.nombreEmpresa}</p>
-                          <p className="text-xs text-muted-foreground">
-                            ID: {empresa.id_Empresa ?? empresa.id_empresa ?? "?"}
-                          </p>
                         </div>
                       </div>
                     </TableCell>
