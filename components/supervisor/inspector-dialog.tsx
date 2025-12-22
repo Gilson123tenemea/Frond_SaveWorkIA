@@ -43,7 +43,7 @@ import {
   registrarInspector,
   editarInspector,
   verificarCedula,
-  verificarCorreo, // ✨ NUEVO
+  verificarCorreo,
 } from "../../servicios/inspector";
 
 interface InspectorDialogProps {
@@ -59,7 +59,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
   const [errors, setErrors] = useState<any>({});
   const [cedulaVerificada, setCedulaVerificada] = useState<boolean | null>(null);
   
-  // ✨ NUEVO: Estado para validación de correo
   const [correoValidacion, setCorreoValidacion] = useState<{
     validando: boolean;
     disponible: boolean | null;
@@ -101,7 +100,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           zona_asignada: inspector.zona_asignada || "",
           frecuenciaVisita: inspector.frecuenciaVisita || "",
         });
-        // Al editar, correo ya validado
         setCorreoValidacion({ validando: false, disponible: true });
       } else {
         setFormData({
@@ -119,40 +117,36 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
         });
         setCorreoValidacion({ validando: false, disponible: null });
       }
+      // 🔥 LIMPIAR ERRORES cuando se abre el diálogo
+      setErrors({});
       setCedulaVerificada(null);
     }
   }, [open, inspector, isEditing]);
 
-  // ✨ NUEVA FUNCIÓN: Validar correo en tiempo real
+  // ✨ Validar correo en tiempo real
   const validarCorreoEnTiempoReal = async (correo: string) => {
-    // Limpiar timeout anterior
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    // Si está vacío o inválido, no validar en servidor
     if (!correo.trim()) {
       setCorreoValidacion({ validando: false, disponible: null });
       return;
     }
 
-    // Validar formato primero
     const errorFormato = validarCorreo(correo);
     if (errorFormato) {
       setCorreoValidacion({ validando: false, disponible: null });
       return;
     }
 
-    // Si estamos editando y el correo es el mismo, no validar en servidor
     if (isEditing && correo === inspector.correo) {
       setCorreoValidacion({ validando: false, disponible: true });
       return;
     }
 
-    // Mostrar estado "validando"
     setCorreoValidacion({ validando: true, disponible: null });
 
-    // Debounce: esperar 500ms
     timeoutRef.current = setTimeout(async () => {
       try {
         const disponible = await verificarCorreo(correo);
@@ -187,11 +181,10 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
     if (field === "cedula") {
       error = validarCedulaEcuatoriana(formateado);
 
-      // 🔥 Verificar cédula repetida SOLO al crear
       if (!isEditing && formateado.length === 10 && !error) {
         const existe = await verificarCedula(formateado);
         if (existe) {
-          error = "Ya existe un inspector activo con esta cédula";
+          error = "Ya existe un usuario con esta cédula";
           setCedulaVerificada(true);
         } else {
           setCedulaVerificada(false);
@@ -204,7 +197,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
     if (field === "telefono") error = validarTelefono(formateado);
     if (field === "correo") {
       error = validarCorreo(formateado);
-      // ✨ NUEVO: Validar en tiempo real
       if (!error || error === null) {
         validarCorreoEnTiempoReal(formateado);
       } else {
@@ -223,7 +215,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
 
   // 🟦 Validación general
   const formularioValido = () => {
-    // Si el correo no está disponible, formulario inválido
     if (!isEditing && correoValidacion.disponible === false) {
       return false;
     }
@@ -257,20 +248,48 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
     return Object.values(nuevosErrores).every((e) => e === null);
   };
 
-  // 🟦 Guardar
+  const mostrarErroresValidacion = (camposConError: string[]) => {
+    toast.error(
+      "Corregir los campos marcados en rojo.",
+      {
+        duration: 4000,
+        position: "top-right",
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 600,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+          padding: "16px",
+          minWidth: "370px",
+        },
+        iconTheme: {
+          primary: "#fff",
+          secondary: "#b91c1c",
+        },
+      }
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // 🔥 Validación completa ANTES de enviar
     const todoOk = validarTodo();
+    
     if (!todoOk) {
-      toast.error("❌ Debe completar todos los campos obligatorios");
+      // Encontrar campos con errores
+      const camposConError = Object.keys(errors).filter(
+        (campo) => errors[campo] !== null
+      );
+
+      mostrarErroresValidacion(camposConError);
       return;
     }
 
-    // ✨ NUEVO: Verificar que correo esté disponible
+    // ✨ Verificar que correo esté disponible
     if (!isEditing && correoValidacion.disponible === false) {
-      toast.error("❌ El correo ya está registrado");
+      toast.error("El correo ya está registrado");
       return;
     }
 
@@ -282,7 +301,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           ...prev,
           cedula: "Ya existe un inspector activo con esta cédula",
         }));
-        toast.error("❌ La cédula ya está registrada");
+        toast.error("La cédula ya está registrada");
         return;
       }
     }
@@ -300,7 +319,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           direccion: formData.direccion,
           genero: formData.genero,
           fecha_nacimiento: formData.fecha_nacimiento,
-          contrasena: formData.contrasena, // ✔ Solo válida en crear
+          contrasena: formData.contrasena,
         },
         zona_asignada: formData.zona_asignada,
         frecuenciaVisita: formData.frecuenciaVisita,
@@ -315,7 +334,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           {
             loading: "Actualizando inspector...",
             success: `Inspector "${formData.nombre} ${formData.apellido}" actualizado con éxito`,
-            error: "❌ Ocurrió un error al actualizar el inspector",
+            error: "Ocurrió un error al actualizar el inspector",
           },
           {
             style: {
@@ -342,7 +361,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           {
             loading: "Registrando inspector...",
             success: `Inspector "${formData.nombre} ${formData.apellido}" registrado exitosamente`,
-            error: "❌ Ocurrió un error al registrar el inspector",
+            error: "Ocurrió un error al registrar el inspector",
           },
           {
             style: {
@@ -360,8 +379,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
         );
 
         await promise;
-
-
       }
 
       onClose();
@@ -374,7 +391,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Inspector" : "Registrar Inspector"}</DialogTitle>
           <DialogDescription>
@@ -384,62 +401,67 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="overflow-y-auto flex-1 px-1">
+          <form onSubmit={handleSubmit} className="space-y-4">
 
           {/* GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
             {/* CÉDULA */}
-            <div>
+            <div className="space-y-1.5">
               <Label>Cédula</Label>
               <Input
                 value={formData.cedula}
                 disabled={isEditing}
                 onChange={(e) => onChange("cedula", e.target.value)}
+                placeholder="Ej: 0923456789"
               />
-              {errors.cedula && <p className="text-red-500 text-sm">{errors.cedula}</p>}
-            </div>
-
-            {/* TELÉFONO */}
-            <div>
-              <Label>Teléfono</Label>
-              <Input
-                value={formData.telefono}
-                onChange={(e) => onChange("telefono", e.target.value)}
-              />
-              {errors.telefono && <p className="text-red-500 text-sm">{errors.telefono}</p>}
+              {errors.cedula && <p className="text-red-500 text-xs mt-1">{errors.cedula}</p>}
             </div>
 
             {/* NOMBRE */}
-            <div>
+            <div className="space-y-1.5">
               <Label>Nombre</Label>
               <Input
                 value={formData.nombre}
                 onChange={(e) => onChange("nombre", e.target.value)}
+                placeholder="Ej: Carlos"
               />
-              {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre}</p>}
+              {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
             </div>
 
             {/* APELLIDO */}
-            <div>
+            <div className="space-y-1.5">
               <Label>Apellido</Label>
               <Input
                 value={formData.apellido}
                 onChange={(e) => onChange("apellido", e.target.value)}
+                placeholder="Ej: Mendoza"
               />
-              {errors.apellido && <p className="text-red-500 text-sm">{errors.apellido}</p>}
+              {errors.apellido && <p className="text-red-500 text-xs mt-1">{errors.apellido}</p>}
             </div>
 
-            {/* CORREO CON VALIDACIÓN EN TIEMPO REAL */}
-            <div>
+            {/* TELÉFONO */}
+            <div className="space-y-2">
+              <Label>Teléfono</Label>
+              <Input
+                value={formData.telefono}
+                onChange={(e) => onChange("telefono", e.target.value)}
+                placeholder="Ej: 0998765432"
+              />
+              {errors.telefono && <p className="text-red-500 text-sm">{errors.telefono}</p>}
+            </div>
+
+            {/* CORREO */}
+            <div className="space-y-2">
               <Label>Correo</Label>
               <Input
                 value={formData.correo}
                 disabled={isEditing}
                 onChange={(e) => onChange("correo", e.target.value)}
+                placeholder="Ej: inspector@mail.com"
               />
               
-              {/* ✨ SOLO MOSTRAR SI EL CORREO YA EXISTE */}
               {!isEditing && correoValidacion.disponible === false && (
                 <p className="text-sm text-red-600 mt-1">Este correo ya está registrado</p>
               )}
@@ -448,22 +470,24 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </div>
 
             {/* DIRECCIÓN */}
-            <div>
+            <div className="space-y-2">
               <Label>Dirección</Label>
               <Input
                 value={formData.direccion}
                 onChange={(e) => onChange("direccion", e.target.value)}
+                placeholder="Ej: Av. Principal #123"
               />
               {errors.direccion && <p className="text-red-500 text-sm">{errors.direccion}</p>}
             </div>
 
             {/* FECHA NACIMIENTO */}
-            <div>
+            <div className="space-y-2">
               <Label>Fecha de Nacimiento</Label>
               <Input
                 type="date"
                 value={formData.fecha_nacimiento}
                 onChange={(e) => onChange("fecha_nacimiento", e.target.value)}
+                placeholder="dd/mm/aaaa"
               />
               {errors.fecha_nacimiento && (
                 <p className="text-red-500 text-sm">{errors.fecha_nacimiento}</p>
@@ -471,13 +495,14 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </div>
 
             {/* CONTRASEÑA */}
-            <div>
+            <div className="space-y-2">
               <Label>Contraseña</Label>
               <Input
                 type="password"
                 disabled={isEditing}
                 value={formData.contrasena}
                 onChange={(e) => onChange("contrasena", e.target.value)}
+                placeholder="Mín. 8 caracteres"
               />
               {!isEditing && errors.contrasena && (
                 <p className="text-red-500 text-sm">{errors.contrasena}</p>
@@ -485,11 +510,12 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </div>
 
             {/* ZONA ASIGNADA */}
-            <div>
+            <div className="space-y-2">
               <Label>Zona Asignada</Label>
               <Input
                 value={formData.zona_asignada}
                 onChange={(e) => onChange("zona_asignada", e.target.value)}
+                placeholder="Ej: Norte, Centro, Sur"
               />
               {errors.zona_asignada && (
                 <p className="text-red-500 text-sm">{errors.zona_asignada}</p>
@@ -497,11 +523,12 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </div>
 
             {/* FRECUENCIA VISITA */}
-            <div>
+            <div className="space-y-2">
               <Label>Frecuencia de Visita</Label>
               <Input
                 value={formData.frecuenciaVisita}
                 onChange={(e) => onChange("frecuenciaVisita", e.target.value)}
+                placeholder="Ej: Semanal, Quincenal"
               />
               {errors.frecuenciaVisita && (
                 <p className="text-red-500 text-sm">{errors.frecuenciaVisita}</p>
@@ -509,7 +536,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </div>
 
             {/* GÉNERO */}
-            <div>
+            <div className="space-y-2">
               <Label>Género</Label>
               <Select
                 value={formData.genero}
@@ -529,7 +556,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           </div>
 
           {/* BOTONES */}
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button variant="outline" type="button" onClick={onClose}>
               Cancelar
             </Button>
@@ -542,6 +569,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </Button>
           </DialogFooter>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
