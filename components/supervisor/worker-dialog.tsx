@@ -20,6 +20,25 @@ import {
 } from "@/components/ui/select";
 import toast from "react-hot-toast";
 
+// Estilos para ocultar el ojo nativo del navegador
+const hidePasswordEyeStyles = `
+  input[type="password"]::-webkit-outer-spin-button,
+  input[type="password"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="password"]::-ms-reveal {
+    display: none;
+  }
+`;
+
+// Inyectar estilos
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = hidePasswordEyeStyles;
+  document.head.appendChild(style);
+}
+
 // Servicios
 import {
   registrarTrabajador,
@@ -27,7 +46,7 @@ import {
   validarCedulaInstantanea,
   validarCorreoInstantaneo,
   validarCodigoInstantaneo,
-  verificarCorreoTrabajador, // ✨ NUEVO
+  verificarCorreoTrabajador,
 } from "../../servicios/trabajador";
 
 import {
@@ -56,8 +75,8 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<any>({});
+  const [showPassword, setShowPassword] = useState(false);
 
-  // ✨ NUEVO: Estado para validación de correo
   const [correoValidacion, setCorreoValidacion] = useState<{
     validando: boolean;
     disponible: boolean | null;
@@ -68,7 +87,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 👉 Tipo para evitar error TS7006
   type FormDataType = typeof formData;
 
   const [formData, setFormData] = useState({
@@ -90,36 +108,29 @@ export function WorkerDialog({ open, onClose, worker }: any) {
     id_supervisor_trabajador: 0,
   });
 
-  // ✨ NUEVA FUNCIÓN: Validar correo en tiempo real
   const validarCorreoEnTiempoReal = async (correo: string) => {
-    // Limpiar timeout anterior
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    // Si está vacío o inválido, no validar en servidor
     if (!correo.trim()) {
       setCorreoValidacion({ validando: false, disponible: null });
       return;
     }
 
-    // Validar formato primero
     const errorFormato = validarCorreo(correo);
     if (errorFormato) {
       setCorreoValidacion({ validando: false, disponible: null });
       return;
     }
 
-    // Si estamos editando y el correo es el mismo, no validar en servidor
     if (isEditing && correo === worker.persona.correo) {
       setCorreoValidacion({ validando: false, disponible: true });
       return;
     }
 
-    // Mostrar estado "validando"
     setCorreoValidacion({ validando: true, disponible: null });
 
-    // Debounce: esperar 500ms
     timeoutRef.current = setTimeout(async () => {
       try {
         const disponible = await verificarCorreoTrabajador(correo);
@@ -134,9 +145,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
     }, 500);
   };
 
-  // -------------------------------------------------
-  // VALIDAR CAMPO
-  // -------------------------------------------------
   const validateField = async (name: string, value: any) => {
     let error = null;
 
@@ -151,7 +159,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
       case "correo":
         error = validarCorreo(value);
-        // ✨ NUEVO: Validar en tiempo real
         if (!error || error === null) {
           validarCorreoEnTiempoReal(value);
         } else {
@@ -211,16 +218,12 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           if (existe) error = "Este código ya está registrado";
         }
         break;
-
     }
 
     setErrors((prev: any) => ({ ...prev, [name]: error }));
     return error;
   };
 
-  // -------------------------------------------------
-  // VALIDAR TODO
-  // -------------------------------------------------
   const validateAll = async () => {
     const nuevosErrores: any = {};
 
@@ -234,9 +237,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
     return !Object.values(nuevosErrores).some((e) => e);
   };
 
-  // -------------------------------------------------
-  // PRECARGA
-  // -------------------------------------------------
   useEffect(() => {
     async function cargarEmpresa() {
       if (currentUser?.id_supervisor) {
@@ -250,61 +250,62 @@ export function WorkerDialog({ open, onClose, worker }: any) {
       }
     }
 
-    if (isEditing) {
-      setFormData({
-        cedula: worker.persona.cedula,
-        nombre: worker.persona.nombre,
-        apellido: worker.persona.apellido,
-        telefono: worker.persona.telefono,
-        correo: worker.persona.correo,
-        direccion: worker.persona.direccion,
-        genero: worker.persona.genero,
-        fecha_nacimiento: worker.persona.fecha_nacimiento,
-        contrasena: "",
-        cargo: worker.cargo,
-        area_trabajo: worker.area_trabajo,
-        implementos_requeridos: worker.implementos_requeridos,
-        estado: worker.estado,
-        codigo_trabajador: worker.codigo_trabajador,
-        id_empresa: worker.id_empresa,
-        id_supervisor_trabajador: worker.id_supervisor_trabajador,
-      });
-      // Al editar, correo ya validado
-      setCorreoValidacion({ validando: false, disponible: true });
-    } else {
-      setFormData({
-        cedula: "",
-        nombre: "",
-        apellido: "",
-        telefono: "",
-        correo: "",
-        direccion: "",
-        genero: "",
-        fecha_nacimiento: "",
-        contrasena: "",
-        cargo: "",
-        area_trabajo: "",
-        implementos_requeridos: "",
-        estado: true,
-        codigo_trabajador: "",
-        id_empresa: 0,
-        id_supervisor_trabajador: 0,
-      });
+    if (open) {
+      if (isEditing) {
+        setFormData({
+          cedula: worker.persona.cedula,
+          nombre: worker.persona.nombre,
+          apellido: worker.persona.apellido,
+          telefono: worker.persona.telefono,
+          correo: worker.persona.correo,
+          direccion: worker.persona.direccion,
+          genero: worker.persona.genero,
+          fecha_nacimiento: worker.persona.fecha_nacimiento,
+          contrasena: "",
+          cargo: worker.cargo,
+          area_trabajo: worker.area_trabajo,
+          implementos_requeridos: worker.implementos_requeridos,
+          estado: worker.estado,
+          codigo_trabajador: worker.codigo_trabajador,
+          id_empresa: worker.id_empresa,
+          id_supervisor_trabajador: worker.id_supervisor_trabajador,
+        });
+        setCorreoValidacion({ validando: false, disponible: true });
+      } else {
+        setFormData({
+          cedula: "",
+          nombre: "",
+          apellido: "",
+          telefono: "",
+          correo: "",
+          direccion: "",
+          genero: "",
+          fecha_nacimiento: "",
+          contrasena: "",
+          cargo: "",
+          area_trabajo: "",
+          implementos_requeridos: "",
+          estado: true,
+          codigo_trabajador: "",
+          id_empresa: 0,
+          id_supervisor_trabajador: 0,
+        });
 
-      cargarEmpresa();
-      setCorreoValidacion({ validando: false, disponible: null });
+        cargarEmpresa();
+        setCorreoValidacion({ validando: false, disponible: null });
+      }
+      
+      // 🟢 LIMPIAR ERRORES cuando se abre el diálogo
+      setErrors({});
     }
   }, [worker, open]);
 
-  // -------------------------------------------------
-  // SUBMIT FINAL
-  // -------------------------------------------------
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
     const esValido = await validateAll();
     if (!esValido) {
-      toast.error("❌ Corrija los campos marcados en rojo", {
+      toast.error("Corrija los campos marcados en rojo", {
         style: {
           background: "#dc2626",
           color: "#fff",
@@ -315,7 +316,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
       return;
     }
 
-    // ✨ NUEVO: Verificar que correo esté disponible
     if (!isEditing && correoValidacion.disponible === false) {
       toast.error("❌ El correo ya está registrado");
       return;
@@ -348,7 +348,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
     try {
       if (isEditing) {
-        // 🔵 ACTUALIZAR TRABAJADOR
         const promise = editarTrabajador(worker.id_trabajador, body);
 
         toast.loading("Actualizando trabajador...", {
@@ -390,7 +389,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           });
         }
       } else {
-        // 🟢 REGISTRAR TRABAJADOR
         const promise = registrarTrabajador(body);
 
         toast.loading("Registrando trabajador...", {
@@ -446,33 +444,26 @@ export function WorkerDialog({ open, onClose, worker }: any) {
     setLoading(false);
   };
 
-
-
-  // -------------------------------------------------
-  // RENDER ERROR
-  // -------------------------------------------------
   const renderError = (field: string) =>
     errors[field] && <p className="text-red-500 text-xs mt-1">{errors[field]}</p>;
 
-  // -------------------------------------------------
-  // RENDER
-  // -------------------------------------------------
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl max-h-[75vh] overflow-y-auto rounded-xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Trabajador" : "Registrar Trabajador"}</DialogTitle>
           <DialogDescription>Complete los campos requeridos.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 py-3">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 px-2">
 
           {/* CÉDULA */}
-          <div>
-            <Label>Cédula</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Cédula</Label>
             <Input
               maxLength={10}
               disabled={isEditing}
+              placeholder="Ej: 0923456789"
               value={formData.cedula}
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -484,9 +475,10 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* NOMBRE */}
-          <div>
-            <Label>Nombre</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Nombre</Label>
             <Input
+              placeholder="Ej: Juan"
               value={formData.nombre}
               onChange={(e) => {
                 const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
@@ -498,9 +490,10 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* APELLIDO */}
-          <div>
-            <Label>Apellido</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Apellido</Label>
             <Input
+              placeholder="Ej: Pérez"
               value={formData.apellido}
               onChange={(e) => {
                 const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
@@ -512,10 +505,11 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* TELÉFONO */}
-          <div>
-            <Label>Teléfono</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Teléfono</Label>
             <Input
               maxLength={10}
+              placeholder="Ej: 0998765432"
               value={formData.telefono}
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -526,10 +520,11 @@ export function WorkerDialog({ open, onClose, worker }: any) {
             {renderError("telefono")}
           </div>
 
-          {/* CORREO CON VALIDACIÓN EN TIEMPO REAL */}
-          <div>
-            <Label>Correo</Label>
+          {/* CORREO */}
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Correo</Label>
             <Input
+              placeholder="Ej: juan.perez@mail.com"
               value={formData.correo}
               disabled={isEditing}
               onChange={(e) => {
@@ -538,7 +533,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
                 validateField("correo", value);
               }}
             />
-            {/* ✨ SOLO MOSTRAR SI EL CORREO YA EXISTE */}
             {!isEditing && correoValidacion.disponible === false && (
               <p className="text-sm text-red-600 mt-1">Este correo ya está registrado</p>
             )}
@@ -546,9 +540,10 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* DIRECCIÓN */}
-          <div>
-            <Label>Dirección</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Dirección</Label>
             <Input
+              placeholder="Ej: Calle Principal #123"
               value={formData.direccion}
               onChange={(e) => {
                 const value = e.target.value;
@@ -560,8 +555,8 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* GÉNERO */}
-          <div>
-            <Label>Género</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Género</Label>
             <Select
               value={formData.genero}
               onValueChange={(value) => {
@@ -569,7 +564,7 @@ export function WorkerDialog({ open, onClose, worker }: any) {
                 validateField("genero", value);
               }}
             >
-              <SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Seleccione género" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Masculino">Masculino</SelectItem>
                 <SelectItem value="Femenino">Femenino</SelectItem>
@@ -579,8 +574,8 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* FECHA NACIMIENTO */}
-          <div>
-            <Label>Fecha nacimiento</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Fecha nacimiento</Label>
             <Input
               type="date"
               value={formData.fecha_nacimiento}
@@ -595,25 +590,48 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
           {/* CONTRASEÑA */}
           {!isEditing && (
-            <div>
-              <Label>Contraseña</Label>
-              <Input
-                type="password"
-                value={formData.contrasena}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setFormData({ ...formData, contrasena: value });
-                  validateField("contrasena", value);
-                }}
-              />
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Contraseña</Label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Mín. 8 caracteres"
+                  className="pr-10"
+                  value={formData.contrasena}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, contrasena: value });
+                    validateField("contrasena", value);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.871 9.871" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {renderError("contrasena")}
             </div>
           )}
 
           {/* CARGO */}
-          <div>
-            <Label>Cargo</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Cargo</Label>
             <Input
+              placeholder="Ej: Operario"
               value={formData.cargo}
               onChange={(e) => {
                 const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "");
@@ -625,9 +643,10 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* ÁREA TRABAJO */}
-          <div>
-            <Label>Área de trabajo</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Área de trabajo</Label>
             <Input
+              placeholder="Ej: Producción"
               value={formData.area_trabajo}
               onChange={(e) => {
                 const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ0-9 ]/g, "");
@@ -639,8 +658,8 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* IMPLEMENTOS */}
-          <div>
-            <Label>Implementos</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Implementos</Label>
             <Select
               value={formData.implementos_requeridos}
               onValueChange={(value) => {
@@ -658,8 +677,8 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* ESTADO */}
-          <div>
-            <Label>Estado</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Estado</Label>
             <Select
               value={formData.estado ? "active" : "inactive"}
               onValueChange={(value) => {
@@ -678,10 +697,11 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           </div>
 
           {/* CÓDIGO */}
-          <div>
-            <Label>Código (TRA-001)</Label>
+          <div className="space-y-2.5">
+            <Label className="text-sm font-medium">Código</Label>
             <Input
               maxLength={7}
+              placeholder="Ej: TRA-001"
               value={formData.codigo_trabajador}
               onChange={async (e) => {
                 let value = e.target.value.toUpperCase();
@@ -695,15 +715,12 @@ export function WorkerDialog({ open, onClose, worker }: any) {
 
                 await validateField("codigo_trabajador", value);
               }}
-
             />
-
             {renderError("codigo_trabajador")}
-
           </div>
 
           {/* BOTONES */}
-          <div className="col-span-2 flex justify-end gap-2 pt-4">
+          <div className="col-span-2 flex justify-end gap-3 pt-6">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>

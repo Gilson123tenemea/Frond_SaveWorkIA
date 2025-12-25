@@ -24,6 +24,25 @@ import {
 import { getUser } from "@/lib/auth";
 import { toast } from "react-hot-toast";
 
+// Estilos para ocultar el ojo nativo del navegador
+const hidePasswordEyeStyles = `
+  input[type="password"]::-webkit-outer-spin-button,
+  input[type="password"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="password"]::-ms-reveal {
+    display: none;
+  }
+`;
+
+// Inyectar estilos
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = hidePasswordEyeStyles;
+  document.head.appendChild(style);
+}
+
 // 🔥 VALIDACIONES
 import {
   validarCedulaEcuatoriana,
@@ -58,6 +77,7 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
 
   const [errors, setErrors] = useState<any>({});
   const [cedulaVerificada, setCedulaVerificada] = useState<boolean | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [correoValidacion, setCorreoValidacion] = useState<{
     validando: boolean;
@@ -408,8 +428,8 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
             {/* CÉDULA */}
-            <div className="space-y-1.5">
-              <Label>Cédula</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Cédula</Label>
               <Input
                 value={formData.cedula}
                 disabled={isEditing}
@@ -420,8 +440,8 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </div>
 
             {/* NOMBRE */}
-            <div className="space-y-1.5">
-              <Label>Nombre</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Nombre</Label>
               <Input
                 value={formData.nombre}
                 onChange={(e) => onChange("nombre", e.target.value)}
@@ -431,8 +451,8 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </div>
 
             {/* APELLIDO */}
-            <div className="space-y-1.5">
-              <Label>Apellido</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Apellido</Label>
               <Input
                 value={formData.apellido}
                 onChange={(e) => onChange("apellido", e.target.value)}
@@ -442,19 +462,19 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
             </div>
 
             {/* TELÉFONO */}
-            <div className="space-y-2">
-              <Label>Teléfono</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Teléfono</Label>
               <Input
                 value={formData.telefono}
                 onChange={(e) => onChange("telefono", e.target.value)}
                 placeholder="Ej: 0998765432"
               />
-              {errors.telefono && <p className="text-red-500 text-sm">{errors.telefono}</p>}
+              {errors.telefono && <p className="text-red-500 text-xs mt-1">{errors.telefono}</p>}
             </div>
 
             {/* CORREO */}
-            <div className="space-y-2">
-              <Label>Correo</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Correo</Label>
               <Input
                 value={formData.correo}
                 disabled={isEditing}
@@ -466,78 +486,99 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
                 <p className="text-sm text-red-600 mt-1">Este correo ya está registrado</p>
               )}
               
-              {errors.correo && <p className="text-red-500 text-sm">{errors.correo}</p>}
+              {errors.correo && <p className="text-red-500 text-xs mt-1">{errors.correo}</p>}
             </div>
 
             {/* DIRECCIÓN */}
-            <div className="space-y-2">
-              <Label>Dirección</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Dirección</Label>
               <Input
                 value={formData.direccion}
                 onChange={(e) => onChange("direccion", e.target.value)}
                 placeholder="Ej: Av. Principal #123"
               />
-              {errors.direccion && <p className="text-red-500 text-sm">{errors.direccion}</p>}
+              {errors.direccion && <p className="text-red-500 text-xs mt-1">{errors.direccion}</p>}
             </div>
 
             {/* FECHA NACIMIENTO */}
-            <div className="space-y-2">
-              <Label>Fecha de Nacimiento</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Fecha de Nacimiento</Label>
               <Input
                 type="date"
                 value={formData.fecha_nacimiento}
                 onChange={(e) => onChange("fecha_nacimiento", e.target.value)}
-                placeholder="dd/mm/aaaa"
               />
               {errors.fecha_nacimiento && (
-                <p className="text-red-500 text-sm">{errors.fecha_nacimiento}</p>
+                <p className="text-red-500 text-xs mt-1">{errors.fecha_nacimiento}</p>
               )}
             </div>
 
             {/* CONTRASEÑA */}
-            <div className="space-y-2">
-              <Label>Contraseña</Label>
-              <Input
-                type="password"
-                disabled={isEditing}
-                value={formData.contrasena}
-                onChange={(e) => onChange("contrasena", e.target.value)}
-                placeholder="Mín. 8 caracteres"
-              />
-              {!isEditing && errors.contrasena && (
-                <p className="text-red-500 text-sm">{errors.contrasena}</p>
-              )}
-            </div>
+            {!isEditing && (
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium">Contraseña</Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Mín. 8 caracteres"
+                    className="pr-10"
+                    value={formData.contrasena}
+                    onChange={(e) => onChange("contrasena", e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.871 9.871" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                {errors.contrasena && (
+                  <p className="text-red-500 text-xs mt-1">{errors.contrasena}</p>
+                )}
+              </div>
+            )}
 
             {/* ZONA ASIGNADA */}
-            <div className="space-y-2">
-              <Label>Zona Asignada</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Zona Asignada</Label>
               <Input
                 value={formData.zona_asignada}
                 onChange={(e) => onChange("zona_asignada", e.target.value)}
                 placeholder="Ej: Norte, Centro, Sur"
               />
               {errors.zona_asignada && (
-                <p className="text-red-500 text-sm">{errors.zona_asignada}</p>
+                <p className="text-red-500 text-xs mt-1">{errors.zona_asignada}</p>
               )}
             </div>
 
             {/* FRECUENCIA VISITA */}
-            <div className="space-y-2">
-              <Label>Frecuencia de Visita</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Frecuencia de Visita</Label>
               <Input
                 value={formData.frecuenciaVisita}
                 onChange={(e) => onChange("frecuenciaVisita", e.target.value)}
                 placeholder="Ej: Semanal, Quincenal"
               />
               {errors.frecuenciaVisita && (
-                <p className="text-red-500 text-sm">{errors.frecuenciaVisita}</p>
+                <p className="text-red-500 text-xs mt-1">{errors.frecuenciaVisita}</p>
               )}
             </div>
 
             {/* GÉNERO */}
-            <div className="space-y-2">
-              <Label>Género</Label>
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium">Género</Label>
               <Select
                 value={formData.genero}
                 onValueChange={(v) => onChange("genero", v)}
@@ -550,13 +591,13 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
                   <SelectItem value="Femenino">Femenino</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.genero && <p className="text-red-500 text-sm">{errors.genero}</p>}
+              {errors.genero && <p className="text-red-500 text-xs mt-1">{errors.genero}</p>}
             </div>
 
           </div>
 
           {/* BOTONES */}
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-6">
             <Button variant="outline" type="button" onClick={onClose}>
               Cancelar
             </Button>
