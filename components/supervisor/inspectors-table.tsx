@@ -131,7 +131,7 @@ export function InspectorsTable() {
                   if (msg.includes("zonas asignadas")) {
                     return Promise.reject({
                       message:
-                        "❌ Este inspector tiene zonas asignadas. Elimine o reasigne esas zonas antes de eliminarlo.",
+                        "Este inspector tiene zonas asignadas. Elimine o reasigne esas zonas antes de eliminarlo.",
                     });
                   }
 

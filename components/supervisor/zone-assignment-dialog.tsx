@@ -25,6 +25,7 @@ import toast from "react-hot-toast";
 import { getUser } from "@/lib/auth";
 import { listarZonasPorEmpresa } from "@/servicios/zona";
 import { listarInspectoresPorSupervisor } from "@/servicios/inspector";
+import { listarZonasDisponibles } from "@/servicios/zona_inspector";
 import {
   crearAsignacionInspectorZona,
   actualizarAsignacion,
@@ -90,9 +91,19 @@ export function ZoneAssignForm({
       return;
     }
 
-    listarZonasPorEmpresa(empresaId)
-      .then(setZonas)
-      .catch(() => toast.error("Error al cargar zonas"));
+    // ⚠️ Cargar zonas DISPONIBLES según inspector
+    if (editingItem) {
+      // En edición: permitir ver su propia zona
+      listarZonasPorEmpresa(empresaId)
+        .then(setZonas)
+        .catch(() => toast.error("Error al cargar zonas"));
+    } else {
+      // En creación: solo zonas SIN inspector
+      listarZonasDisponibles(empresaId, inspectorSeleccionado || 0)
+        .then(setZonas)
+        .catch(() => toast.error("Error al cargar zonas disponibles"));
+    }
+
 
     listarInspectoresPorSupervisor(supervisorId)
       .then(setInspectores)
@@ -244,10 +255,14 @@ export function ZoneAssignForm({
             </SelectTrigger>
             <SelectContent>
               {zonas.map((z) => (
-                <SelectItem key={z.id_zona} value={String(z.id_zona)}>
-                  {z.nombreZona}
+                <SelectItem
+                  key={z.id_zona ?? z.id}
+                  value={String(z.id_zona ?? z.id)}
+                >
+                  {z.nombreZona ?? z.nombre}
                 </SelectItem>
               ))}
+
             </SelectContent>
           </Select>
         </div>

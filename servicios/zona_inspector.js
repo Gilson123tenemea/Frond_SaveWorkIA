@@ -145,4 +145,32 @@ export async function listarAsignacionesPorEmpresa(idEmpresa) {
 }
 
 
+/* ===========================================================
+   📌 Zonas disponibles para asignar a un inspector
+   (Zonas SIN inspector asignado)
+=========================================================== */
+export async function listarZonasDisponibles(empresaId, inspectorId) {
+  try {
+    const response = await fetch(
+      `${ZONA_INSPECTOR_URL}/zonas-disponibles/${empresaId}/${inspectorId}`,
+      {
+        method: "GET",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Error al obtener zonas disponibles");
+    }
+
+    const data = await response.json();
+
+    return data.map((zona) => ({
+      id: zona.id_Zona,
+      nombre: zona.nombreZona,
+    }));
+  } catch (error) {
+    console.error("❌ Error en listarZonasDisponibles:", error);
+    return [];
+  }
+}
 
