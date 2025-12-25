@@ -230,7 +230,7 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
         onClose();
       }}
     >
-      <DialogContent className="sm:max-w-[800px]">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="w-5 h-5" />
@@ -241,7 +241,7 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4 flex-1 overflow-hidden flex flex-col">
 
           {/* ====================================================== */}
           {/* ASIGNAR TRABAJADOR */}
@@ -285,11 +285,11 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
           {/* ====================================================== */}
           {/* TABLA DE TRABAJADORES ASIGNADOS */}
           {/* ====================================================== */}
-          <Card>
-            <CardContent className="pt-6">
+          <Card className="flex flex-col flex-1 overflow-hidden">
+            <CardContent className="pt-6 flex flex-col overflow-hidden h-full">
 
               {/* ENCABEZADO */}
-              <div className="grid grid-cols-4 font-semibold text-sm text-gray-700 border-b pb-2 mb-3">
+              <div className="grid grid-cols-4 font-semibold text-sm text-gray-700 border-b pb-2 mb-3 flex-shrink-0">
                 <span>Trabajador Asignado</span>
                 <span>Cargo</span>
                 <span>Zona</span>
@@ -302,7 +302,7 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
                   No hay trabajadores asignados
                 </p>
               ) : (
-                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                <div className="space-y-3 overflow-y-auto pr-2 flex-1">
 
                   {assignedWorkers.map((worker) => (
                     <div
