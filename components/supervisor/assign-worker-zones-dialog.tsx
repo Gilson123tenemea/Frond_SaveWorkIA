@@ -92,9 +92,8 @@ export function AssignWorkerZonesDialog({
         cameras: item.total_camaras,
         workers: item.total_trabajadores,
         inspector: {
-          name: `${item.inspector?.nombre || "Sin"} ${
-            item.inspector?.apellido || "Inspector"
-          }`,
+          name: `${item.inspector?.nombre || "Sin"} ${item.inspector?.apellido || "Inspector"
+            }`,
           email: item.inspector?.correo || "N/A",
         },
       }));
@@ -173,7 +172,14 @@ export function AssignWorkerZonesDialog({
         id_zona_trabajadorzona: selectedZone,
       });
 
-      toast.success("Zona asignada correctamente");
+      toast.success("Zona asignada correctamente", {
+        style: {
+          background: "#15803d",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+        },
+      });
 
       onClose();
     } catch (e) {
@@ -193,7 +199,19 @@ export function AssignWorkerZonesDialog({
     try {
       await eliminarAsignacionLogico(assigned.asignacionId);
 
-      toast.success("Zona eliminada. Ahora puedes seleccionar otra.");
+      toast.success("Zona eliminada. Ahora puedes seleccionar otra.", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+        },
+        iconTheme: {
+          primary: "#fff",
+          secondary: "#b91c1c",
+        },
+      });
 
       setAssigned(null);
       setSelectedZone(null);
@@ -297,11 +315,10 @@ export function AssignWorkerZonesDialog({
                     {zones.map((zone) => (
                       <div
                         key={zone.id}
-                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                          selectedZone === zone.id
-                            ? "bg-primary/20 border-primary"
-                            : "hover:bg-muted/50"
-                        }`}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedZone === zone.id
+                          ? "bg-primary/20 border-primary"
+                          : "hover:bg-muted/50"
+                          }`}
                         onClick={() => setSelectedZone(zone.id)}
                       >
                         <div className="flex justify-between">

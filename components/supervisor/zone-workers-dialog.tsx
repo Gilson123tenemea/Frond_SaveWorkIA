@@ -86,7 +86,14 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
     try {
       await crearAsignacionTrabajadorZona(payload)
 
-      toast.success("Trabajador asignado correctamente")
+      toast.success("Trabajador asignado correctamente", {
+        style: {
+          background: "#15803d",
+          color: "#fff",
+          borderRadius: "8px",
+          fontWeight: 500,
+        },
+      });
 
       await loadRealWorkers()
       await loadAssignedWorkers()
@@ -147,11 +154,28 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
 
                 const promise = eliminarAsignacionLogico(asignacionId);
 
-                toast.promise(promise, {
-                  loading: "Eliminando asignación...",
-                  success: "Asignación eliminada correctamente",
-                  error: "❌ Error al eliminar",
-                });
+                toast.promise(
+                  promise,
+                  {
+                    loading: "Eliminando asignación...",
+                    success: "Asignación eliminada correctamente",
+                    error: "❌ Error al eliminar",
+                  },
+                  {
+                    style: {
+                      background: "#dc2626",
+                      color: "#fff",
+                      borderRadius: "8px",
+                      fontWeight: 500,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                    },
+                    iconTheme: {
+                      primary: "#fff",
+                      secondary: "#b91c1c",
+                    },
+                  }
+                );
+
 
                 try {
                   await promise;
@@ -187,153 +211,153 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
 
     setTimeout(() => {
       removeOverlay();
-    }, 8500); 
+    }, 8500);
   };
 
-const isOverlayActive = () => {
-  return document.getElementById("overlay-delete-confirm") !== null;
-};
+  const isOverlayActive = () => {
+    return document.getElementById("overlay-delete-confirm") !== null;
+  };
 
 
   if (!zone) return null
 
 
   return (
-  <Dialog
-    open={open}
-    onOpenChange={(state) => {
-      if (!state && isOverlayActive()) return;
-      onClose();
-    }}
-  >
-    <DialogContent className="sm:max-w-[800px]">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <MapPin className="w-5 h-5" />
-          Gestionar Trabajadores — {zone.name}
-        </DialogTitle>
-        <DialogDescription>
-          Asigna y administra los trabajadores de esta zona
-        </DialogDescription>
-      </DialogHeader>
+    <Dialog
+      open={open}
+      onOpenChange={(state) => {
+        if (!state && isOverlayActive()) return;
+        onClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-[800px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MapPin className="w-5 h-5" />
+            Gestionar Trabajadores — {zone.name}
+          </DialogTitle>
+          <DialogDescription>
+            Asigna y administra los trabajadores de esta zona
+          </DialogDescription>
+        </DialogHeader>
 
-      <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4">
 
-        {/* ====================================================== */}
-        {/* ASIGNAR TRABAJADOR */}
-        {/* ====================================================== */}
-        <Card>
-          <CardContent className="pt-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-muted-foreground" />
-              Asignar Trabajador
-            </h3>
+          {/* ====================================================== */}
+          {/* ASIGNAR TRABAJADOR */}
+          {/* ====================================================== */}
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-muted-foreground" />
+                Asignar Trabajador
+              </h3>
 
-            <div className="flex gap-2">
-              <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Selecciona un trabajador" />
-                </SelectTrigger>
+              <div className="flex gap-2">
+                <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecciona un trabajador" />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  {availableWorkers.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">
-                      No hay trabajadores disponibles
-                    </div>
-                  ) : (
-                    availableWorkers.map((worker) => (
-                      <SelectItem key={worker.id} value={worker.id.toString()}>
-                        {worker.name} — {worker.cedula}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-
-              <Button disabled={!selectedWorkerId} onClick={handleAssignWorker}>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Asignar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ====================================================== */}
-        {/* TABLA DE TRABAJADORES ASIGNADOS */}
-        {/* ====================================================== */}
-        <Card>
-          <CardContent className="pt-6">
-
-            {/* ENCABEZADO */}
-            <div className="grid grid-cols-4 font-semibold text-sm text-gray-700 border-b pb-2 mb-3">
-              <span>Trabajador Asignado</span>
-              <span>Cargo</span>
-              <span>Zona</span>
-              <span className="text-right">Acciones</span>
-            </div>
-
-            {/* SIN ASIGNADOS */}
-            {assignedWorkers.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10">
-                No hay trabajadores asignados
-              </p>
-            ) : (
-              <div className="space-y-3 max-h-[300px] overflow-y-auto">
-
-                {assignedWorkers.map((worker) => (
-                  <div
-                    key={worker.asignacionId}
-                    className="grid grid-cols-4 items-center p-3 border rounded-lg bg-muted/30"
-                  >
-                    {/* NOMBRE */}
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback>
-                          {worker.name
-                            .split(" ")
-                            .map((n: string) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-
-                      <div>
-                        <p className="font-medium">{worker.name}</p>
-                        <p className="text-xs text-muted-foreground">{worker.cedula}</p>
+                  <SelectContent>
+                    {availableWorkers.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground">
+                        No hay trabajadores disponibles
                       </div>
-                    </div>
+                    ) : (
+                      availableWorkers.map((worker) => (
+                        <SelectItem key={worker.id} value={worker.id.toString()}>
+                          {worker.name} — {worker.cedula}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
 
-                    {/* CARGO */}
-                    <p className="text-sm">{worker.position}</p>
-
-                    {/* ZONA */}
-                    <p className="text-sm">{worker.zona}</p>
-
-                    {/* ACCIÓN */}
-                    <div className="flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDeleteConfirm(worker.asignacionId, worker.name)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                  </div>
-                ))}
-
+                <Button disabled={!selectedWorkerId} onClick={handleAssignWorker}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Asignar
+                </Button>
               </div>
-            )}
+            </CardContent>
+          </Card>
 
-          </CardContent>
-        </Card>
+          {/* ====================================================== */}
+          {/* TABLA DE TRABAJADORES ASIGNADOS */}
+          {/* ====================================================== */}
+          <Card>
+            <CardContent className="pt-6">
 
-      </div>
-    </DialogContent>
-  </Dialog>
-);
+              {/* ENCABEZADO */}
+              <div className="grid grid-cols-4 font-semibold text-sm text-gray-700 border-b pb-2 mb-3">
+                <span>Trabajador Asignado</span>
+                <span>Cargo</span>
+                <span>Zona</span>
+                <span className="text-right">Acciones</span>
+              </div>
+
+              {/* SIN ASIGNADOS */}
+              {assignedWorkers.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10">
+                  No hay trabajadores asignados
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+
+                  {assignedWorkers.map((worker) => (
+                    <div
+                      key={worker.asignacionId}
+                      className="grid grid-cols-4 items-center p-3 border rounded-lg bg-muted/30"
+                    >
+                      {/* NOMBRE */}
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarFallback>
+                            {worker.name
+                              .split(" ")
+                              .map((n: string) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <div>
+                          <p className="font-medium">{worker.name}</p>
+                          <p className="text-xs text-muted-foreground">{worker.cedula}</p>
+                        </div>
+                      </div>
+
+                      {/* CARGO */}
+                      <p className="text-sm">{worker.position}</p>
+
+                      {/* ZONA */}
+                      <p className="text-sm">{worker.zona}</p>
+
+                      {/* ACCIÓN */}
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteConfirm(worker.asignacionId, worker.name)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                    </div>
+                  ))}
+
+                </div>
+              )}
+
+            </CardContent>
+          </Card>
+
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
 }
