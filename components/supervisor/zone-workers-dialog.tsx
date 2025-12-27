@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,10 +18,11 @@ import {
 } from "@/servicios/trabajador_zona"
 import { getUser } from "@/lib/auth"
 
-export function ZoneWorkersDialog({ open, onClose, zone }: any) {
+export function ZoneWorkersDialog({ open, onClose, zone, onWorkersUpdated }: any) {
   const [assignedWorkers, setAssignedWorkers] = useState<any[]>([])
   const [availableWorkers, setAvailableWorkers] = useState<any[]>([])
   const [selectedWorkerId, setSelectedWorkerId] = useState("")
+  const loadingRef = useRef(false) // 🔒 Prevenir llamadas simultáneas
 
 
   const loadRealWorkers = async () => {
@@ -63,25 +64,37 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
         }))
 
       setAssignedWorkers(filtered)
+      
+      // 🔄 ACTUALIZAR EL NÚMERO DE TRABAJADORES EN EL PADRE
+      if (onWorkersUpdated) {
+        onWorkersUpdated(zone.id, filtered.length)
+      }
     } catch (error) {
       console.error("❌ Error cargando asignados:", error)
     }
   }
 
+  // 🔥 CARGAR DATOS SOLO UNA VEZ CUANDO SE ABRE
   useEffect(() => {
-    if (zone && open) {
-      loadRealWorkers()
-      loadAssignedWorkers()
+    if (zone && open && !loadingRef.current) {
+      loadingRef.current = true
+      
+      Promise.all([loadRealWorkers(), loadAssignedWorkers()]).finally(() => {
+        loadingRef.current = false
+      })
     }
-  }, [zone, open])
+  }, [zone?.id, open]) // ✅ Dependencias correctas
+
 
   const handleAssignWorker = async () => {
-    if (!selectedWorkerId) return
+    if (!selectedWorkerId || loadingRef.current) return
 
     const payload = {
       id_trabajador_trabajadorzona: Number(selectedWorkerId),
       id_zona_trabajadorzona: zone.id,
     }
+
+    loadingRef.current = true
 
     try {
       await crearAsignacionTrabajadorZona(payload)
@@ -95,12 +108,15 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
         },
       });
 
+      // ✅ Cargar datos SECUENCIALMENTE
       await loadRealWorkers()
       await loadAssignedWorkers()
       setSelectedWorkerId("")
     } catch (error) {
       toast.error("❌ Error al asignar el trabajador")
       console.error(error)
+    } finally {
+      loadingRef.current = false
     }
   }
 
@@ -152,6 +168,13 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
               onClick={async () => {
                 toast.dismiss(t.id);
 
+                if (loadingRef.current) {
+                  removeOverlay();
+                  return;
+                }
+
+                loadingRef.current = true
+
                 const promise = eliminarAsignacionLogico(asignacionId);
 
                 toast.promise(
@@ -176,16 +199,17 @@ export function ZoneWorkersDialog({ open, onClose, zone }: any) {
                   }
                 );
 
-
                 try {
                   await promise;
+                  // ✅ Cargar datos SECUENCIALMENTE
                   await loadAssignedWorkers();
                   await loadRealWorkers();
                 } catch (err) {
                   console.error(err);
+                } finally {
+                  loadingRef.current = false
+                  removeOverlay();
                 }
-
-                removeOverlay();
               }}
               className="px-4 py-2 text-sm text-white bg-red-600 rounded-md hover:bg-red-700"
             >

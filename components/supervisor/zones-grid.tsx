@@ -41,7 +41,7 @@ export function ZonesGrid() {
             email: item.inspector?.cedula || "N/A"
           },
 
-          alerts: 0, // Puedes mejorar luego
+          alerts: 0,
           status:
             item.total_camaras === 0 && item.total_trabajadores === 0
               ? "safe"
@@ -63,6 +63,34 @@ export function ZonesGrid() {
   const handleManageWorkers = (zone: any) => {
     setSelectedZone(zone)
     setWorkersOpen(true)
+  }
+
+  // 🔄 ACTUALIZAR ZONA CUANDO CAMBIA EL NÚMERO DE TRABAJADORES
+  const handleWorkersUpdated = (zoneId: string, newWorkerCount: number) => {
+    setZones((prevZones) =>
+      prevZones.map((zone) => {
+        if (zone.id === zoneId) {
+          // Actualizar el numero de trabajadores
+          const updatedZone = { ...zone, workers: newWorkerCount }
+          
+          // Recalcular el estado basado en los nuevos valores
+          updatedZone.status =
+            updatedZone.cameras === 0 && updatedZone.workers === 0
+              ? "safe"
+              : updatedZone.cameras <= 1
+              ? "warning"
+              : "alert"
+          
+          // Actualizar el selectedZone también para mantener sincronizado
+          if (selectedZone?.id === zoneId) {
+            setSelectedZone(updatedZone)
+          }
+          
+          return updatedZone
+        }
+        return zone
+      })
+    )
   }
 
   return (
@@ -165,7 +193,12 @@ export function ZonesGrid() {
       </div>
 
       <ZoneDetailsDialog open={detailsOpen} onClose={() => setDetailsOpen(false)} zone={selectedZone} />
-      <ZoneWorkersDialog open={workersOpen} onClose={() => setWorkersOpen(false)} zone={selectedZone} />
+      <ZoneWorkersDialog 
+        open={workersOpen} 
+        onClose={() => setWorkersOpen(false)} 
+        zone={selectedZone}
+        onWorkersUpdated={handleWorkersUpdated}
+      />
     </>
   )
 }
