@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { obtenerTrabajadorPorCodigo } from "@/servicios/trabajador";
 import { obtenerUrlStreamWebcamIA, detenerStreamWebcamIA } from "@/servicios/camara_ia";
 import { verificarEPP } from "@/servicios/verificar_epp";
-import { obtenerEppPorZona } from "@/servicios/zona_epp"; // 🔥 NUEVO
+import { obtenerEppPorZona } from "@/servicios/zona_epp";
 
 export default function DetectionWindow() {
   const [workerCode, setWorkerCode] = useState("");
@@ -25,7 +25,7 @@ export default function DetectionWindow() {
 
   const [cargandoAnalisis, setCargandoAnalisis] = useState(false);
 
-  const [eppZona, setEppZona] = useState<string[]>([]); // 🔥 NUEVO
+  const [eppZona, setEppZona] = useState<string[]>([]);
 
   const videoRef = useRef<HTMLImageElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,9 +58,23 @@ export default function DetectionWindow() {
     setWorkerCode("");
     setCameraStreamUrl(null);
     setCargandoAnalisis(false);
-    setEppZona([]); // 🔥 NUEVO
+    setEppZona([]);
 
     console.log("🔌 Cámara apagada, modelo detenido, formulario reiniciado.");
+  };
+
+  // 🔥 NUEVO: Notificar a la ventana padre que hay un nuevo reporte
+  const notificarNuevoReporte = () => {
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(
+        {
+          type: "NUEVO_REPORTE_CREADO",
+          timestamp: new Date().toISOString(),
+        },
+        "*"
+      );
+      console.log("📢 Notificación enviada a la ventana padre");
+    }
   };
 
   // Inicio detección
@@ -93,14 +107,14 @@ export default function DetectionWindow() {
       setWorkerInfo(nombreCompleto);
 
       const idCamara = trabajador.camara?.id_camara;
-      const idZona = trabajador.camara?.zona?.id_Zona; // 🔥 NUEVO
+      const idZona = trabajador.camara?.zona?.id_Zona;
 
       if (!idCamara) {
         setWorkerError("❌ El trabajador no tiene cámara asignada");
         return;
       }
 
-      // 🔥 OBTENER EPP DE LA ZONA (SOLO INFO)
+      // OBTENER EPP DE LA ZONA
       if (idZona) {
         const epps = await obtenerEppPorZona(idZona);
         setEppZona(epps.map((e: any) => e.tipo_epp));
@@ -143,11 +157,18 @@ export default function DetectionWindow() {
 
       console.log("🏁 Análisis completado");
 
+      // 🔥 Notificar a la ventana padre que hay un nuevo reporte
+      notificarNuevoReporte();
+
+      // 🔥 Esperar un poco y luego limpiar para la siguiente detección
+      setTimeout(() => {
+        detenerCamara();
+      }, 1000);
+
     } catch (error: any) {
       setWorkerError("⚠ Error analizando EPP");
+      await detenerCamara();
     }
-
-    await detenerCamara();
   };
 
   return (
@@ -215,7 +236,7 @@ export default function DetectionWindow() {
                 <p className="text-sm font-semibold text-center">{workerInfo}</p>
               )}
 
-              {/* 🔥 EPP DE LA ZONA */}
+              {/* EPP DE LA ZONA */}
               {eppZona.length > 0 && (
                 <div className="border rounded-lg p-3 bg-muted">
                   <p className="text-sm font-semibold flex items-center gap-2">

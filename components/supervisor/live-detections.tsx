@@ -38,6 +38,7 @@ import {
   Shield,
   Glasses,
   Shirt,
+  X,
 } from "lucide-react";
 
 import { WorkerHistoryDialog } from "./worker-history-dialog";
@@ -85,98 +86,95 @@ export function LiveDetections() {
   // 🔥 TRANSFORMAR REGISTROS PARA MOSTRARLOS AGRUPADOS
   // ======================================================
   function transformarRegistros(data: any[]) {
-  const EPP_SYNONYMS: Record<string, string[]> = {
-    casco: ["casco", "casco de seguridad"],
-    chaleco: ["chaleco", "chaleco reflectivo", "chaleco de seguridad"],
-    guantes: ["guantes"],
-    botas: ["botas", "botas de seguridad", "calzado"],
-    lentes: ["lentes", "gafas", "anteojos"],
-    mascarilla: ["mascarilla", "tapabocas", "cubrebocas"],
-    orejeras: ["orejeras", "proteccion auditiva", "protección auditiva"],
-  };
+    const EPP_SYNONYMS: Record<string, string[]> = {
+      casco: ["casco", "casco de seguridad"],
+      chaleco: ["chaleco", "chaleco reflectivo", "chaleco de seguridad"],
+      guantes: ["guantes"],
+      botas: ["botas", "botas de seguridad", "calzado"],
+      lentes: ["lentes", "gafas", "anteojos"],
+      mascarilla: ["mascarilla", "tapabocas", "cubrebocas"],
+      orejeras: ["orejeras", "proteccion auditiva", "protección auditiva"],
+    };
 
-  const normalizar = (s: string) =>
-    (s || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+    const normalizar = (s: string) =>
+      (s || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 
-  const transformado = data.map((item: any, index: number) => {
-    const detalleTexto = item.evidencia?.detalle || "";
-    const detalle = normalizar(detalleTexto);
+    const transformado = data.map((item: any, index: number) => {
+      const detalleTexto = item.evidencia?.detalle || "";
+      const detalle = normalizar(detalleTexto);
 
-    // ✅ 1️⃣ EPP configurados en la ZONA (OBLIGATORIO)
-    const eppsZona: string[] = Array.isArray(item.epps_zona)
-      ? item.epps_zona.map((e: string) => normalizar(e))
-      : [];
+      const eppsZona: string[] = Array.isArray(item.epps_zona)
+        ? item.epps_zona.map((e: string) => normalizar(e))
+        : [];
 
-    // ⚠️ Si la zona NO tiene EPP → no mostramos nada
-    if (eppsZona.length === 0) {
-      return null;
-    }
+      if (eppsZona.length === 0) {
+        return null;
+      }
 
-    // ✅ 2️⃣ Evaluar CADA EPP de la zona
-    const detections = eppsZona.map((eppKey) => {
-      const regla = EPP_RULES.find(
-        (r) => normalizar(r.item) === eppKey
-      );
+      const detections = eppsZona.map((eppKey) => {
+        const regla = EPP_RULES.find(
+          (r) => normalizar(r.item) === eppKey
+        );
 
-      const synonyms = (EPP_SYNONYMS[eppKey] || [eppKey]).map(normalizar);
+        const synonyms = (EPP_SYNONYMS[eppKey] || [eppKey]).map(normalizar);
 
-      const esFaltante =
-        detalle.includes("falta") &&
-        synonyms.some((w) => detalle.includes(w));
+        const esFaltante =
+          detalle.includes("falta") &&
+          synonyms.some((w) => detalle.includes(w));
+
+        return {
+          item: regla?.item ?? eppKey,
+          detected: !esFaltante,
+          icon: regla?.icon ?? Shield,
+        };
+      });
+
+      const fails = detections.filter((d) => !d.detected).length;
 
       return {
-        item: regla?.item ?? eppKey,
-        detected: !esFaltante,
-        icon: regla?.icon ?? Shield,
+        id: index + 1,
+        timestamp: new Date(item.fecha_registro).toLocaleString(),
+        worker: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
+        cedula: item.trabajador.cedula,
+        camera: item.camara.codigo,
+        zone: item.camara.zona,
+        inspector: item.inspector?.nombre
+          ? `${item.inspector.nombre} ${item.inspector.apellido}`
+          : "Sin inspector asignado",
+        detections,
+        detalleTexto,
+        severity:
+          fails >= 3
+            ? "high"
+            : fails === 2
+            ? "medium"
+            : fails === 1
+            ? "low"
+            : "safe",
+        image: item.evidencia?.foto_base64
+          ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
+          : null,
       };
     });
 
-    const fails = detections.filter((d) => !d.detected).length;
+    const filtrado = transformado.filter(Boolean);
 
-    return {
-      id: index + 1,
-      timestamp: new Date(item.fecha_registro).toLocaleString(),
-      worker: `${item.trabajador.nombre} ${item.trabajador.apellido}`,
-      cedula: item.trabajador.cedula,
-      camera: item.camara.codigo,
-      zone: item.camara.zona,
-      inspector: item.inspector?.nombre
-        ? `${item.inspector.nombre} ${item.inspector.apellido}`
-        : "Sin inspector asignado",
-      detections,
-      detalleTexto,
-      severity:
-        fails >= 3
-          ? "high"
-          : fails === 2
-          ? "medium"
-          : fails === 1
-          ? "low"
-          : "safe",
-      image: item.evidencia?.foto_base64
-        ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
-        : null,
-    };
-  });
+    const groupedByZone: any = {};
+    filtrado.forEach((item: any) => {
+      if (!groupedByZone[item.zone]) {
+        groupedByZone[item.zone] = {
+          inspector: item.inspector,
+          registros: [],
+        };
+      }
+      groupedByZone[item.zone].registros.push(item);
+    });
 
-  const filtrado = transformado.filter(Boolean);
-
-  const groupedByZone: any = {};
-  filtrado.forEach((item: any) => {
-    if (!groupedByZone[item.zone]) {
-      groupedByZone[item.zone] = {
-        inspector: item.inspector,
-        registros: [],
-      };
-    }
-    groupedByZone[item.zone].registros.push(item);
-  });
-
-  return groupedByZone;
-}
+    return groupedByZone;
+  }
 
   // ======================================
   // 🔥 Cargar datos iniciales
@@ -200,6 +198,68 @@ export function LiveDetections() {
   }, []);
 
   // ======================================
+  // 🔥 Escuchar mensajes de la ventana de detección
+  // ======================================
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "NUEVO_REPORTE_CREADO") {
+        console.log("🎯 Nuevo reporte detectado, recargando datos...");
+        recargarDatos();
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [empresaId]);
+
+  // ======================================
+  // 🔥 Detectar cuando el usuario regresa a la pestaña
+  // ======================================
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        recargarDatos();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [empresaId, filtroInspector, filtroZona, fechaDesde, fechaHasta]);;
+
+  // ======================================
+  // 🔥 Función para recargar datos
+  // ======================================
+  async function recargarDatos() {
+    if (!empresaId || !user?.id_supervisor) return;
+
+    setLoading(true);
+
+    try {
+      let data;
+
+      if (filtroInspector || filtroZona || fechaDesde || fechaHasta) {
+        const filtros = {
+          id_empresa: empresaId,
+          fecha_desde: fechaDesde || undefined,
+          fecha_hasta: fechaHasta || undefined,
+          id_inspector: filtroInspector ? Number(filtroInspector) : undefined,
+          id_zona: filtroZona ? Number(filtroZona) : undefined,
+        };
+
+        data = await obtenerDeteccionesFiltradas(filtros);
+      } else {
+        data = await obtenerIncumplimientos(user.id_supervisor);
+      }
+
+      setGrouped(transformarRegistros(data));
+    } catch (error) {
+      console.error("Error al recargar datos:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ======================================
   // 🔥 Filtrado en tiempo REAL
   // ======================================
   useEffect(() => {
@@ -208,35 +268,92 @@ export function LiveDetections() {
 
       setLoading(true);
 
-      const filtros = {
-        id_empresa: empresaId,
-        fecha_desde: fechaDesde || undefined,
-        fecha_hasta: fechaHasta || undefined,
-        id_inspector: filtroInspector ? Number(filtroInspector) : undefined,
-        id_zona: filtroZona ? Number(filtroZona) : undefined,
-      };
+      try {
+        // 🔥 Si hay filtros activos
+        if (filtroInspector || filtroZona || fechaDesde || fechaHasta) {
+          const filtros = {
+            id_empresa: empresaId,
+            fecha_desde: fechaDesde || undefined,
+            fecha_hasta: fechaHasta || undefined,
+            id_inspector: filtroInspector ? Number(filtroInspector) : undefined,
+            id_zona: filtroZona ? Number(filtroZona) : undefined,
+          };
 
-      const data = await obtenerDeteccionesFiltradas(filtros);
-      setGrouped(transformarRegistros(data));
-      setLoading(false);
+          const data = await obtenerDeteccionesFiltradas(filtros);
+          setGrouped(transformarRegistros(data));
+        } else {
+          // 🔥 Si NO hay filtros, cargar datos de HOY
+          const hoy = new Date().toISOString().split("T")[0];
+          const filtros = {
+            id_empresa: empresaId,
+            fecha_desde: hoy,
+            fecha_hasta: hoy,
+            id_inspector: undefined,
+            id_zona: undefined,
+          };
+
+          const data = await obtenerDeteccionesFiltradas(filtros);
+          setGrouped(transformarRegistros(data));
+        }
+      } catch (error) {
+        console.error("Error al filtrar:", error);
+      } finally {
+        setLoading(false);
+      }
     }
 
     filtrar();
-  }, [filtroInspector, filtroZona, fechaDesde, fechaHasta]);
+  }, [filtroInspector, filtroZona, fechaDesde, fechaHasta, empresaId]);
 
   // ===============================
   // 🔥 Cambiar inspector → carga zonas
   // ===============================
   async function cambiarInspector(id: string) {
-    setFiltroInspector(id);
+    const nuevoFiltro = id === "all" ? "" : id;
+    setFiltroInspector(nuevoFiltro);
     setFiltroZona("");
 
     const zonasBD = await obtenerZonas(
       empresaId,
-      id ? Number(id) : undefined
+      id && id !== "all" ? Number(id) : undefined
     );
 
     setZonas(zonasBD);
+
+    // 🔥 Si es "Todos", recargar sin filtros
+    if (id === "all" && user?.id_supervisor) {
+      const data = await obtenerIncumplimientos(user.id_supervisor);
+      setGrouped(transformarRegistros(data));
+    }
+  }
+
+  // ===============================
+  // 🔥 Cambiar zona
+  // ===============================
+  async function cambiarZona(id: string) {
+    const nuevoFiltro = id === "all" ? "" : id;
+    setFiltroZona(nuevoFiltro);
+
+    // 🔥 Si es "Todos", recargar sin filtros
+    if (id === "all" && user?.id_supervisor) {
+      const data = await obtenerIncumplimientos(user.id_supervisor);
+      setGrouped(transformarRegistros(data));
+    }
+  }
+
+  // ===============================
+  // 🔥 Limpiar filtros
+  // ===============================
+  function limpiarFiltros() {
+    setFiltroInspector("");
+    setFiltroZona("");
+    setFechaDesde("");
+    setFechaHasta("");
+    setLoading(true);
+    // 🔥 Forzar recarga inmediata
+    setTimeout(() => {
+      recargarDatos();
+    }, 0);
   }
 
   // =======================================================
@@ -277,7 +394,6 @@ export function LiveDetections() {
 
       const fails = detections.filter((d) => !d.detected).length;
 
-      // Convertir eppsZona normalizada a string original para el historial
       const eppsZonaOriginal = Array.isArray(item.epps_zona) ? item.epps_zona : [];
 
       return {
@@ -304,6 +420,11 @@ export function LiveDetections() {
   }
 
   // ===============================
+  // 🔥 Detectar si hay filtros activos (solo fechas)
+  // ===============================
+  const tieneFiltrosFechas = fechaDesde || fechaHasta;
+
+  // ===============================
   // 🔥 UI
   // ===============================
   if (loading) return <p className="text-center">Cargando reportes...</p>;
@@ -323,7 +444,7 @@ export function LiveDetections() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div>
           <p className="text-sm font-medium mb-1">Inspector</p>
-          <Select onValueChange={cambiarInspector}>
+          <Select value={filtroInspector} onValueChange={cambiarInspector}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
@@ -340,7 +461,7 @@ export function LiveDetections() {
 
         <div>
           <p className="text-sm font-medium mb-1">Zona</p>
-          <Select onValueChange={(v) => setFiltroZona(v)}>
+          <Select value={filtroZona} onValueChange={cambiarZona}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Todas" />
             </SelectTrigger>
@@ -357,14 +478,37 @@ export function LiveDetections() {
 
         <div>
           <p className="text-sm font-medium mb-1">Desde</p>
-          <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
+          <Input 
+            type="date" 
+            value={fechaDesde} 
+            onChange={(e) => setFechaDesde(e.target.value)} 
+          />
         </div>
 
         <div>
           <p className="text-sm font-medium mb-1">Hasta</p>
-          <Input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
+          <Input 
+            type="date" 
+            value={fechaHasta} 
+            onChange={(e) => setFechaHasta(e.target.value)} 
+          />
         </div>
       </div>
+
+      {/* 🔥 BOTÓN LIMPIAR FILTROS - SOLO PARA FILTROS DE FECHA */}
+      {tieneFiltrosFechas && (
+        <div className="mb-4 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={limpiarFiltros}
+            className="gap-2"
+          >
+            <X className="w-4 h-4" />
+            Limpiar filtros
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-8">
         {Object.entries(grouped).map(([zona, data]: any) => (
