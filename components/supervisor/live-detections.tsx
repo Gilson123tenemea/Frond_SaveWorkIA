@@ -150,10 +150,10 @@ export function LiveDetections() {
           fails >= 3
             ? "high"
             : fails === 2
-            ? "medium"
-            : fails === 1
-            ? "low"
-            : "safe",
+              ? "medium"
+              : fails === 1
+                ? "low"
+                : "safe",
         image: item.evidencia?.foto_base64
           ? `data:image/jpeg;base64,${item.evidencia.foto_base64}`
           : null,
@@ -368,33 +368,43 @@ export function LiveDetections() {
     const data = await obtenerHistorialTrabajador({ cedula });
     const { estadisticas, historial } = data;
 
+    const normalizar = (s: string) =>
+      (s || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
     const transformado = historial.map((item: any, index: number) => {
-      const clasesDetectadas: string[] = item.detecciones || [];
-      const detalle = (item.evidencia?.detalle || "").toLowerCase();
+      // Las faltas están en "detecciones" (array de strings como "Falta gafas")
+      const faltas: string[] = item.detecciones || [];
+      const eppsZonaOriginal: string[] = Array.isArray(item.epps_zona) ? item.epps_zona : [];
 
-      const detections = EPP_RULES.map((epp) => {
-        const tieneOk = clasesDetectadas.includes(epp.ok);
-        const tieneNo = clasesDetectadas.includes(epp.no);
+      // Crear un array de detecciones para cada EPP de la zona
+      const detections = eppsZonaOriginal.map((eppNombre: string) => {
+        // Buscar la regla EPP correspondiente
+        const regla = EPP_RULES.find(
+          (r) => normalizar(r.item) === normalizar(eppNombre)
+        );
 
-        const falloPorTexto =
-          !clasesDetectadas.length &&
-          (detalle.includes(epp.no) ||
-            (detalle && !detalle.includes(epp.ok)));
-
-        const detected = clasesDetectadas.length
-          ? tieneOk && !tieneNo
-          : !falloPorTexto;
+        // Verificar si este EPP está en las faltas
+        const estaEnFaltas = faltas.some((falta) => {
+          const faltaNormalizada = normalizar(falta);
+          const eppNormalizado = normalizar(eppNombre);
+          // Buscar coincidencia flexible (ej: "falta gafas" contiene "gafas")
+          return (
+            faltaNormalizada.includes(eppNormalizado) ||
+            faltaNormalizada.includes("falta") && faltaNormalizada.includes(eppNormalizado)
+          );
+        });
 
         return {
-          item: epp.item,
-          detected,
-          icon: epp.icon,
+          item: regla?.item ?? eppNombre,
+          detected: !estaEnFaltas, // Si NO está en faltas = fue detectado (VERDE)
+          icon: regla?.icon ?? Shield,
         };
       });
 
       const fails = detections.filter((d) => !d.detected).length;
-
-      const eppsZonaOriginal = Array.isArray(item.epps_zona) ? item.epps_zona : [];
 
       return {
         id: index + 1,
@@ -478,19 +488,19 @@ export function LiveDetections() {
 
         <div>
           <p className="text-sm font-medium mb-1">Desde</p>
-          <Input 
-            type="date" 
-            value={fechaDesde} 
-            onChange={(e) => setFechaDesde(e.target.value)} 
+          <Input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
           />
         </div>
 
         <div>
           <p className="text-sm font-medium mb-1">Hasta</p>
-          <Input 
-            type="date" 
-            value={fechaHasta} 
-            onChange={(e) => setFechaHasta(e.target.value)} 
+          <Input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
           />
         </div>
       </div>

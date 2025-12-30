@@ -49,10 +49,18 @@ export function WorkerHistoryDialog({
   // Agrupar por fecha
   const grouped = historial.reduce((acc: any, rec: any) => {
     const [fecha] = rec.timestamp.split(",");
+    if (!fecha) return acc;
     if (!acc[fecha]) acc[fecha] = [];
     acc[fecha].push(rec);
     return acc;
   }, {});
+
+  // Normalizar texto para comparar
+  const normalizar = (s: string) =>
+    (s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,8 +117,6 @@ export function WorkerHistoryDialog({
 
           </div>
 
-
-
           {/* HISTORIAL */}
           <ScrollArea className="h-[350px] pr-3">
             {Object.entries(grouped).map(([fecha, records]: any) => (
@@ -124,7 +130,13 @@ export function WorkerHistoryDialog({
 
                 {/* REGISTROS */}
                 {records.map((r: any) => {
-                  const hasViolation = r.detections.some((d: any) => !d.detected);
+                  // Obtener las faltas (detecciones y detalle)
+                  const faltas: string[] = r.detections
+                    .filter((d: any) => !d.detected)
+                    .map((d: any) => normalizar(d.item));
+
+                  // Verificar si hay incumplimiento
+                  const hasViolation = faltas.length > 0;
 
                   return (
                     <Card key={r.id} className="border rounded-xl shadow-sm">
@@ -142,6 +154,7 @@ export function WorkerHistoryDialog({
                                     : "/placeholder.png"
                               }
                               className="w-full h-full object-cover"
+                              alt="Evidencia"
                             />
 
                             <Badge
@@ -175,17 +188,13 @@ export function WorkerHistoryDialog({
                               {r.zone}
                             </div>
 
-                            {/* DETECCIONES - GRID 2 COLUMNAS - SOLO LOS DE LA ZONA */}
+                            {/* DETECCIONES - SOLO LOS DE LA ZONA */}
                             <div className="grid grid-cols-2 gap-2">
                               {r.detections
                                 .filter((det: any) => {
-                                  if (!r.eppsZona) return false;
-                                  const normalizar = (s: string) =>
-                                    (s || "")
-                                      .toLowerCase()
-                                      .normalize("NFD")
-                                      .replace(/[\u0300-\u036f]/g, "");
+                                  if (!r.eppsZona || r.eppsZona.length === 0) return false;
                                   
+                                  // Verificar que el EPP esté en la zona
                                   const detNormalizado = normalizar(det.item);
                                   return r.eppsZona.some((epp: string) => 
                                     normalizar(epp) === detNormalizado
@@ -194,6 +203,8 @@ export function WorkerHistoryDialog({
                                 .map((det: any) => {
                                   const Icon = det.icon;
 
+                                  // Si detected es true = VERDE (fue detectado)
+                                  // Si detected es false = ROJO (NO fue detectado/está en faltas)
                                   const classes = det.detected
                                     ? "bg-green-50 border-green-400 text-green-700"
                                     : "bg-red-50 border-red-400 text-red-700";

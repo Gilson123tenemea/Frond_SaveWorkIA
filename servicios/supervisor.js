@@ -170,11 +170,21 @@ export async function obtenerPerfilSupervisor(idSupervisor) {
 export async function actualizarPerfilSupervisor(id, data) {
   const res = await fetch(`${SUPERVISOR_URL}/perfil/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      nombre: data.nombre,
+      apellido: data.apellido,
+      correo: data.correo,
+      telefono: data.telefono ?? null,
+    }),
   });
 
-  if (!res.ok) throw new Error("Error actualizando perfil");
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || "Error actualizando perfil");
+  }
 
   return res.json();
 }
