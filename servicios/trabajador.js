@@ -17,11 +17,11 @@ export async function validarCedulaInstantanea(cedula) {
   }
 }
 
-export async function validarCodigoInstantaneo(codigo) {
+export async function validarCodigoInstantaneo(codigo, idEmpresa) {
   try {
-    const response = await fetch(`${TRABAJADOR_URL}/validar-codigo/${codigo}`);
+    const response = await fetch(`${TRABAJADOR_URL}/validar-codigo/${codigo}/empresa/${idEmpresa}`);
     const data = await response.json();
-    return data.existe; // true = ya existe
+    return data.existe; // true = ya existe, false = disponible
   } catch (error) {
     console.error("❌ Error validando código:", error);
     return false;
@@ -253,4 +253,3 @@ export async function obtenerTrabajadorPorCodigo(codigoTrabajador, idEmpresa) {
     return { error: error.message };
   }
 }
-

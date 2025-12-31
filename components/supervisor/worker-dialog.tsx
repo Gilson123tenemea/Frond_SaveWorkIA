@@ -59,7 +59,6 @@ import {
   validarGenero,
   validarFechaNacimiento,
   validarCargo,
-  validarAreaTrabajo,
   validarImplementos,
   validarEstadoTrabajador,
   validarCodigoTrabajador,
@@ -100,7 +99,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
     fecha_nacimiento: "",
     contrasena: "",
     cargo: "",
-    area_trabajo: "",
     implementos_requeridos: "",
     estado: true,
     codigo_trabajador: "",
@@ -198,10 +196,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
         error = validarCargo(value);
         break;
 
-      case "area_trabajo":
-        error = validarAreaTrabajo(value);
-        break;
-
       case "implementos_requeridos":
         error = validarImplementos(value);
         break;
@@ -214,8 +208,15 @@ export function WorkerDialog({ open, onClose, worker }: any) {
         error = validarCodigoTrabajador(value);
 
         if (!error && !isEditing) {
-          const existe = await validarCodigoInstantaneo(value);
+          // ✅ CAMBIO: Ahora pasa idEmpresa
+          const existe = await validarCodigoInstantaneo(value, formData.id_empresa);
           if (existe) error = "Este código ya está registrado";
+        }
+
+        // ✅ CAMBIO: Si está editando y cambió el código
+        if (!error && isEditing && value !== worker.codigo_trabajador) {
+          const existe = await validarCodigoInstantaneo(value, formData.id_empresa);
+          if (existe) error = "Este código ya está registrado en esta empresa";
         }
         break;
     }
@@ -263,7 +264,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           fecha_nacimiento: worker.persona.fecha_nacimiento,
           contrasena: "",
           cargo: worker.cargo,
-          area_trabajo: worker.area_trabajo,
           implementos_requeridos: worker.implementos_requeridos,
           estado: worker.estado,
           codigo_trabajador: worker.codigo_trabajador,
@@ -283,7 +283,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           fecha_nacimiento: "",
           contrasena: "",
           cargo: "",
-          area_trabajo: "",
           implementos_requeridos: "",
           estado: true,
           codigo_trabajador: "",
@@ -294,7 +293,7 @@ export function WorkerDialog({ open, onClose, worker }: any) {
         cargarEmpresa();
         setCorreoValidacion({ validando: false, disponible: null });
       }
-      
+
       // 🟢 LIMPIAR ERRORES cuando se abre el diálogo
       setErrors({});
     }
@@ -337,7 +336,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
       },
       trabajador: {
         cargo: formData.cargo,
-        area_trabajo: formData.area_trabajo,
         implementos_requeridos: formData.implementos_requeridos,
         estado: formData.estado,
         codigo_trabajador: formData.codigo_trabajador,
@@ -640,21 +638,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
               }}
             />
             {renderError("cargo")}
-          </div>
-
-          {/* ÁREA TRABAJO */}
-          <div className="space-y-2.5">
-            <Label className="text-sm font-medium">Área de trabajo</Label>
-            <Input
-              placeholder="Ej: Producción"
-              value={formData.area_trabajo}
-              onChange={(e) => {
-                const value = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ0-9 ]/g, "");
-                setFormData({ ...formData, area_trabajo: value });
-                validateField("area_trabajo", value);
-              }}
-            />
-            {renderError("area_trabajo")}
           </div>
 
           {/* IMPLEMENTOS */}

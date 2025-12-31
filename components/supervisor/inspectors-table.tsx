@@ -233,7 +233,6 @@ export function InspectorsTable() {
                   <TableHead>Inspector</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Teléfono</TableHead>
-                  <TableHead>Zona</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -242,7 +241,7 @@ export function InspectorsTable() {
               <TableBody>
                 {filteredInspectors.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       No hay inspectores registrados
                     </TableCell>
                   </TableRow>
@@ -276,8 +275,6 @@ export function InspectorsTable() {
                           {i.telefono}
                         </div>
                       </TableCell>
-
-                      <TableCell>{i.zona_asignada}</TableCell>
 
                       <TableCell>
                         <Badge variant={i.borrado ? "default" : "outline"}>

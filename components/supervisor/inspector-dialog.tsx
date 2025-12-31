@@ -54,7 +54,6 @@ import {
   validarGenero,
   validarFechaNacimiento,
   validarContrasena,
-  validarZonaAsignada,
   validarFrecuenciaVisita,
 } from "../validaciones/validaciones"
 
@@ -100,7 +99,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
     genero: "",
     fecha_nacimiento: "",
     contrasena: "",
-    zona_asignada: "",
     frecuenciaVisita: "",
   });
 
@@ -117,7 +115,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           genero: inspector.genero || "",
           fecha_nacimiento: inspector.fecha_nacimiento || "",
           contrasena: "",
-          zona_asignada: inspector.zona_asignada || "",
           frecuenciaVisita: inspector.frecuenciaVisita || "",
         });
         setCorreoValidacion({ validando: false, disponible: true });
@@ -132,7 +129,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           genero: "",
           fecha_nacimiento: "",
           contrasena: "",
-          zona_asignada: "",
           frecuenciaVisita: "",
         });
         setCorreoValidacion({ validando: false, disponible: null });
@@ -227,7 +223,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
     if (field === "genero") error = validarGenero(formateado);
     if (field === "fecha_nacimiento") error = validarFechaNacimiento(formateado);
     if (field === "contrasena" && !isEditing) error = validarContrasena(formateado);
-    if (field === "zona_asignada") error = validarZonaAsignada(formateado);
     if (field === "frecuenciaVisita") error = validarFrecuenciaVisita(formateado);
 
     setErrors((prev: any) => ({ ...prev, [field]: error }));
@@ -260,7 +255,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
       nuevosErrores.contrasena = validarContrasena(formData.contrasena);
     }
 
-    nuevosErrores.zona_asignada = validarZonaAsignada(formData.zona_asignada);
     nuevosErrores.frecuenciaVisita = validarFrecuenciaVisita(formData.frecuenciaVisita);
 
     setErrors(nuevosErrores);
@@ -341,7 +335,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
           fecha_nacimiento: formData.fecha_nacimiento,
           contrasena: formData.contrasena,
         },
-        zona_asignada: formData.zona_asignada,
         frecuenciaVisita: formData.frecuenciaVisita,
         id_supervisor_registro: supervisorId,
       };
@@ -549,19 +542,6 @@ export function InspectorDialog({ open, onClose, inspector }: InspectorDialogPro
                 )}
               </div>
             )}
-
-            {/* ZONA ASIGNADA */}
-            <div className="space-y-2.5">
-              <Label className="text-sm font-medium">Zona Asignada</Label>
-              <Input
-                value={formData.zona_asignada}
-                onChange={(e) => onChange("zona_asignada", e.target.value)}
-                placeholder="Ej: Norte, Centro, Sur"
-              />
-              {errors.zona_asignada && (
-                <p className="text-red-500 text-xs mt-1">{errors.zona_asignada}</p>
-              )}
-            </div>
 
             {/* FRECUENCIA VISITA */}
             <div className="space-y-2.5">
