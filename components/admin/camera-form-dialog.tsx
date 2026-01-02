@@ -122,7 +122,14 @@ export function CameraFormDialog({
 
   const handleProbarConexion = async () => {
     if (!formData.location.trim()) {
-      toast.error("⚠️ Ingresa primero la URL de la cámara");
+      toast.error("⚠️ Ingresa primero la URL de la cámara", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          fontWeight: 500,
+        },
+        iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
+      });
       return;
     }
 
@@ -132,7 +139,7 @@ export function CameraFormDialog({
 
     try {
       const resp = await probarConexionCamara(formData.location.trim());
-      const msg = resp.message || "Conexión exitosa";
+      const msg = resp.message || "La cámara respondió correctamente";
 
       setConexionOk(true);
       setTipoMensajeTest("ok");
@@ -166,12 +173,26 @@ export function CameraFormDialog({
     e.preventDefault();
 
     if (!validarFormulario(esEdicion)) {
-      toast.error("⚠️ Revise los campos del formulario");
+      toast.error("⚠️ Revise los campos del formulario", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          fontWeight: 500,
+        },
+        iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
+      });
       return;
     }
 
     if (!esEdicion && !conexionOk) {
-      toast.error("⚠️ Primero prueba la conexión de la cámara");
+      toast.error("⚠️ Primero prueba la conexión de la cámara", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          fontWeight: 500,
+        },
+        iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
+      });
       return;
     }
 
@@ -214,9 +235,25 @@ export function CameraFormDialog({
           borderRadius: "8px",
           fontWeight: 500,
         },
-        iconTheme: {
-          primary: "#fff",
-          secondary: esEdicion ? "#1e3a8a" : "#14532d",
+        success: {
+          style: {
+            background: esEdicion ? "#2563EB" : "#16a34a",
+            color: "#fff",
+          },
+          iconTheme: {
+            primary: "#fff",
+            secondary: esEdicion ? "#1e3a8a" : "#14532d",
+          },
+        },
+        error: {
+          style: {
+            background: "#dc2626",
+            color: "#fff",
+          },
+          iconTheme: {
+            primary: "#fff",
+            secondary: "#7f1d1d",
+          },
         },
       }
     );
@@ -254,9 +291,12 @@ export function CameraFormDialog({
               <Label>Código</Label>
               <Input
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (e.target.value.trim()) {
+                    setErrors({ ...errors, name: null });
+                  }
+                }}
                 disabled={esEdicion}
               />
               {errors.name && (
@@ -274,6 +314,9 @@ export function CameraFormDialog({
                     setFormData({ ...formData, location: e.target.value });
                     setConexionOk(false);
                     setMensajeTest(null);
+                    if (e.target.value.trim()) {
+                      setErrors({ ...errors, location: null });
+                    }
                   }}
                   disabled={esEdicion}
                 />
@@ -289,6 +332,9 @@ export function CameraFormDialog({
                   </Button>
                 )}
               </div>
+              {errors.location && (
+                <p className="text-red-500 text-sm">{errors.location}</p>
+              )}
               {mensajeTest && (
                 <p
                   className={`text-sm ${
@@ -318,9 +364,6 @@ export function CameraFormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="IP">IP</SelectItem>
-                    <SelectItem value="Domo">Domo</SelectItem>
-                    <SelectItem value="Bullet">Bullet</SelectItem>
-                    <SelectItem value="PTZ">PTZ</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -352,7 +395,11 @@ export function CameraFormDialog({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+            >
               Cancelar
             </Button>
 
