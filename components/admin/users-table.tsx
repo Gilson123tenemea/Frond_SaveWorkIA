@@ -212,6 +212,12 @@ export function SupervisoresTable() {
       id_empresa_supervisor: row.id_empresa_supervisor,
     })
 
+    // ✅ AGREGAR LA EMPRESA ACTUAL A LAS DISPONIBLES SI NO ESTÁ
+    const empresaActual = empresasTodas.find((e) => e.id_Empresa === row.id_empresa_supervisor)
+    if (empresaActual && !empresasDisponibles.some((e) => e.id_Empresa === empresaActual.id_Empresa)) {
+      setEmpresasDisponibles((prev) => [...prev, empresaActual])
+    }
+
     setOpenDialog(true)
   }
 
@@ -794,8 +800,14 @@ export function SupervisoresTable() {
                   <SelectValue placeholder="Seleccionar empresa" />
                 </SelectTrigger>
                 <SelectContent>
-                  {empresasDisponibles.length > 0 ? (
-                    empresasDisponibles.map((e) => (
+                  {(isEditing 
+                    ? [...empresasDisponibles, empresasTodas.find(e => e.id_Empresa === editing?.id_empresa_supervisor)].filter(Boolean)
+                    : empresasDisponibles
+                  ).length > 0 ? (
+                    (isEditing 
+                      ? [...empresasDisponibles, empresasTodas.find(e => e.id_Empresa === editing?.id_empresa_supervisor)].filter((e, i, arr) => e && arr.findIndex(x => x?.id_Empresa === e.id_Empresa) === i)
+                      : empresasDisponibles
+                    ).map((e: any) => (
                       <SelectItem key={e.id_Empresa} value={String(e.id_Empresa)}>
                         {e.nombreEmpresa}
                       </SelectItem>
