@@ -12,29 +12,47 @@ import {
 import { obtenerDashboardInspector } from "@/servicios/dashboardInspector"
 
 interface InspectorStatsProps {
-  zoneId: number | null
+  inspectorId: number | null
 }
 
-export function InspectorStats({ zoneId }: InspectorStatsProps) {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+interface DashboardData {
+  zonas_asignadas: number
+  trabajadores: number
+  alertas_hoy: number
+  alertas_mes: number
+  incumplimientos_alta: number
+  camaras_totales: number
+  camaras_activas: number
+}
+
+export function InspectorStats({ inspectorId }: InspectorStatsProps) {
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!zoneId) return
+    if (!inspectorId) {
+      setLoading(false)
+      return
+    }
 
     async function cargarDashboard() {
       try {
-        const res = await obtenerDashboardInspector(zoneId)
-        setData(res)
+        setLoading(true)
+        setError(null)
+        // TypeScript sabe que aquí inspectorId no es null por el if de arriba
+        const res = await obtenerDashboardInspector(inspectorId!)
+        setData(res as DashboardData)
       } catch (error) {
         console.error("❌ Error dashboard inspector:", error)
+        setError("No se pudo cargar el dashboard")
       } finally {
         setLoading(false)
       }
     }
 
     cargarDashboard()
-  }, [zoneId])
+  }, [inspectorId])
 
   if (loading) {
     return (
@@ -46,6 +64,18 @@ export function InspectorStats({ zoneId }: InspectorStatsProps) {
             </CardContent>
           </Card>
         ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="grid gap-4">
+        <Card>
+          <CardContent className="py-10 text-center text-destructive">
+            {error}
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -85,7 +115,9 @@ export function InspectorStats({ zoneId }: InspectorStatsProps) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{data.trabajadores}</div>
-          <p className="text-xs text-muted-foreground mt-1">En la zona</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            En {data.zonas_asignadas} {data.zonas_asignadas === 1 ? 'zona' : 'zonas'}
+          </p>
         </CardContent>
       </Card>
 
@@ -95,7 +127,7 @@ export function InspectorStats({ zoneId }: InspectorStatsProps) {
           <CardTitle className="text-sm font-medium">Incumplimientos</CardTitle>
           <XCircle className="w-4 h-4 text-destructive" />
         </CardHeader>
-        <CardContent>a
+        <CardContent>
           <div className="text-2xl font-bold text-destructive">
             {data.incumplimientos_alta}
           </div>

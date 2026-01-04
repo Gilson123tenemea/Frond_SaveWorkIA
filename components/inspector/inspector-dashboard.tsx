@@ -159,8 +159,8 @@ export function InspectorDashboard() {
               </p>
             </div>
 
-            {/* Estadísticas (se mantiene usando la primera zona) */}
-            <InspectorStats zoneId={assignedZones[0]?.id_Zona ?? null} />
+            {/* ✅ CAMBIO AQUÍ: Pasar inspectorId en lugar de zoneId */}
+            <InspectorStats inspectorId={inspectorId} />
 
             <div className="grid gap-6 lg:grid-cols-2">
               {loading ? (
