@@ -2,7 +2,46 @@ import { BASE_URL } from "./api";
 
 const SUPERVISOR_URL = `${BASE_URL}/supervisores`;
 
+// ============================
+// 📌 VALIDAR CORREO EN TIEMPO REAL
+// ============================
+export async function validarCorreoSupervisor(correo, signal) {
+  try {
+    console.log("📡 Llamando API validar-correo:", correo) // DEBUG
+    
+    const res = await fetch(
+      `${SUPERVISOR_URL}/validar-correo?correo=${encodeURIComponent(correo)}`,
+      {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+        },
+        signal,
+      }
+    )
 
+    console.log("📡 Response status:", res.status) // DEBUG
+
+    if (!res.ok) {
+      const txt = await res.text()
+      console.error("❌ Error response:", txt) // DEBUG
+      throw new Error(txt || "Error validando correo")
+    }
+
+    const data = await res.json()
+    console.log("📦 Response data:", data) // DEBUG
+    
+    return data // { disponible: true/false }
+  } catch (err) {
+    console.error("❌ Error en validarCorreoSupervisor:", err)
+    throw err
+  }
+}
+
+// ============================
+// 📌 Verificar cédula
+// ============================
 export async function verificarCedula(cedula) {
   try {
     const res = await fetch(`${SUPERVISOR_URL}/validar-cedula/${cedula}`);
@@ -10,7 +49,7 @@ export async function verificarCedula(cedula) {
     if (!res.ok) return false;
 
     const data = await res.json();
-    return data.existe; // true = ya existe activa
+    return data.existe;
   } catch (err) {
     console.error("❌ Error verificando cédula:", err);
     return false;
@@ -79,17 +118,13 @@ export async function eliminarSupervisor(idSupervisor) {
     data = null;
   }
 
-  // Si hay error, NO lanzar dos veces
   if (!response.ok) {
     const msg = data?.detail || "Error al eliminar el supervisor";
-    return Promise.reject(new Error(msg)); // SOLO UNA VEZ
+    return Promise.reject(new Error(msg));
   }
 
   return data;
 }
-
-
-
 
 // ============================
 // 📌 Editar supervisor existente
@@ -138,7 +173,6 @@ export async function obtenerEmpresasDisponibles() {
   }
 }
 
-
 // ============================
 // 📌 Obtener empresa por ID del supervisor
 // ============================
@@ -161,12 +195,18 @@ export async function obtenerEmpresaPorSupervisor(idSupervisor) {
   }
 }
 
+// ============================
+// 📌 Obtener perfil del supervisor
+// ============================
 export async function obtenerPerfilSupervisor(idSupervisor) {
   const response = await fetch(`${SUPERVISOR_URL}/perfil/${idSupervisor}`);
   if (!response.ok) throw new Error("Error obteniendo perfil");
   return response.json();
 }
 
+// ============================
+// 📌 Actualizar perfil del supervisor
+// ============================
 export async function actualizarPerfilSupervisor(id, data) {
   const res = await fetch(`${SUPERVISOR_URL}/perfil/${id}`, {
     method: "PUT",
@@ -188,5 +228,3 @@ export async function actualizarPerfilSupervisor(id, data) {
 
   return res.json();
 }
-
-

@@ -6,29 +6,32 @@ const CAMARA_URL = `${BASE_URL}/camaras`;
 // 📌 Crear una nueva cámara
 // ============================
 export async function crearCamara(camaraData) {
-  try {
-    const response = await fetch(`${CAMARA_URL}/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(camaraData),
-    });
+  const response = await fetch(`${CAMARA_URL}/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(camaraData),
+  });
 
-    if (!response.ok) {
-      let errorData = {};
-      try {
-        errorData = await response.json();
-      } catch { }
+  if (!response.ok) {
+    let errorData = {};
+    try {
+      errorData = await response.json();
+    } catch {}
 
-      throw new Error(errorData.detail || "Error al registrar la cámara");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Error en crearCamara:", error);
-    throw error;
+    return {
+      ok: false,
+      message: errorData.detail || "Error al registrar la cámara",
+    };
   }
+
+  const data = await response.json();
+
+  return {
+    ok: true,
+    data,
+  };
 }
 
 // ============================

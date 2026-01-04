@@ -20,25 +20,26 @@ import {
   MapPin,
   Clock,
 } from "lucide-react"
+
 import { logout, getUser } from "@/lib/auth"
 import { CompaniesTable } from "./companies-table"
 import { SupervisoresTable } from "./users-table"
 import { CamerasTable } from "./cameras-table"
 import { StatsCards } from "./stats-cards"
 import { initializeStorage } from "@/lib/storage"
-
-import { obtenerDashboardOverview } from "@/servicios/dashboard"   // <-- IMPORTANTE
+import { obtenerDashboardOverview } from "@/servicios/dashboard"
 
 export function AdminDashboard() {
   const user = getUser()
-  const [activeTab, setActiveTab] = useState("overview")
 
+  const [mounted, setMounted] = useState(false)
+  const [activeTab, setActiveTab] = useState("overview")
   const [overview, setOverview] = useState<any>(null)
 
   useEffect(() => {
+    setMounted(true)
     initializeStorage()
 
-    // 🔥 Cargar datos reales del backend
     obtenerDashboardOverview().then((data) => {
       setOverview(data)
     })
@@ -64,17 +65,24 @@ export function AdminDashboard() {
               <Button variant="ghost" size="icon">
                 <Settings className="w-5 h-5" />
               </Button>
+
               <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
-                  <p className="text-sm font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">Administrador</p>
+                  <p className="text-sm font-medium">
+                    {mounted ? user?.name : ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Administrador
+                  </p>
                 </div>
+
                 <Avatar>
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user?.name?.charAt(0)}
+                    {mounted && user?.name ? user.name.charAt(0) : ""}
                   </AvatarFallback>
                 </Avatar>
               </div>
+
               <Button variant="outline" size="sm" onClick={logout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Salir
@@ -84,7 +92,7 @@ export function AdminDashboard() {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
@@ -106,131 +114,82 @@ export function AdminDashboard() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
+          {/* Overview */}
           <TabsContent value="overview" className="space-y-6">
             <StatsCards />
 
             <div className="grid gap-6 md:grid-cols-2">
-              {/* Recent Alerts */}
+              {/* Alertas */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-destructive" />
                     Alertas Recientes
                   </CardTitle>
-                  <CardDescription>Detecciones de los últimos 30 minutos</CardDescription>
+                  <CardDescription>Últimos 30 minutos</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {(overview?.alertas_recientes ?? []).length === 0 && (
-                      <p className="text-sm text-muted-foreground">No hay alertas recientes.</p>
-                    )}
+                  {(overview?.alertas_recientes ?? []).length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No hay alertas recientes.
+                    </p>
+                  )}
 
-                    {(overview?.alertas_recientes ?? []).map((alert: any) => (
-                      <div key={alert.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                        <div
-                          className={`p-2 rounded-full ${alert.nivel === "high"
-                              ? "bg-destructive/10"
-                              : alert.nivel === "medium"
-                                ? "bg-yellow-500/10"
-                                : "bg-blue-500/10"
-                            }`}
-                        >
-                          {alert.nivel === "high" ? (
-                            <XCircle className="w-4 h-4 text-destructive" />
-                          ) : alert.nivel === "medium" ? (
-                            <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                          ) : (
-                            <AlertTriangle className="w-4 h-4 text-blue-600" />
-                          )}
-                        </div>
+                  {(overview?.alertas_recientes ?? []).map((alert: any) => (
+                    <div key={alert.id} className="flex gap-3 p-3 border rounded-lg">
+                      <div className="p-2 rounded-full bg-destructive/10">
+                        <XCircle className="w-4 h-4 text-destructive" />
+                      </div>
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <p className="font-medium text-sm">{alert.mensaje}</p>
-                            <Badge variant="outline" className="shrink-0">
-                              {alert.nivel}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {alert.empresa}   {/* <-- AHORA SÍ MUESTRA LA EMPRESA */}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {alert.tiempo}
-                            </span>
-                          </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{alert.mensaje}</p>
+                        <div className="flex gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {alert.empresa}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {alert.tiempo}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
 
-              {/* System Status */}
+              {/* Estado sistema */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-success" />
                     Estado del Sistema
                   </CardTitle>
-                  <CardDescription>Estado de servicios y componentes</CardDescription>
                 </CardHeader>
-
                 <CardContent>
-                  <div className="space-y-4">
-                    {overview &&
-                      Object.entries(overview.estado_sistema).map(([name, status]: any) => (
-                        <div key={name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-2 h-2 rounded-full ${status === "online"
-                                  ? "bg-success animate-pulse"
-                                  : status === "warning"
-                                    ? "bg-yellow-500 animate-pulse"
-                                    : "bg-destructive"
-                                }`}
-                            />
-                            <div>
-                              <p className="font-medium text-sm">{name}</p>
-                              <p className="text-xs text-muted-foreground">Estado actual</p>
-                            </div>
-                          </div>
-
-                          <Badge
-                            variant={
-                              status === "online"
-                                ? "default"
-                                : status === "warning"
-                                  ? "outline"
-                                  : "destructive"
-                            }
-                          >
-                            {status}
-                          </Badge>
+                  {overview &&
+                    Object.entries(overview.estado_sistema).map(
+                      ([name, status]: any) => (
+                        <div key={name} className="flex justify-between">
+                          <p className="text-sm">{name}</p>
+                          <Badge>{status}</Badge>
                         </div>
-                      ))}
-                  </div>
+                      )
+                    )}
                 </CardContent>
               </Card>
-
             </div>
           </TabsContent>
 
-          {/* Companies Tab */}
           <TabsContent value="companies">
             <CompaniesTable />
           </TabsContent>
 
-          {/* Users Tab */}
           <TabsContent value="users">
             <SupervisoresTable />
           </TabsContent>
 
-          {/* Cameras Tab */}
           <TabsContent value="cameras">
             <CamerasTable />
           </TabsContent>

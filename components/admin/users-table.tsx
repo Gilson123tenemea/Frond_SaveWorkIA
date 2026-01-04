@@ -17,6 +17,7 @@ import {
   editarSupervisor,
   registrarSupervisor,
   verificarCedula,
+  validarCorreoSupervisor, // ✅ AGREGAR ESTA IMPORTACIÓN
 } from "@/servicios/supervisor"
 
 import { obtenerEmpresasDisponibles } from "@/servicios/supervisor"
@@ -54,9 +55,7 @@ import {
   validarContrasena,
 } from "../validaciones/validaciones"
 
-// ===================================================
 // TIPOS
-// ===================================================
 type SupervisorRow = {
   id_supervisor: number
   id_persona: number
@@ -91,9 +90,6 @@ type SupervisorPayload = {
   id_empresa_supervisor?: number
 }
 
-// ===================================================
-// COMPONENTE PRINCIPAL
-// ===================================================
 export function SupervisoresTable() {
   const [search, setSearch] = useState("")
   const [supervisores, setSupervisores] = useState<SupervisorRow[]>([])
@@ -101,19 +97,14 @@ export function SupervisoresTable() {
   const [empresasDisponibles, setEmpresasDisponibles] = useState<any[]>([])
   const [empresasTodas, setEmpresasTodas] = useState<any[]>([])
 
-  // Modal
   const [openDialog, setOpenDialog] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState<SupervisorRow | null>(null)
 
-  // 👁️ Mostrar/ocultar contraseña en el modal
   const [showPassword, setShowPassword] = useState(false)
-
-  // ERRORES FRONT
   const [errors, setErrors] = useState<any>({})
 
-  // FORM
   const [form, setForm] = useState<SupervisorPayload>({
     persona: {
       cedula: "",
@@ -131,9 +122,6 @@ export function SupervisoresTable() {
     id_empresa_supervisor: undefined,
   })
 
-  // ===================================================
-  // Cargar datos iniciales
-  // ===================================================
   useEffect(() => {
     cargarSupervisores()
     cargarEmpresasDisponibles()
@@ -176,9 +164,6 @@ export function SupervisoresTable() {
     }
   }
 
-  // ===================================================
-  // Abrir modal para NUEVO supervisor
-  // ===================================================
   const openNewSupervisor = () => {
     setIsEditing(false)
     setErrors({})
@@ -204,9 +189,6 @@ export function SupervisoresTable() {
     setOpenDialog(true)
   }
 
-  // ===================================================
-  // Abrir modal para EDITAR supervisor
-  // ===================================================
   const openEditDialog = (row: SupervisorRow) => {
     setIsEditing(true)
     setEditing(row)
@@ -222,7 +204,7 @@ export function SupervisoresTable() {
         correo: row.correo,
         direccion: row.direccion,
         genero: row.genero,
-        fecha_nacimiento: row.fecha_nacimiento.slice(0, 10), // formato yyyy-mm-dd
+        fecha_nacimiento: row.fecha_nacimiento.slice(0, 10),
         contrasena: "",
       },
       especialidad_seguridad: row.especialidad_seguridad,
@@ -233,13 +215,9 @@ export function SupervisoresTable() {
     setOpenDialog(true)
   }
 
-  // ===================================================
-  // VALIDAR FORMULARIO COMPLETO (ANTES DE GUARDAR)
-  // ===================================================
   const validarFormulario = () => {
     const newErrors: any = {}
 
-    // Persona
     newErrors.cedula = validarCedulaEcuatoriana(form.persona.cedula)
     newErrors.nombre = validarNombre(form.persona.nombre)
     newErrors.apellido = validarApellido(form.persona.apellido)
@@ -253,7 +231,6 @@ export function SupervisoresTable() {
       newErrors.contrasena = validarContrasena(form.persona.contrasena)
     }
 
-    // Supervisor
     newErrors.especialidad_seguridad = validarEspecialidad(form.especialidad_seguridad)
     newErrors.experiencia = validarExperiencia(form.experiencia)
 
@@ -261,7 +238,6 @@ export function SupervisoresTable() {
       newErrors.id_empresa_supervisor = "Debe seleccionar una empresa"
     }
 
-    // Remover campos sin error
     Object.keys(newErrors).forEach((key) => {
       if (!newErrors[key]) delete newErrors[key]
     })
@@ -271,12 +247,21 @@ export function SupervisoresTable() {
     return Object.keys(newErrors).length === 0
   }
 
-  // ===================================================
-  // HANDLE SAVE (CREAR / EDITAR)
-  // ===================================================
   const handleSave = async () => {
     if (!validarFormulario()) {
-      toast.error("Por favor corrige los errores antes de guardar")
+      toast.error("Por favor corrige los errores antes de guardar", {
+        style: {
+          background: "#dc2626",
+          color: "#fff",
+          fontWeight: 600,
+          borderRadius: "8px",
+        },
+        iconTheme: {
+          primary: "#fff",
+          secondary: "#7f1d1d",
+        },
+      })
+
       return
     }
 
@@ -347,28 +332,22 @@ export function SupervisoresTable() {
     }
   }
 
-  // ===================================================
-  // HANDLE CHANGE EN TIEMPO REAL (VALIDA AL ESCRIBIR)
-  // ===================================================
+  // ✅ VALIDACIÓN EN TIEMPO REAL CON CORREO
   const onChangePersona = (field: keyof SupervisorPayload["persona"], value: string) => {
     let formateado = value
 
-    // Filtrar caracteres según campo
     if (field === "cedula") formateado = value.replace(/[^0-9]/g, "").slice(0, 10)
     if (field === "telefono") formateado = value.replace(/[^0-9]/g, "").slice(0, 10)
     if (field === "nombre") formateado = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "")
     if (field === "apellido") formateado = value.replace(/[^A-Za-zÁÉÍÓÚáéíóúñÑ ]/g, "")
     if (field === "direccion") formateado = value.replace(/[^A-Za-z0-9ÁÉÍÓÚáéíóúñÑ #.,-]/g, "")
 
-    // Guarda valor formateado
     setForm((prev) => ({
       ...prev,
       persona: { ...prev.persona, [field]: formateado },
     }))
 
-    // =====================================================
-    // VALIDACIÓN INSTANTÁNEA LOCAL (front)
-    // =====================================================
+    // VALIDACIÓN LOCAL
     let error = null
     if (field === "cedula") error = validarCedulaEcuatoriana(formateado)
     if (field === "nombre") error = validarNombre(formateado)
@@ -380,13 +359,9 @@ export function SupervisoresTable() {
     if (field === "fecha_nacimiento") error = validarFechaNacimiento(formateado)
     if (field === "contrasena" && !isEditing) error = validarContrasena(formateado)
 
-    // Actualiza errores locales
     setErrors((prev: any) => ({ ...prev, [field]: error }))
 
-    // =====================================================
-    // VALIDACIÓN DE CÉDULA EN EL BACKEND (EXISTENTE)
-    // SOLO SI TIENE 10 DÍGITOS Y NO HAY ERRORES LOCALES
-    // =====================================================
+    // VALIDACIÓN BACKEND - CÉDULA
     if (field === "cedula" && formateado.length === 10 && !error) {
       verificarCedula(formateado).then((existe) => {
         if (existe) {
@@ -395,16 +370,34 @@ export function SupervisoresTable() {
             cedula: "Ya existe un usuario activo con esta cédula",
           }))
         } else {
-          // limpiar error si estaba marcado
           setErrors((prev: any) => ({ ...prev, cedula: null }))
         }
       })
     }
+
+    // ✅ VALIDACIÓN BACKEND - CORREO
+    if (field === "correo" && formateado.includes("@") && !error) {
+      const controller = new AbortController()
+
+      validarCorreoSupervisor(formateado, controller.signal)
+        .then((resp) => {
+          if (!resp?.disponible) {
+            setErrors((prev: any) => ({
+              ...prev,
+              correo: "Ya existe un usuario activo con este correo",
+            }))
+          } else {
+            setErrors((prev: any) => ({ ...prev, correo: null }))
+          }
+        })
+        .catch((err) => {
+          if (err?.name !== "AbortError") {
+            console.error("Error validando correo:", err)
+          }
+        })
+    }
   }
 
-  // ===================================================
-  // HANDLE CHANGE PARA CAMPOS DE SUPERVISOR
-  // ===================================================
   const onChangeField = (field: keyof SupervisorPayload, value: any) => {
     let val = value
 
@@ -418,7 +411,6 @@ export function SupervisoresTable() {
 
     setForm((prev) => ({ ...prev, [field]: val }))
 
-    // Validación instantánea
     let error = null
     if (field === "especialidad_seguridad") error = validarEspecialidad(val)
     if (field === "experiencia") error = validarExperiencia(val)
@@ -426,9 +418,7 @@ export function SupervisoresTable() {
     setErrors((prev: any) => ({ ...prev, [field]: error }))
   }
 
-  // 🔹 Eliminar supervisor con confirmación visual
   const handleDelete = async (idSupervisor: number, nombreSupervisor: string) => {
-    // Crear fondo semitransparente (overlay)
     const overlay = document.createElement("div")
     overlay.style.position = "fixed"
     overlay.style.top = "0"
@@ -440,7 +430,6 @@ export function SupervisoresTable() {
     overlay.style.transition = "opacity 0.3s ease"
     document.body.appendChild(overlay)
 
-    // Mostrar confirmación
     const confirmToast = toast(
       (t) => (
         <div className="flex flex-col gap-4 p-2 text-center">
@@ -537,9 +526,6 @@ export function SupervisoresTable() {
     }, 8000)
   }
 
-  // ===================================================
-  // FILTRADO TABLA
-  // ===================================================
   const filtered = supervisores.filter((s) => {
     const q = search.toLowerCase()
     return (
@@ -566,7 +552,6 @@ export function SupervisoresTable() {
         </CardHeader>
 
         <CardContent>
-          {/* Buscador */}
           <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -579,7 +564,6 @@ export function SupervisoresTable() {
             </div>
           </div>
 
-          {/* Tabla */}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
@@ -666,9 +650,6 @@ export function SupervisoresTable() {
         </CardContent>
       </Card>
 
-      {/* ===================================== */}
-      {/* === MODAL CREAR / EDITAR SUPERVISOR === */}
-      {/* ===================================== */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border bg-white">
           <DialogHeader>
@@ -676,7 +657,6 @@ export function SupervisoresTable() {
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 py-4">
-            {/* === CÉDULA === */}
             <div className="flex flex-col gap-1">
               <Label>Cédula</Label>
               <Input
@@ -690,7 +670,6 @@ export function SupervisoresTable() {
               {errors.cedula && <p className="text-red-500 text-sm">{errors.cedula}</p>}
             </div>
 
-            {/* === NOMBRE === */}
             <div className="flex flex-col gap-1">
               <Label>Nombre</Label>
               <Input
@@ -701,7 +680,6 @@ export function SupervisoresTable() {
               {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre}</p>}
             </div>
 
-            {/* === APELLIDO === */}
             <div className="flex flex-col gap-1">
               <Label>Apellido</Label>
               <Input
@@ -712,7 +690,6 @@ export function SupervisoresTable() {
               {errors.apellido && <p className="text-red-500 text-sm">{errors.apellido}</p>}
             </div>
 
-            {/* === TELÉFONO === */}
             <div className="flex flex-col gap-1">
               <Label>Teléfono</Label>
               <Input
@@ -724,7 +701,7 @@ export function SupervisoresTable() {
               {errors.telefono && <p className="text-red-500 text-sm">{errors.telefono}</p>}
             </div>
 
-            {/* === CORREO === */}
+            {/* ✅ CORREO CON VALIDACIÓN EN TIEMPO REAL */}
             <div className="flex flex-col gap-1">
               <Label>Correo</Label>
               <Input
@@ -735,7 +712,6 @@ export function SupervisoresTable() {
               {errors.correo && <p className="text-red-500 text-sm">{errors.correo}</p>}
             </div>
 
-            {/* === DIRECCIÓN === */}
             <div className="flex flex-col gap-1">
               <Label>Dirección</Label>
               <Input
@@ -746,7 +722,6 @@ export function SupervisoresTable() {
               {errors.direccion && <p className="text-red-500 text-sm">{errors.direccion}</p>}
             </div>
 
-            {/* === GÉNERO === */}
             <div className="flex flex-col gap-1">
               <Label>Género</Label>
               <Select
@@ -764,7 +739,6 @@ export function SupervisoresTable() {
               {errors.genero && <p className="text-red-500 text-sm">{errors.genero}</p>}
             </div>
 
-            {/* === FECHA NACIMIENTO === */}
             <div className="flex flex-col gap-1">
               <Label>Fecha de nacimiento</Label>
               <Input
@@ -777,7 +751,6 @@ export function SupervisoresTable() {
               )}
             </div>
 
-            {/* === CONTRASEÑA (SOLO AL CREAR) === */}
             {!isEditing && (
               <div className="flex flex-col gap-1 md:col-span-2">
                 <Label>Contraseña</Label>
@@ -792,20 +765,13 @@ export function SupervisoresTable() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                     onClick={() => setShowPassword((prev) => !prev)}
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {errors.contrasena && (
-                  <p className="text-red-500 text-sm">{errors.contrasena}</p>
-                )}
+                {errors.contrasena && <p className="text-red-500 text-sm">{errors.contrasena}</p>}
               </div>
             )}
 
-            {/* === ESPECIALIDAD === */}
             <div className="flex flex-col gap-1">
               <Label>Especialidad</Label>
               <Input
@@ -818,7 +784,6 @@ export function SupervisoresTable() {
               )}
             </div>
 
-            {/* === EMPRESA === */}
             <div className="flex flex-col gap-1">
               <Label>Empresa</Label>
               <Select
@@ -847,7 +812,6 @@ export function SupervisoresTable() {
               )}
             </div>
 
-            {/* === EXPERIENCIA === */}
             <div className="flex flex-col gap-1">
               <Label>Experiencia (años)</Label>
               <Input
@@ -855,9 +819,7 @@ export function SupervisoresTable() {
                 value={form.experiencia}
                 onChange={(e) => onChangeField("experiencia", e.target.value)}
               />
-              {errors.experiencia && (
-                <p className="text-red-500 text-sm">{errors.experiencia}</p>
-              )}
+              {errors.experiencia && <p className="text-red-500 text-sm">{errors.experiencia}</p>}
             </div>
           </div>
 

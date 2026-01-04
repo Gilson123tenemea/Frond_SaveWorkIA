@@ -174,11 +174,7 @@ export function CameraFormDialog({
 
     if (!validarFormulario(esEdicion)) {
       toast.error("⚠️ Revise los campos del formulario", {
-        style: {
-          background: "#dc2626",
-          color: "#fff",
-          fontWeight: 500,
-        },
+        style: { background: "#dc2626", color: "#fff", fontWeight: 500 },
         iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
       });
       return;
@@ -186,11 +182,7 @@ export function CameraFormDialog({
 
     if (!esEdicion && !conexionOk) {
       toast.error("⚠️ Primero prueba la conexión de la cámara", {
-        style: {
-          background: "#dc2626",
-          color: "#fff",
-          fontWeight: 500,
-        },
+        style: { background: "#dc2626", color: "#fff", fontWeight: 500 },
         iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
       });
       return;
@@ -215,58 +207,46 @@ export function CameraFormDialog({
       };
     }
 
-    const promise = esEdicion
-      ? actualizarCamara(camera.id_camara, payload)
-      : crearCamara(payload);
-
-    toast.promise(
-      promise,
-      {
-        loading: esEdicion ? "Actualizando cámara..." : "Registrando cámara...",
-        success: esEdicion
-          ? `Cámara ${formData.name} actualizada correctamente`
-          : `Cámara ${formData.name} creada correctamente`,
-        error: "❌ No se pudo completar la operación",
-      },
-      {
-        style: {
-          background: esEdicion ? "#2563EB" : "#16a34a",
-          color: "#fff",
-          borderRadius: "8px",
-          fontWeight: 500,
-        },
-        success: {
-          style: {
-            background: esEdicion ? "#2563EB" : "#16a34a",
-            color: "#fff",
-          },
-          iconTheme: {
-            primary: "#fff",
-            secondary: esEdicion ? "#1e3a8a" : "#14532d",
-          },
-        },
-        error: {
-          style: {
-            background: "#dc2626",
-            color: "#fff",
-          },
-          iconTheme: {
-            primary: "#fff",
-            secondary: "#7f1d1d",
-          },
-        },
-      }
-    );
-
     setLoading(true);
+
     try {
-      await promise;
+      if (esEdicion) {
+        await actualizarCamara(camera.id_camara, payload);
+        toast.success(`Cámara ${formData.name} actualizada correctamente`, {
+          style: { background: "#2563EB", color: "#fff", fontWeight: 500 },
+          iconTheme: { primary: "#fff", secondary: "#1e3a8a" },
+        });
+      } else {
+        const resp = await crearCamara(payload);
+
+        if (!resp.ok) {
+          toast.error(resp.message, {
+            style: { background: "#dc2626", color: "#fff", fontWeight: 500 },
+            iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
+          });
+          return;
+        }
+
+        toast.success(`Cámara ${formData.name} creada correctamente`, {
+          style: { background: "#16a34a", color: "#fff", fontWeight: 500 },
+          iconTheme: { primary: "#fff", secondary: "#14532d" },
+        });
+      }
+
+
       onSuccess();
       onOpenChange(false);
+
+    } catch (error: any) {
+      toast.error(error.message || "❌ Error al registrar la cámara", {
+        style: { background: "#dc2626", color: "#fff", fontWeight: 500 },
+        iconTheme: { primary: "#fff", secondary: "#7f1d1d" },
+      });
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -337,11 +317,10 @@ export function CameraFormDialog({
               )}
               {mensajeTest && (
                 <p
-                  className={`text-sm ${
-                    tipoMensajeTest === "ok"
+                  className={`text-sm ${tipoMensajeTest === "ok"
                       ? "text-green-600"
                       : "text-red-600"
-                  }`}
+                    }`}
                 >
                   {mensajeTest}
                 </p>
@@ -395,9 +374,9 @@ export function CameraFormDialog({
           </div>
 
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => onOpenChange(false)}
             >
               Cancelar

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2, Loader2 } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { crearEmpresa, actualizarEmpresa } from "@/servicios/empresa";
 import { getUser } from "@/lib/auth";
 
@@ -51,11 +51,9 @@ export function EmpresaDialog({
     id_administrador_empresa: 0,
   });
 
-  // Saneador universal + validación en tiempo real
   const handleChange = (campo: string, valor: string) => {
     setFormData((prev) => ({ ...prev, [campo]: valor }));
 
-    // VALIDACIÓN automática por campo
     let error = null;
     switch (campo) {
       case "nombreEmpresa":
@@ -63,26 +61,21 @@ export function EmpresaDialog({
           campoObligatorio(valor, "Nombre de la empresa") ||
           validarNombreEmpresa(valor);
         break;
-
       case "ruc":
         error = campoObligatorio(valor, "RUC") || validarRuc(valor);
         break;
-
       case "direccion":
         error = campoObligatorio(valor, "Dirección");
         break;
-
       case "telefono":
         error =
           campoObligatorio(valor, "Teléfono") || validarTelefono(valor);
         break;
-
       case "correo":
         error =
           campoObligatorio(valor, "Correo electrónico") ||
           validarCorreo(valor);
         break;
-
       case "sector":
         error = campoObligatorio(valor, "Sector");
         break;
@@ -121,12 +114,19 @@ export function EmpresaDialog({
   }, [empresa, open]);
 
   const validateForm = () => {
-    const campos = ["nombreEmpresa", "ruc", "direccion", "telefono", "correo", "sector"];
+    const campos = [
+      "nombreEmpresa",
+      "ruc",
+      "direccion",
+      "telefono",
+      "correo",
+      "sector",
+    ];
+
     const newErrors: any = {};
 
     campos.forEach((campo) => {
       const valor = (formData as any)[campo];
-
       newErrors[campo] =
         campoObligatorio(valor, campo) ||
         (campo === "nombreEmpresa" && validarNombreEmpresa(valor)) ||
@@ -140,25 +140,22 @@ export function EmpresaDialog({
     return Object.values(newErrors).every((x) => x === null);
   };
 
-  // SUBMIT
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 🔴 VALIDACIÓN → ROJO
     if (!validateForm()) {
-      toast.error("⚠️ Corrige los campos marcados en rojo.", {
+      toast.error("Corrige los campos marcados en rojo.", {
         style: {
           background: "#dc2626",
           color: "#fff",
-          borderRadius: "8px",
           fontWeight: 600,
-          padding: "16px",
-          maxWidth: "450px",
+          borderRadius: "8px",
         },
         iconTheme: {
           primary: "#fff",
-          secondary: "#dc2626",
+          secondary: "#7f1d1d",
         },
-        duration: 4000,
       });
       return;
     }
@@ -178,56 +175,30 @@ export function EmpresaDialog({
       ? actualizarEmpresa(empresa.id_Empresa, payload)
       : crearEmpresa(payload);
 
-    // Estilos personalizados
-    const toastOptions = empresa
-      ? {
-          // 🔵 Azul editar
-          style: {
-            background: "#2563eb",
-            color: "#fff",
-            borderRadius: "8px",
-            fontWeight: 600,
-          },
-          iconTheme: {
-            primary: "#fff",
-            secondary: "#1e3a8a",
-          },
-        }
-      : {
-          // 🟢 Verde crear
-          style: {
-            background: "#16a34a",
-            color: "#fff",
-            borderRadius: "8px",
-            fontWeight: 600,
-          },
-          iconTheme: {
-            primary: "#fff",
-            secondary: "#166534",
-          },
-        };
-
+    // 🟢 CREAR / 🔵 EDITAR
     toast.promise(
       promise,
       {
         loading: empresa
           ? "Actualizando empresa..."
           : "Registrando empresa...",
-
         success: empresa
           ? `Empresa "${formData.nombreEmpresa}" actualizada con éxito`
           : `Empresa "${formData.nombreEmpresa}" registrada correctamente`,
-
-        error: (err: any) => {
-          const backendMsg =
-            err?.response?.data?.detail ||
-            err?.detail ||
-            err?.message ||
-            "Ocurrió un error";
-          return `⚠️ ${backendMsg}`;
-        },
+        error: "Ocurrió un error",
       },
-      toastOptions
+      {
+        style: {
+          background: empresa ? "#2563eb" : "#16a34a",
+          color: "#fff",
+          fontWeight: 600,
+          borderRadius: "8px",
+        },
+        iconTheme: {
+          primary: "#fff",
+          secondary: empresa ? "#1e3a8a" : "#166534",
+        },
+      }
     );
 
     try {
@@ -238,23 +209,7 @@ export function EmpresaDialog({
   };
 
   return (
-    <>
-      <Toaster
-        position="top-right"
-        reverseOrder={false}
-        gutter={8}
-        containerStyle={{
-          top: 20,
-          right: 20,
-        }}
-        toastOptions={{
-          duration: 4000,
-          style: {
-            maxWidth: '400px',
-          },
-        }}
-      />
-      <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -373,18 +328,23 @@ export function EmpresaDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancelar
             </Button>
 
             <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {loading && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               {empresa ? "Actualizar" : "Registrar"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-    </>
   );
 }
