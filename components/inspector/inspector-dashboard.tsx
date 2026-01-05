@@ -235,7 +235,11 @@ export function InspectorDashboard() {
         </Tabs>
       </main>
 
-      <InspectorProfile open={profileOpen} onOpenChange={setProfileOpen} />
+      <InspectorProfile 
+        open={profileOpen} 
+        onClose={() => setProfileOpen(false)}
+        idInspector={inspectorId}
+      />
     </div>
   );
 }

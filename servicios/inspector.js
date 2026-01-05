@@ -192,3 +192,32 @@ export async function obtenerPerfilInspector(idInspector) {
     throw error;
   }
 }
+
+export async function actualizarPerfilInspector(idInspector, datos) {
+  try {
+    const response = await fetch(`${INSPECTOR_URL}/perfil/${idInspector}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        nombre: datos.nombre,
+        apellido: datos.apellido,
+        correo: datos.correo,
+        telefono: datos.telefono ?? null,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.detail || "Error al actualizar el perfil del inspector"
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ Error en actualizarPerfilInspector:", error);
+    throw error;
+  }
+}
