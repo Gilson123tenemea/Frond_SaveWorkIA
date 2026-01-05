@@ -44,3 +44,23 @@ export async function actualizarFotoPersona(idPersona, fotoBase64) {
   }
 }
   
+// ============================
+// 🔍 Buscar persona por correo
+// ============================
+export async function buscarPersonaPorCorreo(correo) {
+  try {
+    const res = await fetch(
+      `${PERSONA_URL}/buscar-por-correo?correo=${encodeURIComponent(correo)}`
+    );
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Persona no encontrada con ese correo");
+    }
+
+    return res.json();
+  } catch (error) {
+    console.error("❌ Error buscarPersonaPorCorreo:", error);
+    throw error;
+  }
+}
