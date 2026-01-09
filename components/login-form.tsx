@@ -42,7 +42,8 @@ import {
   confirmarCambioContrasena,
 } from "@/servicios/cambio_contraseña"
 import { buscarPersonaPorCorreo } from "@/servicios/persona"
-
+import Image from "next/image";
+import logo from "@/components/imagenes/logo_web.png";
 export function LoginForm() {
   const router = useRouter()
 
@@ -364,8 +365,14 @@ export function LoginForm() {
     <>
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
-            <Shield className="w-9 h-9 text-primary-foreground" />
+             <div className="mx-auto relative w-16 h-16 bg-primary rounded-xl flex items-center justify-center overflow-hidden">
+            <Image
+              src={logo}
+              alt="Logo"
+              className="w-12 h-12 object-contain"
+              width={48}
+              height={48}
+            />
           </div>
 
           <CardTitle className="text-3xl font-bold">SaveWorkIA</CardTitle>
@@ -450,12 +457,12 @@ export function LoginForm() {
         </CardContent>
 
         <CardFooter className="text-sm text-muted-foreground text-center">
-          Usa el correo y contraseña registrados en FastAPI.
+          Usa el correo y contraseña registrados en Save Work IA.
         </CardFooter>
       </Card>
 
       {/* MODAL DE RECUPERACIÓN DE CONTRASEÑA */}
-      <Dialog open={showForgotPasswordModal} onOpenChange={closeForgotPasswordModal}>
+      <Dialog open={showForgotPasswordModal} onOpenChange={closeForgotPasswordModal}> 
         <DialogContent className="max-w-md rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">

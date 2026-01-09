@@ -28,6 +28,8 @@ import { CamerasTable } from "./cameras-table"
 import { StatsCards } from "./stats-cards"
 import { initializeStorage } from "@/lib/storage"
 import { obtenerDashboardOverview } from "@/servicios/dashboard"
+import Image from "next/image"
+import logo from "@/components/imagenes/logo_web.png"
 
 export function AdminDashboard() {
   const user = getUser()
@@ -52,8 +54,14 @@ export function AdminDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Shield className="w-6 h-6 text-primary-foreground" />
+              <div className="relative w-10 h-10 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+                <Image
+                  src={logo}
+                  alt="Logo"
+                  className="w-8 h-8 object-contain"
+                  width={24}
+                  height={24}
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold">SaveWorkIA</h1>
@@ -62,14 +70,12 @@ export function AdminDashboard() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon">
-                <Settings className="w-5 h-5" />
-              </Button>
+
 
               <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
                   <p className="text-sm font-medium">
-                    {mounted ? user?.name : ""}
+                    {mounted ? (user?.name || "Usuario") : ""}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Administrador
@@ -78,7 +84,7 @@ export function AdminDashboard() {
 
                 <Avatar>
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {mounted && user?.name ? user.name.charAt(0) : ""}
+                    {mounted && user?.name ? user.name.charAt(0).toUpperCase() : "A"}
                   </AvatarFallback>
                 </Avatar>
               </div>

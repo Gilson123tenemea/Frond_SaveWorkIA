@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,9 +18,10 @@ import { ZonesGrid } from "./zones-grid";
 import { LiveDetections } from "./live-detections";
 import { SupervisorStats } from "./supervisor-stats";
 import { InspectorsTable } from "./inspectors-table";
-import { SupervisorProfile } from "./supervisor-profile"; // ✅ corregido
+import { SupervisorProfile } from "./supervisor-profile";
 import { ZoneAssignmentsTable } from "./zone-assignments-table";
 import { ZonesMapViewer } from "@/components/maps/zones-map-viewer";
+import logo from "@/components/imagenes/logo_web.png";
 
 export function SupervisorDashboard() {
 
@@ -65,8 +67,14 @@ export function SupervisorDashboard() {
 
             {/* Logo y título */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Shield className="w-6 h-6 text-primary-foreground" />
+              <div className="relative w-10 h-10 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+                <Image
+                  src={logo}
+                  alt="Logo"
+                  className="w-8 h-8 object-contain"
+                  width={24}
+                  height={24}
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold">SaveWorkIA</h1>
@@ -85,13 +93,13 @@ export function SupervisorDashboard() {
               {/* Avatar + nombre */}
               <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
-                  <p className="text-sm font-medium">{user?.name}</p>
+                  <p className="text-sm font-medium">{user?.name || "Usuario"}</p>
                   <p className="text-xs text-muted-foreground">Supervisor</p>
                 </div>
 
                 <Avatar>
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user?.name?.charAt(0)}
+                    {(user?.name || "U")?.charAt(0)?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </div>

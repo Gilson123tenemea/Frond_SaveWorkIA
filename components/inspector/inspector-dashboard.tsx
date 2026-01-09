@@ -30,6 +30,8 @@ import { WorkerAlertsList } from "./worker-alerts-list";
 import { obtenerZonasPorInspector } from "@/servicios/inspector";
 import { NotificationsPopover } from "./notifications-popover";
 import { InspectorProfile } from "./inspector-profile";
+import Image from "next/image";
+import logo from "@/components/imagenes/logo_web.png";
 
 type ZonaAsignada = {
   id_Zona: number;
@@ -96,8 +98,14 @@ export function InspectorDashboard() {
           <div className="flex items-center justify-between">
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Shield className="w-6 h-6 text-primary-foreground" />
+              <div className="relative w-10 h-10 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+                <Image
+                  src={logo}
+                  alt="Logo"
+                  className="w-8 h-8 object-contain"
+                  width={24}
+                  height={24}
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold">SaveWorkIA</h1>
