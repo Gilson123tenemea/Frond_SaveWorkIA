@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
-import "leaflet/dist/leaflet.css" // ⬅️ obligatorio para Leaflet
+import "leaflet/dist/leaflet.css"
 import { Toaster } from "react-hot-toast"
 
 const geist = Geist({ subsets: ["latin"] })
@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "SAVEWORK IA",
   description: "Creado por Gilson y Freddy",
   generator: "Gilson y Freddy",
+  icons: {
+    icon: "/logo_pesta.png", 
+  },
 }
 
 export default function RootLayout({
@@ -22,7 +25,6 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="font-sans antialiased bg-gray-50">
-
         {/* CONTENIDO DE LA APP */}
         {children}
 
