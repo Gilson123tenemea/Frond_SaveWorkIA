@@ -68,11 +68,23 @@ export function validarApellido(apellido: string) {
 }
 
 // 🟦 Validar teléfono
+
 export function validarTelefono(telefono: string) {
   if (!telefono) return "El teléfono es obligatorio";
 
   if (!/^\d{10}$/.test(telefono)) {
     return "El teléfono debe tener exactamente 10 números";
+  }
+
+  const prefijo = telefono.substring(0, 2);
+  const prefijosValidos = ["09", "02", "03", "04", "05", "06", "07"];
+
+  if (!prefijosValidos.includes(prefijo)) {
+    return "El teléfono debe comenzar con un prefijo válido ecuatoriano (09, 02-07)";
+  }
+
+  if (/^(\d)\1{9}$/.test(telefono)) {
+    return "El teléfono no puede contener solo dígitos repetidos";
   }
 
   return null;
