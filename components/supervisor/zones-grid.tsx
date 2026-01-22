@@ -36,9 +36,17 @@ export function ZonesGrid() {
           cameras: item.total_camaras,
           workers: item.total_trabajadores,
 
+          // 🔥 AGREGAR DATOS DE REGISTROS Y FALLOS
+          total_registros: item.total_registros || 0,
+          total_fallos: item.total_fallos || 0,
+
           inspector: {
             name: `${item.inspector?.nombre || "Sin"} ${item.inspector?.apellido || "Inspector"}`,
-            email: item.inspector?.cedula || "N/A"
+            email: item.inspector?.cedula || "N/A",
+            // 🔥 PRESERVAR DATOS ORIGINALES DEL INSPECTOR
+            nombre: item.inspector?.nombre || "",
+            apellido: item.inspector?.apellido || "",
+            cedula: item.inspector?.cedula || ""
           },
 
           alerts: 0,

@@ -16,8 +16,12 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
 
   if (!zone) return null
 
-  // Inspector asignado real
+  // Inspector asignado
   const inspector = zone.inspector
+
+  // 🔥 Datos de registros y fallos desde el backend
+  const totalRegistros = zone.total_registros || 0
+  const totalFallos = zone.total_fallos || 0
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -91,17 +95,17 @@ export function ZoneDetailsDialog({ open, onClose, zone }: ZoneDetailsDialogProp
                   <p className="text-xs text-muted-foreground mt-1">Total</p>
                 </div>
 
-                {/* Con EPP (mock temporal) */}
+                {/* Con EPP - total_registros del backend */}
                 <div className="text-center p-4 border rounded-lg bg-success/10 border-success/20">
                   <CheckCircle className="w-5 h-5 mx-auto mb-2 text-success" />
-                  <p className="text-2xl font-bold text-success">0</p>
+                  <p className="text-2xl font-bold text-success">{totalRegistros}</p>
                   <p className="text-xs text-muted-foreground mt-1">Con EPP</p>
                 </div>
 
-                {/* Sin EPP (mock temporal) */}
+                {/* Sin EPP - total_fallos del backend */}
                 <div className="text-center p-4 border rounded-lg bg-destructive/10 border-destructive/20">
                   <AlertTriangle className="w-5 h-5 mx-auto mb-2 text-destructive" />
-                  <p className="text-2xl font-bold text-destructive">0</p>
+                  <p className="text-2xl font-bold text-destructive">{totalFallos}</p>
                   <p className="text-xs text-muted-foreground mt-1">Sin EPP</p>
                 </div>
               </div>

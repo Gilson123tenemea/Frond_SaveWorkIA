@@ -294,7 +294,6 @@ export function WorkerDialog({ open, onClose, worker }: any) {
         setCorreoValidacion({ validando: false, disponible: null });
       }
 
-      // 🟢 LIMPIAR ERRORES cuando se abre el diálogo
       setErrors({});
     }
   }, [worker, open]);
@@ -348,85 +347,57 @@ export function WorkerDialog({ open, onClose, worker }: any) {
       if (isEditing) {
         const promise = editarTrabajador(worker.id_trabajador, body);
 
-        toast.loading("Actualizando trabajador...", {
-          id: "worker-update",
-          style: {
-            background: "#2563eb",
-            color: "#fff",
-            borderRadius: "8px",
-            fontWeight: 500,
+        toast.promise(
+          promise,
+          {
+            loading: "Actualizando trabajador...",
+            success: `Trabajador "${formData.nombre} ${formData.apellido}" actualizado con éxito`,
+            error: "Ocurrió un error al actualizar el trabajador",
           },
-        });
-
-        try {
-          await promise;
-
-          toast.success(
-            `Trabajador "${formData.nombre} ${formData.apellido}" actualizado con éxito`,
-            {
-              id: "worker-update",
-              style: {
-                background: "#1d4ed8",
-                color: "#fff",
-                borderRadius: "8px",
-                fontWeight: 500,
-              },
-            }
-          );
-
-          onClose();
-        } catch {
-          toast.error("❌ No se pudo actualizar el trabajador", {
-            id: "worker-update",
+          {
             style: {
-              background: "#dc2626",
+              background: "#1d4ed8",
               color: "#fff",
               borderRadius: "8px",
               fontWeight: 500,
+              boxShadow: "0 2px 20px rgba(0, 0, 0, 0.25)",
             },
-          });
-        }
+            iconTheme: {
+              primary: "#fff",
+              secondary: "#1e3a8a", 
+            },
+          }
+        );
+
+        await promise;
+        onClose();
       } else {
         const promise = registrarTrabajador(body);
 
-        toast.loading("Registrando trabajador...", {
-          id: "worker-create",
-          style: {
-            background: "#16a34a",
-            color: "#fff",
-            borderRadius: "8px",
-            fontWeight: 500,
+        toast.promise(
+          promise,
+          {
+            loading: "Registrando trabajador...",
+            success: `Trabajador "${formData.nombre} ${formData.apellido}" registrado exitosamente`,
+            error: "Ocurrió un error al registrar el trabajador",
           },
-        });
-
-        try {
-          await promise;
-
-          toast.success(
-            `Trabajador "${formData.nombre} ${formData.apellido}" registrado exitosamente`,
-            {
-              id: "worker-create",
-              style: {
-                background: "#15803d",
-                color: "#fff",
-                borderRadius: "8px",
-                fontWeight: 500,
-              },
-            }
-          );
-
-          onClose();
-        } catch {
-          toast.error("❌ No se pudo registrar el trabajador", {
-            id: "worker-create",
+          {
             style: {
-              background: "#dc2626",
+              background: "#15803d",
               color: "#fff",
               borderRadius: "8px",
               fontWeight: 500,
+              boxShadow: "0 2px 20px rgba(0, 0, 0, 0.2)",
             },
-          });
-        }
+            iconTheme: {
+              primary: "#fff",
+              secondary: "#15803d", 
+            },
+          }
+        );
+
+        await promise;
+        onClose();
       }
     } catch {
       toast.error("❌ Error inesperado", {
@@ -437,9 +408,9 @@ export function WorkerDialog({ open, onClose, worker }: any) {
           fontWeight: 500,
         },
       });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const renderError = (field: string) =>

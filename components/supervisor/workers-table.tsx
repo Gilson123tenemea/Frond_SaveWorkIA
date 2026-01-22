@@ -152,16 +152,16 @@ export function WorkersTable() {
 
                 const promise = eliminarTrabajador(id).catch((err) => {
                   const msg = err?.message || "";
-
+  
                   if (msg.includes("zonas asignadas")) {
                     return Promise.reject({
                       message:
-                        "❌ Este trabajador tiene zonas asignadas. Elimine o reasigne esas zonas antes de eliminarlo.",
+                        "Este trabajador tiene zonas asignadas. Elimine o reasigne esas zonas antes de eliminarlo.",
                     });
                   }
 
                   return Promise.reject({
-                    message: msg || "❌ Error al eliminar el trabajador",
+                    message: msg || "Error al eliminar el trabajador",
                   });
                 });
 
