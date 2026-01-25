@@ -125,7 +125,7 @@ export default function DetectionWindow() {
 
       const streamUrl = obtenerUrlStreamWebcamIA(idCamara);
 
-      fetch(streamUrl, { method: "GET" }).catch(() => {});
+      fetch(streamUrl, { method: "GET" }).catch(() => { });
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       setCameraStreamUrl(streamUrl);
@@ -252,30 +252,42 @@ export default function DetectionWindow() {
                 </div>
               )}
 
-              {/* ANIMACIÓN */}
+              {/* ANIMACIÓN CON IMAGEN Y LÍNEA DE ESCANEO */}
               <div className="relative w-full h-80 flex items-center justify-center overflow-hidden">
                 <div className="absolute inset-0 
                   bg-[linear-gradient(rgba(59,130,246,0.10)_1px,transparent_1px),
                   linear-gradient(90deg,rgba(59,130,246,0.10)_1px,transparent_1px)]
                   bg-[size:22px_22px]" />
 
-                <div className="relative w-32 h-56 animate-[spin_3s_linear]">
-                  <svg viewBox="0 0 100 150" className="w-full h-full">
-                    <circle cx="50" cy="20" r="12" fill="none" stroke="rgb(59,130,246)" strokeWidth="2" />
-                    <line x1="50" y1="32" x2="50" y2="80" stroke="rgb(59,130,246)" strokeWidth="2" />
-                    <line x1="50" y1="45" x2="30" y2="65" stroke="rgb(59,130,246)" strokeWidth="2" />
-                    <line x1="50" y1="45" x2="70" y2="65" stroke="rgb(59,130,246)" strokeWidth="2" />
-                    <line x1="50" y1="80" x2="35" y2="120" stroke="rgb(59,130,246)" strokeWidth="2" />
-                    <line x1="50" y1="80" x2="65" y2="120" stroke="rgb(59,130,246)" strokeWidth="2" />
-                  </svg>
-                </div>
+                <div className="relative w-64 h-[500px] flex items-center justify-center">
+                  <img
+                    src="/cuerpo_escaneo.png"
+                    alt="Escaneo de cuerpo"
+                    className="w-full h-full object-contain drop-shadow-lg"
+                  />
 
-                <div
-                  className="absolute left-0 right-0 h-1 
-                  bg-gradient-to-r from-transparent via-primary to-transparent 
-                  animate-[scanLine_3s_ease-in-out]"
-                />
+                  {/* Línea de escaneo que baja en 3 segundos y sube */}
+                  <div
+                    className="absolute left-0 right-0 h-1 
+                    bg-gradient-to-b from-transparent via-primary to-transparent 
+                    shadow-lg"
+                    style={{
+                      animation: 'scanLineLoop 3s ease-in-out infinite'
+                    }}
+                  />
+                </div>
               </div>
+
+              <style>{`
+                @keyframes scanLineLoop {
+                  0% {
+                    top: 0%;
+                  }
+                  100% {
+                    top: 100%;
+                  }
+                }
+              `}</style>
 
             </div>
           )}

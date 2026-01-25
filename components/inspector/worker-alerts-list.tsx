@@ -269,6 +269,9 @@ export function WorkerAlertsList() {
   // ===========================================================
   // GUARDAR OBSERVACIÓN
   // ===========================================================
+  // ===========================================================
+  // GUARDAR OBSERVACIÓN (ACTUALIZADO)
+  // ===========================================================
   async function agregarObservacion() {
     if (!selectedAlert || observation.trim() === "") return;
 
@@ -285,7 +288,11 @@ export function WorkerAlertsList() {
       setAlerts((prev) =>
         prev.map((a) =>
           a.id === alert.id
-            ? { ...a, observations: [...a.observations, observation] }
+            ? {
+              ...a,
+              observations: [...a.observations, observation],
+              observacionesTexto: observation
+            }
             : a
         )
       );
@@ -412,13 +419,12 @@ export function WorkerAlertsList() {
             {filteredAlerts.map((alert) => (
               <Card
                 key={alert.id}
-                className={`border ${
-                  alert.severity === "high"
+                className={`border ${alert.severity === "high"
                     ? "border-destructive"
                     : alert.severity === "medium"
-                    ? "border-yellow-500"
-                    : "border-border"
-                }`}
+                      ? "border-yellow-500"
+                      : "border-border"
+                  }`}
               >
                 <CardContent className="p-4">
                   <div className="grid gap-4 md:grid-cols-[300px_1fr]">
@@ -466,18 +472,16 @@ export function WorkerAlertsList() {
                           return (
                             <div
                               key={det.item}
-                              className={`flex items-center gap-3 p-2 rounded-lg border ${
-                                det.detected
+                              className={`flex items-center gap-3 p-2 rounded-lg border ${det.detected
                                   ? "bg-green-50 border-green-400"
                                   : "bg-red-50 border-red-400"
-                              }`}
+                                }`}
                             >
                               <Icon
-                                className={`w-4 h-4 ${
-                                  det.detected
+                                className={`w-4 h-4 ${det.detected
                                     ? "text-green-600"
                                     : "text-red-600"
-                                }`}
+                                  }`}
                               />
 
                               <div>
@@ -485,11 +489,10 @@ export function WorkerAlertsList() {
                                   {det.item}
                                 </p>
                                 <p
-                                  className={`text-xs ${
-                                    det.detected
+                                  className={`text-xs ${det.detected
                                       ? "text-green-600"
                                       : "text-red-600"
-                                  }`}
+                                    }`}
                                 >
                                   {det.detected ? "Detectado" : "No detectado"}
                                 </p>

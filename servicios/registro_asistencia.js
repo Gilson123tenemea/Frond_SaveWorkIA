@@ -67,29 +67,62 @@ export async function verificarEPP(idCamara, codigoTrabajador, datosTrabajador =
       throw new Error("ID de cámara y código de trabajador son requeridos");
     }
 
-    console.log(`🔍 Verificando EPP: Cámara ${idCamara}, Código ${codigoTrabajador}`);
-
-    // Si no recibe datos del trabajador, obtenerlos (compatibilidad hacia atrás)
-    let datosVerificacion;
-    
-    if (datosTrabajador) {
-      // 🔥 Si recibe datos, usarlos directamente
-      datosVerificacion = {
-        id_trabajador: datosTrabajador.id_trabajador,
-        id_empresa: datosTrabajador.id_empresa,
-        id_zona: datosTrabajador.id_zona,
-        id_supervisor: datosTrabajador.id_supervisor_trabajador,
-        id_inspector: datosTrabajador.id_inspector || null,
-        nombre_trabajador: `${datosTrabajador.persona.nombre} ${datosTrabajador.persona.apellido}`,
-      };
-    } else {
-      // Si no recibe datos, obtenerlos del endpoint (ya no recomendado)
-      throw new Error("datosTrabajador es requerido");
+    if (!datosTrabajador) {
+      throw new Error("❌ datosTrabajador es requerido");
     }
 
-    // Construir URL con parámetros
+    // 🆕 VALIDACIÓN ROBUSTA
+    const idTrabajador = datosTrabajador.id_trabajador;
+    const idEmpresa = datosTrabajador.id_empresa;
+    const idZona = datosTrabajador.id_zona;
+    const idSupervisor = datosTrabajador.id_supervisor_trabajador;
+    const idInspector = datosTrabajador.id_inspector || null;
+
+    if (!idTrabajador || !idEmpresa || !idZona || !idSupervisor) {
+      console.error("❌ Datos incompletos:", {
+        id_trabajador: idTrabajador,
+        id_empresa: idEmpresa,
+        id_zona: idZona,
+        id_supervisor_trabajador: idSupervisor,
+      });
+      throw new Error(
+        `❌ Faltan datos obligatorios. Tienes: ${JSON.stringify({
+          id_trabajador: idTrabajador,
+          id_empresa: idEmpresa,
+          id_zona: idZona,
+          id_supervisor: idSupervisor,
+        })}`
+      );
+    }
+
+    console.log(`🔍 Verificando EPP: Cámara ${idCamara}, Código ${codigoTrabajador}`);
+    console.log("📦 Datos enviados al backend:", {
+      id_trabajador: idTrabajador,
+      id_empresa: idEmpresa,
+      id_zona: idZona,
+      id_supervisor_trabajador: idSupervisor,
+      id_inspector: idInspector,
+      persona: datosTrabajador.persona,
+    });
+
+    // ✅ BODY LIMPIO Y CORRECTO
+    const datosVerificacion = {
+      id_trabajador: idTrabajador,
+      id_empresa: idEmpresa,
+      id_zona: idZona,
+      id_supervisor_trabajador: idSupervisor,
+      id_inspector: idInspector,
+      persona: {
+        nombre: datosTrabajador.persona?.nombre || "",
+        apellido: datosTrabajador.persona?.apellido || "",
+      },
+    };
+
     const url = new URL(`${BASE_URL}/registros-asistencia/verificar-epp/${idCamara}`);
     url.searchParams.append("codigo_trabajador", codigoTrabajador);
+
+    console.log("🚀 URL:", url.toString());
+    console.log("📤 Body:", JSON.stringify(datosVerificacion));
 
     const response = await fetch(url.toString(), {
       method: "POST",
@@ -99,15 +132,16 @@ export async function verificarEPP(idCamara, codigoTrabajador, datosTrabajador =
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
+      console.error("❌ Error del servidor:", errorData);
       throw new Error(
         errorData?.detail || `Error verificando EPP (${response.status})`
       );
     }
 
     const data = await response.json();
-    console.log(`📊 Resultado EPP:`, data);
-
+    console.log(`✅ Resultado EPP:`, data);
     return data;
+
   } catch (error) {
     console.error("❌ Error verificando EPP:", error.message);
     return { error: error.message };
