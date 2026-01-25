@@ -252,11 +252,10 @@ export function WorkerAlertsList() {
     const historialArray = data.historial || [];
     const estadisticas = data.estadisticas || {};
 
-    // 🔥 PASAR LOS DATOS CRUDOS SIN TRANSFORMAR
-    // El dialog se encargará de transformarlos correctamente
+    // 🔥 MAPEO CORRECTO: usar 'revisados' que viene del backend
     setHistoryStats({
       total: estadisticas.total || 0,
-      revisados: estadisticas.cumple || 0,
+      revisados: estadisticas.revisados || 0,  
       pendientes: estadisticas.incumple || 0,
       tasa_revisado: estadisticas.tasa || 0,
     });
