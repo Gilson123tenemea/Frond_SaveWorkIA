@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import logo from "@/components/imagenes/logo_web.png"
+import emailjs from '@emailjs/browser'
 
 export default function ContactPage() {
   const router = useRouter()
@@ -19,27 +20,72 @@ export default function ContactPage() {
     company: "",
     phone: "",
     message: "",
-    contactType: "demo" // demo, support, partnership, other
+    contactType: "demo"
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [error, setError] = useState("")
+
+  const getContactTypeLabel = (type: string) => {
+    const types = {
+      demo: "Solicitar Demo",
+      support: "Soporte Técnico",
+      partnership: "Alianza Comercial",
+      other: "Otro"
+    }
+    return types[type as keyof typeof types] || type
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError("")
     
-    // Simulación de envío (reemplazar con API real)
-    setTimeout(() => {
-      console.log("Form data:", formData)
-      setIsSubmitting(false)
+    // Configuración de EmailJS
+    const serviceId = 'service_0fqgbb9'
+    const templateId = 'template_h6ucqzd' 
+    const publicKey = 'zC1c36MzmjOsPQM4Q'
+
+    // Preparar los datos para el template
+    const templateParams = {
+      from_name: formData.name,
+      from_email: formData.email,
+      company: formData.company,
+      phone: formData.phone || 'No proporcionado',
+      contact_type: getContactTypeLabel(formData.contactType),
+      message: formData.message,
+      to_email: 'contacto@saveworkia.com'
+    }
+
+    try {
+      const response = await emailjs.send(
+        serviceId,
+        templateId,
+        templateParams,
+        publicKey
+      )
+
+      console.log('Email enviado exitosamente:', response)
       setIsSubmitted(true)
       
-      // Reset form after 3 seconds
       setTimeout(() => {
         setIsSubmitted(false)
-        setFormData({ name: "", email: "", company: "", phone: "", message: "", contactType: "demo" })
-      }, 3000)
-    }, 1500)
+        setFormData({ 
+          name: "", 
+          email: "", 
+          company: "", 
+          phone: "", 
+          message: "", 
+          contactType: "demo" 
+        })
+      }, 5000)
+      
+    } catch (error) {
+      console.error('Error al enviar email:', error)
+      setError('Hubo un error al enviar el mensaje. Por favor, intenta nuevamente o contáctanos directamente.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const contactTypes = [
@@ -72,7 +118,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation - Professional */}
+      {/* Navigation */}
       <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-xl border-b border-gray-100 z-50 shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -127,9 +173,8 @@ export default function ContactPage() {
         </div>
       </nav>
 
-      {/* Hero Section - Enhanced */}
+      {/* Hero Section */}
       <section className="pt-36 pb-20 bg-gradient-to-br from-blue-50 via-white to-indigo-50 relative overflow-hidden">
-        {/* Background Effects */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" />
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-indigo-100 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
         
@@ -194,11 +239,11 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Contact Section - Enhanced */}
+      {/* Contact Section */}
       <section className="py-24 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12">
-            {/* Contact Form - Enhanced */}
+            {/* Contact Form */}
             <div className="space-y-8">
               <div className="bg-white rounded-3xl border-2 border-gray-200 p-10 shadow-lg">
                 <div className="flex items-center gap-3 mb-8">
@@ -227,6 +272,13 @@ export default function ContactPage() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {error && (
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{error}</span>
+                      </div>
+                    )}
+                    
                     <div className="grid md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -350,9 +402,8 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Contact Info - Enhanced */}
+            {/* Contact Info */}
             <div className="space-y-8">
-              {/* Contact Details Cards */}
               <div className="space-y-6">
                 {contactInfo.map((info, index) => (
                   <div 
@@ -376,7 +427,7 @@ export default function ContactPage() {
                 ))}
               </div>
 
-              {/* Social Media - Enhanced */}
+              {/* Social Media */}
               <div className="bg-white rounded-3xl border-2 border-gray-200 p-8 shadow-lg">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Conéctate con Nosotros</h3>
                 <p className="text-gray-600 mb-6">
@@ -410,7 +461,7 @@ export default function ContactPage() {
                 </div>
               </div>
 
-              {/* Hours - Enhanced */}
+              {/* Hours */}
               <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 text-white shadow-xl">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -449,7 +500,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Map Section - Updated for Cuenca, Ecuador */}
+      {/* Map Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
@@ -554,7 +605,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Footer Professional - Updated for Ecuador */}
+      {/* Footer */}
       <footer className="border-t border-gray-200 bg-gray-50 py-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
