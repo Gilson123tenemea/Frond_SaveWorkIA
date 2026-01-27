@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -241,44 +242,44 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
           {/* Cédula */}
           <div className="flex flex-col gap-1">
             <Label>Cédula</Label>
-            <input
+            <Input
               type="text"
               value={formData.cedula}
               onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Ej: 1723456789"
             />
           </div>
 
           {/* Nombre */}
           <div className="flex flex-col gap-1">
             <Label>Nombre</Label>
-            <input
+            <Input
               type="text"
               value={formData.nombre}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Ej: Juan"
             />
           </div>
 
           {/* Apellido */}
           <div className="flex flex-col gap-1">
             <Label>Apellido</Label>
-            <input
+            <Input
               type="text"
               value={formData.apellido}
               onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Ej: Pérez"
             />
           </div>
 
           {/* Teléfono */}
           <div className="flex flex-col gap-1">
             <Label>Teléfono</Label>
-            <input
+            <Input
               type="text"
               value={formData.telefono}
               onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Ej: 0987654321"
             />
           </div>
 
@@ -287,19 +288,20 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
             <Label>Correo</Label>
 
             <div className="relative">
-              <input
+              <Input
                 type="email"
                 value={formData.correo}
                 onChange={(e) => {
                   console.log("🎯 Input onChange:", e.target.value)
                   handleCorreoChange(e.target.value)
                 }}
-                className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pr-10 ${
+                placeholder="Ej: supervisor@empresa.com"
+                className={`pr-10 ${
                   inputState === "error"
                     ? "border-red-500 focus-visible:ring-red-500"
                     : inputState === "success"
                     ? "border-green-500 focus-visible:ring-green-500"
-                    : "border-input focus-visible:ring-ring"
+                    : ""
                 }`}
               />
 
@@ -334,11 +336,11 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
           {/* Dirección */}
           <div className="flex flex-col gap-1">
             <Label>Dirección</Label>
-            <input
+            <Input
               type="text"
               value={formData.direccion}
               onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Ej: Av. Amazonas N12-345"
             />
           </div>
 
@@ -362,13 +364,12 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
           {/* Fecha de nacimiento */}
           <div className="flex flex-col gap-1">
             <Label>Fecha de nacimiento</Label>
-            <input
+            <Input
               type="date"
               value={formData.fecha_nacimiento}
               onChange={(e) =>
                 setFormData({ ...formData, fecha_nacimiento: e.target.value })
               }
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
 
@@ -376,13 +377,14 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
           <div className="flex flex-col gap-1 md:col-span-2">
             <Label>Contraseña</Label>
             <div className="relative">
-              <input
+              <Input
                 type={showPassword ? "text" : "password"}
                 value={formData.contrasena}
                 onChange={(e) =>
                   setFormData({ ...formData, contrasena: e.target.value })
                 }
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pr-10"
+                placeholder="Mínimo 8 caracteres"
+                className="pr-10"
               />
               <button
                 type="button"
@@ -397,13 +399,13 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
           {/* Especialidad */}
           <div className="flex flex-col gap-1">
             <Label>Especialidad</Label>
-            <input
+            <Input
               type="text"
               value={formData.especialidad_seguridad}
               onChange={(e) =>
                 setFormData({ ...formData, especialidad_seguridad: e.target.value })
               }
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Ej: Seguridad Industrial, Salud Ocupacional"
             />
           </div>
 
@@ -432,11 +434,12 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
           {/* Experiencia */}
           <div className="flex flex-col gap-1">
             <Label>Experiencia (años)</Label>
-            <input
+            <Input
               type="number"
               value={formData.experiencia}
               onChange={(e) => setFormData({ ...formData, experiencia: e.target.value })}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Ej: 5"
+              min="0"
             />
           </div>
         </div>

@@ -464,7 +464,7 @@ export function SupervisoresTable() {
 
                   if (msg.includes("inspectores asignados")) {
                     throw new Error(
-                      "❌ Este supervisor está relacionado con uno o más inspectores. Debe eliminarlos primero."
+                      "Este supervisor está relacionado con uno o más inspectores. Debe eliminarlos primero."
                     )
                   }
 

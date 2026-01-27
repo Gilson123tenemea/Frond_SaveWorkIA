@@ -206,7 +206,7 @@ export function ZoneFormDialog({
             borderRadius: "10px",
             padding: "12px 16px",
           },
-          icon: "✏️",
+          icon: "",
         });
       } else {
         // CREAR - Toast VERDE

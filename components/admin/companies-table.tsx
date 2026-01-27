@@ -123,7 +123,7 @@ export function CompaniesTable() {
 
                     // ✔ Mostrar el mensaje REAL del backend
                     error: (err: any) => {
-                      return "⚠️ " + (err?.message || "Error al eliminar la empresa")
+                      return " " + (err?.message || "Error al eliminar la empresa")
                     },
                   },
                   {

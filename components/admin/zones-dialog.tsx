@@ -168,7 +168,7 @@ export function ZonesDialog({
           borderRadius: "10px",
           padding: "12px 16px",
         },
-        icon: "⚠️",
+        icon: "",
       });
       return;
     }

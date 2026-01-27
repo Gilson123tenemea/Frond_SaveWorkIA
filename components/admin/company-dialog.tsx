@@ -25,12 +25,52 @@ import {
   validarCorreo,
 } from "@/components/validaciones/empresa-validaciones";
 
+/* =====================
+   TIPOS
+===================== */
+
+interface Empresa {
+  id_Empresa: number;
+  nombreEmpresa: string;
+  ruc: string;
+  direccion: string;
+  telefono: string;
+  correo: string;
+  sector: string;
+  id_administrador_empresa: number;
+}
+
 interface EmpresaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  empresa: any | null;
+  empresa: Empresa | null;
   onSuccess: () => void;
 }
+
+interface FormDataEmpresa {
+  nombreEmpresa: string;
+  ruc: string;
+  direccion: string;
+  telefono: string;
+  correo: string;
+  sector: string;
+  id_administrador_empresa: number;
+}
+
+interface CampoProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  error?: string | null;
+  disabled?: boolean;
+  type?: string;
+  maxLength?: number;
+}
+
+/* =====================
+   COMPONENTE
+===================== */
 
 export function EmpresaDialog({
   open,
@@ -38,10 +78,10 @@ export function EmpresaDialog({
   empresa,
   onSuccess,
 }: EmpresaDialogProps) {
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<any>({});
+  const [loading, setLoading] = useState<boolean>(false);
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataEmpresa>({
     nombreEmpresa: "",
     ruc: "",
     direccion: "",
@@ -51,10 +91,11 @@ export function EmpresaDialog({
     id_administrador_empresa: 0,
   });
 
-  const handleChange = (campo: string, valor: string) => {
+  const handleChange = (campo: keyof FormDataEmpresa, valor: string) => {
     setFormData((prev) => ({ ...prev, [campo]: valor }));
 
-    let error = null;
+    let error: string | null = null;
+
     switch (campo) {
       case "nombreEmpresa":
         error =
@@ -81,12 +122,12 @@ export function EmpresaDialog({
         break;
     }
 
-    setErrors((prev: any) => ({ ...prev, [campo]: error }));
+    setErrors((prev) => ({ ...prev, [campo]: error }));
   };
 
   useEffect(() => {
     const user = getUser();
-    const adminId = user?.id_administrador;
+    const adminId = user?.id_administrador ?? 0;
 
     if (empresa) {
       setFormData({
@@ -106,15 +147,15 @@ export function EmpresaDialog({
         telefono: "",
         correo: "",
         sector: "",
-        id_administrador_empresa: adminId ?? 0,
+        id_administrador_empresa: adminId,
       });
     }
 
     setErrors({});
   }, [empresa, open]);
 
-  const validateForm = () => {
-    const campos = [
+  const validateForm = (): boolean => {
+    const campos: (keyof FormDataEmpresa)[] = [
       "nombreEmpresa",
       "ruc",
       "direccion",
@@ -123,16 +164,17 @@ export function EmpresaDialog({
       "sector",
     ];
 
-    const newErrors: any = {};
+    const newErrors: Record<string, string | null> = {};
 
     campos.forEach((campo) => {
-      const valor = (formData as any)[campo];
+      const valor = formData[campo];
+      const valorStr = String(valor)
       newErrors[campo] =
         campoObligatorio(valor, campo) ||
-        (campo === "nombreEmpresa" && validarNombreEmpresa(valor)) ||
-        (campo === "telefono" && validarTelefono(valor)) ||
-        (campo === "ruc" && validarRuc(valor)) ||
-        (campo === "correo" && validarCorreo(valor)) ||
+        (campo === "nombreEmpresa" && validarNombreEmpresa(valorStr)) ||
+        (campo === "telefono" && validarTelefono(valorStr)) ||
+        (campo === "ruc" && validarRuc(valorStr)) ||
+        (campo === "correo" && validarCorreo(valorStr)) ||
         null;
     });
 
@@ -140,77 +182,63 @@ export function EmpresaDialog({
     return Object.values(newErrors).every((x) => x === null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // 🔴 VALIDACIÓN → ROJO
     if (!validateForm()) {
-      toast.error("Corrige los campos marcados en rojo.", {
-        style: {
-          background: "#dc2626",
-          color: "#fff",
-          fontWeight: 600,
-          borderRadius: "8px",
-        },
-        iconTheme: {
-          primary: "#fff",
-          secondary: "#7f1d1d",
-        },
-      });
+      toast.error("Corrige los campos marcados en rojo.");
       return;
     }
 
-    const payload: any = {
+    const payload = {
       nombreEmpresa: formData.nombreEmpresa,
       direccion: formData.direccion,
       telefono: formData.telefono,
       correo: formData.correo,
       sector: formData.sector,
       id_administrador_empresa: formData.id_administrador_empresa,
+      ...(empresa ? {} : { ruc: formData.ruc }),
     };
 
-    if (!empresa) payload.ruc = formData.ruc;
+    setLoading(true);
 
     const promise = empresa
       ? actualizarEmpresa(empresa.id_Empresa, payload)
       : crearEmpresa(payload);
 
-    // 🟢 CREAR / 🔵 EDITAR
-    toast.promise(
-      promise,
-      {
-        loading: empresa
-          ? "Actualizando empresa..."
-          : "Registrando empresa...",
-        success: empresa
-          ? `Empresa "${formData.nombreEmpresa}" actualizada con éxito`
-          : `Empresa "${formData.nombreEmpresa}" registrada correctamente`,
-        error: "Ocurrió un error",
-      },
-      {
+    toast.promise(promise, {
+      loading: empresa ? "Actualizando empresa..." : "Registrando empresa...",
+      success: empresa
+        ? "Empresa actualizada con éxito"
+        : "Empresa registrada correctamente",
+      error: "Ocurrió un error",
+    }, {
+      success: {
         style: {
-          background: empresa ? "#2563eb" : "#16a34a",
+          background: empresa ? "#2563EB" : "#16A34A", 
           color: "#fff",
-          fontWeight: 600,
-          borderRadius: "8px",
         },
-        iconTheme: {
-          primary: "#fff",
-          secondary: empresa ? "#1e3a8a" : "#166534",
+      },
+      error: {
+        style: {
+          background: "#DC2626", 
+          color: "#fff",
         },
-      }
-    );
+      },
+    });
 
     try {
       await promise;
       onSuccess();
       onOpenChange(false);
-    } catch {}
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
@@ -224,107 +252,72 @@ export function EmpresaDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <div className="space-y-3 py-3">
-            {/* Nombre */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Nombre de la Empresa</Label>
-              <Input
-                maxLength={50}
-                className={errors.nombreEmpresa ? "border-red-500" : ""}
-                value={formData.nombreEmpresa}
-                onChange={(e) =>
-                  handleChange(
-                    "nombreEmpresa",
-                    e.target.value.replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ ]/g, "")
-                  )
-                }
-                placeholder="Ej: Constructora ABC"
-              />
-              {errors.nombreEmpresa && (
-                <p className="text-red-500 text-sm mt-1">{errors.nombreEmpresa}</p>
-              )}
-            </div>
+          <div className="space-y-2 py-2">
+            <Campo
+              label="Nombre de la Empresa"
+              value={formData.nombreEmpresa}
+              error={errors.nombreEmpresa}
+              placeholder="Ej: Constructora ABC"
+              onChange={(v) =>
+                handleChange(
+                  "nombreEmpresa",
+                  v.replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ ]/g, "")
+                )
+              }
+            />
 
-            {/* RUC */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">RUC</Label>
-              <Input
-                maxLength={13}
-                disabled={!!empresa}
-                className={errors.ruc ? "border-red-500" : ""}
-                value={formData.ruc}
-                onChange={(e) =>
-                  handleChange("ruc", e.target.value.replace(/\D/g, ""))
-                }
-                placeholder="Ej: 1790012345001"
-              />
-              {errors.ruc && <p className="text-red-500 text-sm mt-1">{errors.ruc}</p>}
-            </div>
+            <Campo
+              label="RUC"
+              value={formData.ruc}
+              error={errors.ruc}
+              disabled={!!empresa}
+              maxLength={13}
+              placeholder="Ej: 1790012345001"
+              onChange={(v) =>
+                handleChange("ruc", v.replace(/\D/g, "").slice(0, 13))
+              }
+            />
 
-            {/* Dirección */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Dirección</Label>
-              <Input
-                className={errors.direccion ? "border-red-500" : ""}
-                value={formData.direccion}
-                onChange={(e) => handleChange("direccion", e.target.value)}
-                placeholder="Dirección completa"
-              />
-              {errors.direccion && (
-                <p className="text-red-500 text-sm mt-1">{errors.direccion}</p>
-              )}
-            </div>
+            <Campo
+              label="Dirección"
+              value={formData.direccion}
+              error={errors.direccion}
+              placeholder="Av. Amazonas y Naciones Unidas"
+              onChange={(v) => handleChange("direccion", v)}
+            />
 
-            {/* Teléfono */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Teléfono</Label>
-              <Input
-                maxLength={10}
-                className={errors.telefono ? "border-red-500" : ""}
-                value={formData.telefono}
-                onChange={(e) =>
-                  handleChange("telefono", e.target.value.replace(/\D/g, ""))
-                }
-                placeholder="0998887766"
-              />
-              {errors.telefono && (
-                <p className="text-red-500 text-sm mt-1">{errors.telefono}</p>
-              )}
-            </div>
+            <Campo
+              label="Teléfono"
+              value={formData.telefono}
+              error={errors.telefono}
+              maxLength={10}
+              placeholder="0998887766"
+              onChange={(v) =>
+                handleChange("telefono", v.replace(/\D/g, ""))
+              }
+            />
 
-            {/* Correo */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Correo Electrónico</Label>
-              <Input
-                type="email"
-                className={errors.correo ? "border-red-500" : ""}
-                value={formData.correo}
-                onChange={(e) => handleChange("correo", e.target.value)}
-                placeholder="contacto@empresa.com"
-              />
-              {errors.correo && (
-                <p className="text-red-500 text-sm mt-1">{errors.correo}</p>
-              )}
-            </div>
+            <Campo
+              label="Correo Electrónico"
+              type="email"
+              value={formData.correo}
+              error={errors.correo}
+              placeholder="contacto@empresa.com"
+              onChange={(v) => handleChange("correo", v)}
+            />
 
-            {/* Sector */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Sector</Label>
-              <Input
-                className={errors.sector ? "border-red-500" : ""}
-                value={formData.sector}
-                onChange={(e) =>
-                  handleChange(
-                    "sector",
-                    e.target.value.replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ /\-]/g, "")
-                  )
-                }
-                placeholder="Ej: Construcción / Tecnología"
-              />
-              {errors.sector && (
-                <p className="text-red-500 text-sm mt-1">{errors.sector}</p>
-              )}
-            </div>
+            <Campo
+              label="Sector"
+              value={formData.sector}
+              error={errors.sector}
+              placeholder="Construcción / Tecnología"
+              onChange={(v) =>
+                handleChange(
+                  "sector",
+                  v.replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ /\-]/g, "")
+                )
+              }
+            />
           </div>
 
           <DialogFooter>
@@ -335,16 +328,48 @@ export function EmpresaDialog({
             >
               Cancelar
             </Button>
-
             <Button type="submit" disabled={loading}>
-              {loading && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {empresa ? "Actualizar" : "Registrar"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* =====================
+   CAMPO REUTILIZABLE
+===================== */
+
+function Campo({
+  label,
+  value,
+  onChange,
+  placeholder,
+  error,
+  disabled,
+  type = "text",
+  maxLength,
+}: CampoProps) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-sm font-medium">{label}</Label>
+      <Input
+        type={type}
+        value={value}
+        disabled={disabled}
+        maxLength={maxLength}
+        className={error ? "border-red-500" : ""}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <div className="min-h-[14px]">
+        {error && (
+          <p className="text-red-500 text-xs leading-tight">{error}</p>
+        )}
+      </div>
+    </div>
   );
 }
