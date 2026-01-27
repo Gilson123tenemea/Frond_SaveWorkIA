@@ -259,7 +259,7 @@ export default function DetectionWindow() {
                   linear-gradient(90deg,rgba(59,130,246,0.10)_1px,transparent_1px)]
                   bg-[size:22px_22px]" />
 
-                <div className="relative w-64 h-[500px] flex items-center justify-center">
+                <div className="relative w-40 h-[300px] flex items-center justify-center">
                   <img
                     src="/cuerpo_escaneo.png"
                     alt="Escaneo de cuerpo"
