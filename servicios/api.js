@@ -1,2 +1,1 @@
-// src/servicios/api.js
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://saveworkia-app.azurewebsites.net";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://104.45.177.193:8000";
