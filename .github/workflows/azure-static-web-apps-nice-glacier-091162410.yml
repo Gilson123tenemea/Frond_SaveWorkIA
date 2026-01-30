@@ -16,38 +16,25 @@ jobs:
     name: Build and Deploy Job
     
     steps:
-      # PASO 1: Descargar código
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
 
-      # PASO 2: Configurar Node.js 20
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20.9.0'
 
-      # PASO 3: Verificar versión de Node.js (debug)
-      - name: Verify Node.js version
-        run: node --version
-
-      # PASO 4: Limpiar caché de npm
-      - name: Clear npm cache
-        run: npm cache clean --force
-
-      # PASO 5: Instalar dependencias
       - name: Install dependencies
         run: npm ci
 
-      # PASO 6: Construir Next.js CON VARIABLE DE ENTORNO ✅
       - name: Build Next.js application
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://104.45.177.193:8000
 
-      # PASO 7: Desplegar a Azure
       - name: Deploy to Azure Static Web Apps
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -56,8 +43,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
           app_location: "/"
-          api_location: ""
-          output_location: ".next"
+          output_location: "out"
           skip_app_build: true
 
   close_pull_request_job:
