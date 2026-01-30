@@ -1,2 +1,4 @@
-// src/servicios/api.js - DESPUÉS (CORRECTO)
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+// ✅ VERSIÓN CON PROXY
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+
+// Ahora todas las llamadas usan /api y Azure las redirige a tu backend HTTP
