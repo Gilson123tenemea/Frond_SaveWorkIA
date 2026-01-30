@@ -1,0 +1,15 @@
+{
+  "env": "production",
+  "routes": [
+    {
+      "route": "/*",
+      "serve": "/index.html",
+      "statusCode": 200
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/images/*", "/*.{css,scss,gif,jpg,jpeg,js,png,svg,webp,woff,woff2}"]
+  },
+  "misissingFiles": []
+}
