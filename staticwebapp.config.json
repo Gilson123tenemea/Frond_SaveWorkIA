@@ -1,13 +1,6 @@
 {
   "routes": [
     {
-      "route": "/api/*",
-      "allowedRoles": [],
-      "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      "rewrite": "http://104.45.177.193:8000/*",
-      "statusCode": 200
-    },
-    {
       "route": "/*",
       "serve": "/index.html",
       "statusCode": 200
@@ -16,6 +9,5 @@
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/images/*", "/*.{css,scss,gif,jpg,jpeg,js,png,svg,webp,woff,woff2}"]
-  },
-  "misissingFiles": []
+  }
 }
