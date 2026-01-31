@@ -18,31 +18,44 @@ const getSecureUrl = (path) => {
 };
 
 export async function crearEppZona({ idZona, tipoEpp, obligatorio = true }) {
-  // LOG para ver qué está pasando exactamente
-  console.log('🚨 DEBUG crearEppZona llamado con:');
-  console.log('  - idZona:', idZona);
-  console.log('  - tipoEpp:', tipoEpp);
-  
   const url = getSecureUrl('/zonas-epp');
-  console.log('  - URL a usar:', url);
+  console.log('🚨 DEBUG crearEppZona - URL:', url);
   
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      id_zona: idZona,
-      tipo_epp: tipoEpp,
-      obligatorio,
-    }),
-  });
+  // VERSIÓN CORREGIDA
+  const bodyData = {
+    id_zona: idZona,        // ← CON GUÍÓN BAJO
+    tipo_epp: tipoEpp,      // ← CON GUÍÓN BAJO
+    obligatorio: obligatorio,
+  };
+  
+  console.log('📦 DEBUG crearEppZona - Body Data (CORREGIDO):', bodyData);
+  console.log('📦 DEBUG crearEppZona - Body JSON:', JSON.stringify(bodyData));
+  
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(bodyData),
+    });
 
-  if (!resp.ok) {
-    const err = await resp.json();
-    console.error('❌ Error en crearEppZona:', err);
-    throw new Error(err.detail || "Error al crear EPP");
+    console.log('🔍 DEBUG crearEppZona - Status:', resp.status);
+    console.log('🔍 DEBUG crearEppZona - Status Text:', resp.statusText);
+    
+    const responseText = await resp.text();
+    console.log('🔍 DEBUG crearEppZona - Response:', responseText);
+    
+    if (!resp.ok) {
+      throw new Error(`Error ${resp.status}: ${responseText}`);
+    }
+
+    return JSON.parse(responseText);
+  } catch (error) {
+    console.error('❌ ERROR crearEppZona:', error);
+    throw error;
   }
-
-  return await resp.json();
 }
 
 export async function obtenerEppPorZona(idZona) {
