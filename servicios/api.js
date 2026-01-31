@@ -1,1 +1,3 @@
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://104.45.177.193:8000";
+export const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://saveworkia-backend-api-a6cpdfeuexgecka3.canadacentral-01.azurewebsites.net";
