@@ -1,13 +1,21 @@
+// En zona.js - agrega esto al inicio
 import { BASE_URL } from "./api";
 
+console.log('🔍 DEBUG zona.js - BASE_URL:', BASE_URL);
+
 const ZONA_URL = `${BASE_URL}/zonas`;
+console.log('🔍 DEBUG zona.js - ZONA_URL:', ZONA_URL);
 
 // ============================
 // 📌 Crear una nueva zona
 // ============================
 export async function crearZona(zonaData) {
   try {
-    const response = await fetch(`${ZONA_URL}/`, {
+    const url = `${ZONA_URL}/`;
+    console.log('🚨 DEBUG crearZona - URL:', url);
+    console.log('📦 DEBUG crearZona - Data:', zonaData);
+    
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -17,10 +25,13 @@ export async function crearZona(zonaData) {
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('❌ DEBUG crearZona - Error:', errorData);
       throw new Error(errorData.detail || "Error al crear la zona");
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log('✅ DEBUG crearZona - Resultado:', result);
+    return result;
   } catch (error) {
     console.error("❌ Error en crearZona:", error);
     throw error;
