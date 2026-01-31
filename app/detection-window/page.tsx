@@ -29,6 +29,7 @@ export default function DetectionWindow() {
 
   const videoRef = useRef<HTMLImageElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamImgRef = useRef<HTMLImageElement | null>(null); 
 
   // Inicializar datos del supervisor
   useEffect(() => {
@@ -47,6 +48,12 @@ export default function DetectionWindow() {
   // Función para apagar la cámara y limpiar estados
   const detenerCamara = async () => {
     if (timerRef.current) clearTimeout(timerRef.current);
+
+    // 🔥 Limpiar la imagen que consume el stream
+    if (streamImgRef.current) {
+      streamImgRef.current.src = "";
+      streamImgRef.current = null;
+    }
 
     if (idCamaraActiva) {
       await detenerStreamWebcamIA(idCamaraActiva);
@@ -125,8 +132,18 @@ export default function DetectionWindow() {
 
       const streamUrl = obtenerUrlStreamWebcamIA(idCamara);
 
-      fetch(streamUrl, { method: "GET" }).catch(() => { });
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // 🔥 Conectar stream con Image para que el backend pueda llenando el buffer
+      const streamImg = new Image();
+      streamImgRef.current = streamImg;
+      streamImg.src = streamUrl;
+
+      await new Promise<void>((resolve) => {
+        streamImg.onload = () => {
+          console.log("✅ Stream conectado, buffer del backend activo");
+          resolve();
+        };
+        setTimeout(resolve, 3000);
+      });
 
       setCameraStreamUrl(streamUrl);
       if (videoRef.current) {
@@ -137,9 +154,11 @@ export default function DetectionWindow() {
 
       setCargandoAnalisis(true);
 
-      timerRef.current = setTimeout(async () => {
-        await verificarEPPDelTrabajador(idCamara, codigo, trabajador);
-      }, 3000);
+      // Esperar a que el buffer tenga varios frames
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Ahora llamar a verificar EPP
+      await verificarEPPDelTrabajador(idCamara, codigo, trabajador);
 
     } catch (error: any) {
       setWorkerError("❌ Error: " + error.message);

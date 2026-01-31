@@ -33,7 +33,7 @@ jobs:
       - name: Build Next.js application
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: https://saveworkia-backend-api-a6cpdfeuexgecka3.canadacentral-01.azurewebsites.net
+           NEXT_PUBLIC_API_URL: https://saveworkia-backend-api-a6cpdfeuexgecka3.canadacentral-01.azurewebsites.net
 
 
       - name: Deploy to Azure Static Web Apps
