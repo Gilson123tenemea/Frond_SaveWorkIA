@@ -15,13 +15,8 @@ import { Label } from "@/components/ui/label";
 import { MapPin, Loader2, HardHat, Shield, Eye, Footprints, Shirt, Headphones } from "lucide-react";
 import toast from "react-hot-toast";
 
-
-import { crearZona, actualizarZona } from "@/servicios/zona";
-import {
-  crearEppZona,
-  obtenerEppPorZona,
-  actualizarEppZona,
-} from "@/servicios/zona_epp";
+// ✅ Usar el servicio unificado
+import { crearZona, actualizarZona, obtenerZonaPorId, actualizarZonaConEpps } from "@/servicios/zona";
 import { TIPOS_EPP } from "@/lib/constantes/epp";
 
 import { MapPicker } from "@/components/maps/google-maps-picker";
@@ -76,32 +71,40 @@ export function ZoneFormDialog({
     return user?.id_administrador ?? 0;
   };
 
-  // -------------------------------
-  // Cargar datos al abrir
-  // -------------------------------
+  // ====================================================
+  // 🔹 CARGAR DATOS AL ABRIR
+  // ====================================================
   useEffect(() => {
     if (!open) return;
 
     const adminId = getAdminId();
 
     if (zone) {
-      setFormData({
-        nombreZona: zone.nombreZona,
-        latitud: zone.latitud,
-        longitud: zone.longitud,
-        estado: zone.borrado ? "active" : "inactive",
-        id_empresa_zona: zone.id_empresa_zona,
-        id_administrador_zona: adminId,
-      });
-
-      // 👇 Cargar EPP de la zona
+      // ✅ EDITAR: Obtener zona con EPPs incluidos
       (async () => {
         try {
-          const epps = await obtenerEppPorZona(zone.id_Zona);
-          const activos = epps.map((e: any) => e.tipo_epp);
+          const zonaCompleta = await obtenerZonaPorId(zone.id_Zona);
+          
+          // ✅ Validar que zonaCompleta no sea null
+          if (!zonaCompleta) {
+            throw new Error("No se pudo cargar la zona");
+          }
+
+          setFormData({
+            nombreZona: zonaCompleta.nombreZona || "",
+            latitud: zonaCompleta.latitud || "",
+            longitud: zonaCompleta.longitud || "",
+            estado: zonaCompleta.borrado ? "active" : "inactive",
+            id_empresa_zona: zonaCompleta.id_empresa_zona || 0,
+            id_administrador_zona: adminId,
+          });
+
+          // ✅ EPPs ya vienen en la respuesta
+          const activos = (zonaCompleta.epps || []).map((e: any) => e.tipo_epp);
           setEppSeleccionados(activos);
-        } catch {
-          toast.error("Error al cargar EPP de la zona", {
+        } catch (error) {
+          console.error("Error al cargar zona:", error);
+          toast.error("Error al cargar la zona", {
             style: {
               background: "#DC2626",
               color: "#fff",
@@ -110,10 +113,20 @@ export function ZoneFormDialog({
             },
             icon: "❌",
           });
+          // Resetear formulario en caso de error
+          setFormData({
+            nombreZona: "",
+            latitud: "",
+            longitud: "",
+            estado: "active",
+            id_empresa_zona: companyId ?? 0,
+            id_administrador_zona: adminId,
+          });
           setEppSeleccionados([]);
         }
       })();
     } else {
+      // ✅ CREAR: Formulario vacío
       setFormData({
         nombreZona: "",
         latitud: "",
@@ -128,6 +141,9 @@ export function ZoneFormDialog({
     setErrors({});
   }, [open, zone, companyId]);
 
+  // ====================================================
+  // 🔹 MANEJAR SELECCIÓN DE UBICACIÓN
+  // ====================================================
   const handleLocationSelect = (lat: number, lng: number) => {
     setFormData((p) => ({
       ...p,
@@ -142,21 +158,24 @@ export function ZoneFormDialog({
     }));
   };
 
+  // ====================================================
+  // 🔹 VALIDAR FORMULARIO
+  // ====================================================
   const validarFormulario = () => {
     const newErrors: any = {};
     
-    // Solo validar si los campos están vacíos o inválidos
+    // Validar campos de zona
     const nombreError = validarNombreZona(formData.nombreZona);
     const latitudError = validarCoordenada(formData.latitud, "latitud");
     const longitudError = validarCoordenada(formData.longitud, "longitud");
     
-    // Solo asignar errores si existen
     if (nombreError) newErrors.nombreZona = nombreError;
     if (latitudError) newErrors.latitud = latitudError;
     if (longitudError) newErrors.longitud = longitudError;
     
     setErrors(newErrors);
 
+    // ✅ VALIDAR: Al crear, requiere EPPs
     if (!zone && eppSeleccionados.length === 0) {
       toast.error("Seleccione al menos un EPP", {
         style: {
@@ -173,32 +192,27 @@ export function ZoneFormDialog({
     return Object.keys(newErrors).length === 0;
   };
 
-  // -------------------------------
-  // Guardar
-  // -------------------------------
+  // ====================================================
+  // 🔹 GUARDAR (CREAR O ACTUALIZAR)
+  // ====================================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validarFormulario()) return;
 
-    const dataToSend = {
-      nombreZona: formData.nombreZona.trim(),
-      latitud: formData.latitud,
-      longitud: formData.longitud,
-      id_empresa_zona: formData.id_empresa_zona,
-      id_administrador_zona: formData.id_administrador_zona,
-      borrado: formData.estado === "active",
-    };
-
     setLoading(true);
 
     try {
-      let zonaResp;
-
       if (zone) {
-        // EDITAR - Toast AZUL
-        zonaResp = await actualizarZona(zone.id_Zona, dataToSend);
-        await actualizarEppZona(zone.id_Zona, eppSeleccionados);
-        
+        // ✅ ACTUALIZAR: Zona + EPPs juntos
+        await actualizarZonaConEpps(zone.id_Zona, {
+          nombreZona: formData.nombreZona.trim(),
+          latitud: formData.latitud,
+          longitud: formData.longitud,
+          id_empresa_zona: formData.id_empresa_zona,
+          id_administrador_zona: formData.id_administrador_zona,
+          epps: eppSeleccionados, // ✨ EPPs se actualizan juntos
+        });
+
         toast.success("Zona actualizada correctamente", {
           style: {
             background: "#2563EB",
@@ -209,20 +223,18 @@ export function ZoneFormDialog({
           icon: "",
         });
       } else {
-        // CREAR - Toast VERDE
-        zonaResp = await crearZona(dataToSend);
-        const idZona = zonaResp.id_Zona;
-        
-        await Promise.all(
-          eppSeleccionados.map((epp) =>
-            crearEppZona({
-              idZona,
-              tipoEpp: epp,
-              obligatorio: true,
-            })
-          )
-        );
-        
+        // ✅ CREAR: Zona + EPPs en una sola llamada
+        const nuevaZona = await crearZona({
+          nombreZona: formData.nombreZona.trim(),
+          latitud: formData.latitud,
+          longitud: formData.longitud,
+          id_empresa_zona: formData.id_empresa_zona,
+          id_administrador_zona: formData.id_administrador_zona,
+          epps: eppSeleccionados, // ✨ EPPs se crean automáticamente
+        });
+
+        console.log(`✅ Zona creada con ${nuevaZona?.total_epps ?? 0} EPPs`);
+
         toast.success("Zona creada correctamente", {
           style: {
             background: "#16A34A",
@@ -237,7 +249,8 @@ export function ZoneFormDialog({
       onSuccess();
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(err.message || "Error al guardar", {
+      console.error("Error al guardar zona:", err);
+      toast.error(err?.message || "Error al guardar la zona", {
         style: {
           background: "#DC2626",
           color: "#fff",
@@ -265,6 +278,7 @@ export function ZoneFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ===== NOMBRE ===== */}
           <div>
             <Label className="mb-2 block">Nombre</Label>
             <Input
@@ -282,6 +296,7 @@ export function ZoneFormDialog({
             )}
           </div>
 
+          {/* ===== MAPA ===== */}
           <MapPicker
             latitude={formData.latitud ? parseFloat(formData.latitud) : -2.2038}
             longitude={
@@ -290,6 +305,7 @@ export function ZoneFormDialog({
             onLocationSelect={handleLocationSelect}
           />
 
+          {/* ===== COORDENADAS ===== */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Input
@@ -325,20 +341,31 @@ export function ZoneFormDialog({
             </div>
           </div>
 
-          {/* EPP */}
+          {/* ===== SELECCIÓN DE EPPS ===== */}
           <div>
-            <Label className="mb-2 block">EPP obligatorios en la zona</Label>
+            <Label className="mb-2 block">
+              EPP obligatorios en la zona
+              {!zone && (
+                <span className="text-red-500 ml-1">*</span>
+              )}
+            </Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
               {TIPOS_EPP.map((epp) => {
                 const IconComponent = eppIcons[epp.key] || Shield;
+                const isSelected = eppSeleccionados.includes(epp.key);
+
                 return (
                   <label
                     key={epp.key}
-                    className="flex items-center gap-2 border rounded-lg p-2 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className={`flex items-center gap-2 border rounded-lg p-2 cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-blue-50 border-blue-300"
+                        : "hover:bg-gray-50"
+                    }`}
                   >
                     <input
                       type="checkbox"
-                      checked={eppSeleccionados.includes(epp.key)}
+                      checked={isSelected}
                       onChange={(e) => {
                         if (e.target.checked) {
                           setEppSeleccionados((p) => [...p, epp.key]);
@@ -358,13 +385,19 @@ export function ZoneFormDialog({
             </div>
           </div>
 
+          {/* ===== BOTONES ===== */}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Guardar
+              {zone ? "Actualizar Zona" : "Crear Zona"}
             </Button>
           </DialogFooter>
         </form>
