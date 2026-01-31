@@ -1,16 +1,13 @@
-// servicios/zona_epp.js
-
-// ✅ Fuerza HTTPS siempre
-const API_URL = "https://saveworkia-backend-api-a6cpdfeuexgecka3.canadacentral-01.azurewebsites.net";
+import { BASE_URL } from "./api";
 
 export async function obtenerEppPorZona(idZona) {
-  const resp = await fetch(`${API_URL}/zonas-epp/${idZona}`);
+  const resp = await fetch(`${BASE_URL}/zonas-epp/${idZona}`);
   if (!resp.ok) throw new Error("Error al obtener EPP");
   return await resp.json();
 }
 
 export async function crearEppZona({ idZona, tipoEpp, obligatorio = true }) {
-  const resp = await fetch(`${API_URL}/zonas-epp`, {
+  const resp = await fetch(`${BASE_URL}/zonas-epp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -29,11 +26,11 @@ export async function crearEppZona({ idZona, tipoEpp, obligatorio = true }) {
 }
 
 export async function actualizarEppZona(idZona, epps) {
-  const resp = await fetch(`${API_URL}/zonas-epp/zona/${idZona}`, {
+  const resp = await fetch(`${BASE_URL}/zonas-epp/zona/${idZona}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      epps: epps,
+      epps: epps, // 👈 List[str] EXACTO como espera FastAPI
     }),
   });
 
