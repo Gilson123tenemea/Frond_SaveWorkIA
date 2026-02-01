@@ -2,6 +2,8 @@
  * Servicio para análisis EPP directo desde frontend
  * Captura frames de la cámara y los envía al backend para análisis YOLO
  * Versión TypeScript con tipos completos
+ * 
+ * ✅ VERSIÓN CORREGIDA: Incluye id_camara obligatorio
  */
 
 import { BASE_URL } from "./api";
@@ -25,6 +27,7 @@ interface DatosTrabajador {
   };
 }
 
+// ✅ NUEVO: Interfaz con id_camara obligatorio
 interface AnalisisEPPRequest {
   frame_base64: string;
   codigo_trabajador: string;
@@ -33,6 +36,7 @@ interface AnalisisEPPRequest {
   id_trabajador: number;
   id_supervisor: number;
   id_inspector: number | null;
+  id_camara: number;  // ✅ NUEVO: OBLIGATORIO
   nombre_trabajador: string;
   apellido_trabajador: string;
 }
@@ -90,6 +94,61 @@ interface RespuestaBackend {
     foto_base64: string | null;
     detalle: string;
   };
+}
+
+// ============================================
+// NUEVAS FUNCIONES: OBTENER ID CÁMARA
+// ============================================
+
+/**
+ * ✅ NUEVA: Obtiene ID único de la cámara del dispositivo
+ * Si no hay cámara física, genera ID consistente para la sesión
+ * 
+ * @returns Promise con ID único de cámara (número positivo)
+ */
+export async function obtenerIdCamara(): Promise<number> {
+  try {
+    // Intento 1: Obtener deviceId de la cámara si se puede
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      throw new Error("enumerateDevices no soportado");
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+    
+    if (videoDevices.length > 0) {
+      const deviceId = videoDevices[0].deviceId;
+      // Convertir deviceId string a número hash
+      const hash = deviceId
+        .split('')
+        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      
+      const idCamara = Math.abs(hash % 10000) + 1;  // Garantizar número positivo
+      console.log(`✅ ID Cámara obtenido del dispositivo: ${idCamara}`);
+      return idCamara;
+    }
+    
+    throw new Error("No hay cámaras detectadas");
+    
+  } catch (error) {
+    console.warn("⚠️ No se pudo obtener ID de dispositivo, usando ID de sesión:", error);
+    
+    // Intento 2: Usar ID de sesión guardado
+    const sessionCameraId = sessionStorage.getItem('session_camera_id');
+    if (sessionCameraId) {
+      const id = parseInt(sessionCameraId);
+      if (!isNaN(id) && id > 0) {
+        console.log(`✅ ID Cámara sesión recuperado: ${id}`);
+        return id;
+      }
+    }
+    
+    // Intento 3: Generar nuevo ID para esta sesión
+    const newSessionId = Math.floor(Math.random() * 9999) + 1;
+    sessionStorage.setItem('session_camera_id', newSessionId.toString());
+    console.log(`✅ ID Cámara nuevo generado para sesión: ${newSessionId}`);
+    return newSessionId;
+  }
 }
 
 // ============================================
@@ -198,9 +257,9 @@ export function detenerCamara(stream: MediaStream | null): void {
 }
 
 /**
- * Envía frame al backend para análisis EPP con YOLO
+ * ✅ ACTUALIZADO: Envía frame al backend CON id_camara obligatorio
  * 
- * @param datos - Datos para el análisis
+ * @param datos - Datos para el análisis (ahora incluye id_camara)
  * @returns Promise con el resultado del análisis
  */
 export async function analizarEPPDirecto(datos: {
@@ -211,11 +270,13 @@ export async function analizarEPPDirecto(datos: {
   id_trabajador: number;
   id_supervisor: number;
   id_inspector: number | null;
+  id_camara: number;  // ✅ NUEVO: OBLIGATORIO
   nombre_trabajador: string;
   apellido_trabajador: string;
 }): Promise<ResultadoAnalisis> {
   try {
     console.log('🔍 Enviando frame para análisis EPP...');
+    console.log(`📷 ID Cámara: ${datos.id_camara}`);  // ✅ LOG id_camara
     
     const payload: AnalisisEPPRequest = {
       frame_base64: datos.frame_base64,
@@ -225,9 +286,12 @@ export async function analizarEPPDirecto(datos: {
       id_trabajador: datos.id_trabajador,
       id_supervisor: datos.id_supervisor,
       id_inspector: datos.id_inspector || null,
+      id_camara: datos.id_camara,  // ✅ ENVIADO: id_camara
       nombre_trabajador: datos.nombre_trabajador,
       apellido_trabajador: datos.apellido_trabajador,
     };
+    
+    console.log('📦 Payload enviado:', payload);
     
     const response = await fetch(`${ANALISIS_EPP_URL}/verificar`, {
       method: 'POST',
@@ -305,7 +369,8 @@ function formatearResultadoAnalisis(respuesta: RespuestaBackend): ResultadoAnali
 }
 
 /**
- * Flujo completo: inicializar cámara → capturar frame → analizar EPP
+ * ✅ FLUJO COMPLETO ACTUALIZADO
+ * Incluye: obtener ID cámara → inicializar cámara → capturar frame → analizar EPP
  * 
  * @param datosTrabajador - Datos del trabajador
  * @returns Promise con el resultado del análisis
@@ -316,16 +381,20 @@ export async function flujoCompletoAnalisisEPP(
   let stream: MediaStream | null = null;
   
   try {
-    // 1. Inicializar cámara
+    // 1. ✅ NUEVO: Obtener ID único de la cámara
+    const idCamara = await obtenerIdCamara();
+    console.log(`📷 ID Cámara obtenido: ${idCamara}`);
+    
+    // 2. Inicializar cámara
     stream = await inicializarCamara();
     
-    // 2. Esperar un momento para que la cámara se estabilice
+    // 3. Esperar un momento para que la cámara se estabilice
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // 3. Capturar frame
+    // 4. Capturar frame
     const frameBase64 = await capturarFrameDesdeStream(stream);
     
-    // 4. Analizar EPP
+    // 5. ✅ ACTUALIZADO: Analizar EPP CON id_camara
     const resultado = await analizarEPPDirecto({
       frame_base64: frameBase64,
       codigo_trabajador: datosTrabajador.codigo_trabajador,
@@ -334,6 +403,7 @@ export async function flujoCompletoAnalisisEPP(
       id_trabajador: datosTrabajador.id_trabajador,
       id_supervisor: datosTrabajador.id_supervisor_trabajador,
       id_inspector: datosTrabajador.id_inspector || null,
+      id_camara: idCamara,  // ✅ NUEVO: Pasando id_camara
       nombre_trabajador: datosTrabajador.persona.nombre,
       apellido_trabajador: datosTrabajador.persona.apellido,
     });
@@ -341,7 +411,7 @@ export async function flujoCompletoAnalisisEPP(
     return resultado;
     
   } finally {
-    // 5. Siempre detener la cámara al finalizar
+    // 6. Siempre detener la cámara al finalizar
     if (stream) {
       detenerCamara(stream);
     }
