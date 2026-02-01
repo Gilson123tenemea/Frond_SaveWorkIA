@@ -306,30 +306,16 @@ export async function flujoCompletoAnalisisEPP(
 
     console.log(`✅ Zona validada: ID ${idZona}`);
 
-    // 3. ✅ EXTRAER cámara (si existe en la estructura)
-    let idCamara: number | null = null;
+    // 3. ✅ EXTRAER id_camara del objeto camara que viene del backend
+    //    El backend retorna: { camara: { id_camara: 3, ... } }
+    const idCamara = trabajadorDelBackend.camara?.id_camara ?? null;
 
-    // Intento 1: Cámara en la estructura principal
-    if (trabajadorDelBackend.camara && trabajadorDelBackend.camara.id_camara) {
-      idCamara = trabajadorDelBackend.camara.id_camara;
-      console.log(`✅ Cámara física asignada: ${idCamara}`);
-    } 
-    // Intento 2: Generar ID de sesión si no hay cámara física
-    else {
-      console.log('⚠️  No hay cámara física, usando ID de sesión');
-      
-      let sessionId = sessionStorage.getItem('session_camera_id');
-      if (!sessionId) {
-        sessionId = Math.floor(Math.random() * 9999) + 1 + '';
-        sessionStorage.setItem('session_camera_id', sessionId);
-      }
-      idCamara = parseInt(sessionId);
-      console.log(`📷 ID Cámara de sesión: ${idCamara}`);
+    if (!idCamara) {
+      console.error('❌ No hay cámara en la estructura:', trabajadorDelBackend.camara);
+      throw new Error("❌ El trabajador no tiene cámara asignada en su zona.");
     }
 
-    if (!idCamara || idCamara <= 0) {
-      throw new Error("❌ No se pudo obtener ID de cámara válido");
-    }
+    console.log(`✅ Cámara validada: ID ${idCamara}`);
     
     // 4. Inicializar cámara del dispositivo
     console.log('📸 Solicitando acceso a cámara del dispositivo...');
@@ -348,7 +334,7 @@ export async function flujoCompletoAnalisisEPP(
       frame_base64: frameBase64,
       codigo_trabajador: trabajadorDelBackend.codigo_trabajador,
       id_empresa: trabajadorDelBackend.id_empresa,
-      id_zona: idZona,  // ✅ AQUÍ: usar idZona del nivel principal
+      id_zona: idZona,
       id_trabajador: trabajadorDelBackend.id_trabajador,
       id_supervisor: trabajadorDelBackend.id_supervisor_trabajador,
       id_inspector: trabajadorDelBackend.id_inspector || null,
