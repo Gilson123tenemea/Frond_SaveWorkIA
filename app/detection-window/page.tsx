@@ -1,49 +1,36 @@
 "use client";
-
-import { useState, useEffect } from "react";
+ 
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, AlertCircle, Scan, ShieldCheck, CheckCircle, XCircle } from "lucide-react";
+import { Camera, AlertCircle, Scan, ShieldCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
+ 
 import { obtenerTrabajadorPorCodigo } from "@/servicios/trabajador";
+import { obtenerUrlStreamWebcamIA, detenerStreamWebcamIA } from "@/servicios/camara_ia";
+import { verificarEPP } from "@/servicios/verificar_epp";
 import { obtenerEppPorZona } from "@/servicios/zona_epp";
-import { 
-  flujoCompletoAnalisisEPP,
-  verificarSoporteCamara 
-} from "@/servicios/analisis_epp_directo";
-
-// Importar tipos
-import type { 
-  TrabajadorResponse, 
-  EppZona, 
-  ResultadoAnalisis 
-} from "@/types/types";
-
-// ============================================
-// TIPOS LOCALES
-// ============================================
-
-interface WorkerInfo {
-  nombre: string;
-  codigo: string;
-}
-
+ 
 export default function DetectionWindow() {
-  const [workerCode, setWorkerCode] = useState<string>("");
-  const [workerInfo, setWorkerInfo] = useState<WorkerInfo | null>(null);
-  const [workerError, setWorkerError] = useState<string>("");
-  
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [workerCode, setWorkerCode] = useState("");
+  const [workerInfo, setWorkerInfo] = useState<string | null>(null);
+  const [workerError, setWorkerError] = useState("");
+ 
+  const [cameraStreamUrl, setCameraStreamUrl] = useState<string | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
-  
+  const [idCamaraActiva, setIdCamaraActiva] = useState<number | null>(null);
+ 
+  const [cargandoAnalisis, setCargandoAnalisis] = useState(false);
+ 
   const [eppZona, setEppZona] = useState<string[]>([]);
-  const [resultado, setResultado] = useState<ResultadoAnalisis | null>(null);
-  
-  const [estadoAnalisis, setEstadoAnalisis] = useState<string>("");
-
+ 
+  const videoRef = useRef<HTMLImageElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamImgRef = useRef<HTMLImageElement | null>(null);
+ 
   // Inicializar datos del supervisor
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -51,26 +38,39 @@ export default function DetectionWindow() {
       const user = JSON.parse(stored);
       setCompanyId(user.id_empresa_supervisor ?? null);
     }
-    
-    // Verificar soporte de cámara
-    if (!verificarSoporteCamara()) {
-      setWorkerError("⚠️ Tu navegador no soporta acceso a cámara");
-    }
+ 
+    return () => {
+      detenerCamara();
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
-
-  // Función para reiniciar el formulario
-  const reiniciarFormulario = () => {
+ 
+  // Función para apagar la cámara y limpiar estados
+  const detenerCamara = async () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+ 
+    // 🔥 Limpiar la imagen que consume el stream
+    if (streamImgRef.current) {
+      streamImgRef.current.src = "";
+      streamImgRef.current = null;
+    }
+ 
+    if (idCamaraActiva) {
+      await detenerStreamWebcamIA(idCamaraActiva);
+      setIdCamaraActiva(null);
+    }
+ 
+    setIsDetecting(false);
     setWorkerInfo(null);
     setWorkerCode("");
-    setWorkerError("");
-    setIsAnalyzing(false);
+    setCameraStreamUrl(null);
+    setCargandoAnalisis(false);
     setEppZona([]);
-    setResultado(null);
-    setEstadoAnalisis("");
-    console.log("🔄 Formulario reiniciado");
+ 
+    console.log("🔌 Cámara apagada, modelo detenido, formulario reiniciado.");
   };
-
-  // 🔥 Notificar a la ventana padre sobre nuevo reporte
+ 
+  // 🔥 NUEVO: Notificar a la ventana padre que hay un nuevo reporte
   const notificarNuevoReporte = () => {
     if (window.opener && !window.opener.closed) {
       window.opener.postMessage(
@@ -83,103 +83,113 @@ export default function DetectionWindow() {
       console.log("📢 Notificación enviada a la ventana padre");
     }
   };
-
-  // Inicio del análisis EPP
+ 
+  // Inicio detección
   const handleStartDetection = async () => {
     setWorkerError("");
     setWorkerInfo(null);
-    setResultado(null);
-    setEstadoAnalisis("");
-
+    setCameraStreamUrl(null);
+ 
     if (!workerCode.trim()) {
-      setWorkerError("⚠️ Ingresa el código del trabajador");
+      setWorkerError("⚠ Ingresa el código del trabajador");
       return;
     }
-
+ 
     if (!companyId) {
       setWorkerError("❌ No hay empresa vinculada al supervisor");
       return;
     }
-
+ 
     const codigo = workerCode.trim();
-
+ 
     try {
-      setEstadoAnalisis("🔍 Validando trabajador...");
-      
-      // 1. Obtener datos del trabajador
-      const trabajador = await obtenerTrabajadorPorCodigo(codigo, companyId) as TrabajadorResponse;
-
+      const trabajador = await obtenerTrabajadorPorCodigo(codigo, companyId);
+ 
       if (!trabajador || trabajador.error) {
         setWorkerError(trabajador?.error || "❌ Trabajador no encontrado");
         return;
       }
-
+ 
       const nombreCompleto = `${trabajador.persona.nombre} ${trabajador.persona.apellido}`;
-      setWorkerInfo({
-        nombre: nombreCompleto,
-        codigo: codigo,
-      });
-
+      setWorkerInfo(nombreCompleto);
+ 
+      const idCamara = trabajador.camara?.id_camara;
       const idZona = trabajador.camara?.zona?.id_Zona;
-
-      if (!idZona) {
-        setWorkerError("❌ El trabajador no tiene zona asignada");
+ 
+      if (!idCamara) {
+        setWorkerError("❌ El trabajador no tiene cámara asignada");
         return;
       }
-
-      // 2. Obtener EPP de la zona
-      setEstadoAnalisis("📋 Cargando EPP requeridos...");
-      const epps = await obtenerEppPorZona(idZona) as EppZona[];
-      setEppZona(epps.map((e) => e.tipo_epp));
-
-      setIsAnalyzing(true);
-      
-      // 3. Iniciar análisis completo
-      setEstadoAnalisis("📸 Accediendo a cámara...");
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setEstadoAnalisis("🎯 Capturando imagen...");
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      setEstadoAnalisis("🤖 Analizando EPP con IA...");
-      
-      const resultadoAnalisis = await flujoCompletoAnalisisEPP({
-        codigo_trabajador: codigo,
-        id_empresa: trabajador.id_empresa,
-        id_zona: idZona,
-        id_trabajador: trabajador.id_trabajador,
-        id_supervisor_trabajador: trabajador.id_supervisor_trabajador,
-        id_inspector: trabajador.id_inspector || null,
-        persona: trabajador.persona,
+ 
+      // OBTENER EPP DE LA ZONA
+      if (idZona) {
+        const epps = await obtenerEppPorZona(idZona);
+        setEppZona(epps.map((e: any) => e.tipo_epp));
+      }
+ 
+      setIsDetecting(true);
+      setIdCamaraActiva(idCamara);
+ 
+      const streamUrl = obtenerUrlStreamWebcamIA(idCamara);
+ 
+      // 🔥 Conectar stream con Image para que el backend pueda llenando el buffer
+      const streamImg = new Image();
+      streamImgRef.current = streamImg;
+      streamImg.src = streamUrl;
+ 
+      await new Promise<void>((resolve) => {
+        streamImg.onload = () => {
+          console.log("✅ Stream conectado, buffer del backend activo");
+          resolve();
+        };
+        setTimeout(resolve, 3000);
       });
-
-      console.log("📊 Resultado del análisis:", resultadoAnalisis);
-
-      if (resultadoAnalisis.error) {
-        setWorkerError(resultadoAnalisis.mensaje);
-        setIsAnalyzing(false);
-        return;
+ 
+      setCameraStreamUrl(streamUrl);
+      if (videoRef.current) {
+        videoRef.current.src = streamUrl;
       }
-
-      setResultado(resultadoAnalisis);
-      setEstadoAnalisis("✅ Análisis completado");
-      
-      // Notificar nuevo reporte
-      notificarNuevoReporte();
-
-      // Auto-reiniciar después de 5 segundos
-      setTimeout(() => {
-        reiniciarFormulario();
-      }, 5000);
-
+ 
+      console.log("🎥 Cámara activa, iniciando captura...");
+ 
+      setCargandoAnalisis(true);
+ 
+      // Esperar a que el buffer tenga varios frames
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+ 
+      // Ahora llamar a verificar EPP
+      await verificarEPPDelTrabajador(idCamara, codigo, trabajador);
+ 
     } catch (error: any) {
-      console.error("❌ Error:", error);
-      setWorkerError(`❌ Error: ${error.message}`);
-      setIsAnalyzing(false);
-      setEstadoAnalisis("");
+      setWorkerError("❌ Error: " + error.message);
+      setIsDetecting(false);
+      setIdCamaraActiva(null);
     }
   };
-
+ 
+  // Llamar al backend para verificar EPP
+  const verificarEPPDelTrabajador = async (idCamara: number, codigo: string, datosTrabajador: any) => {
+    try {
+      console.log("🤖 Analizando EPP…");
+ 
+      await verificarEPP(idCamara, codigo, datosTrabajador);
+ 
+      console.log("🏁 Análisis completado");
+ 
+      // 🔥 Notificar a la ventana padre que hay un nuevo reporte
+      notificarNuevoReporte();
+ 
+      // 🔥 Esperar un poco y luego limpiar para la siguiente detección
+      setTimeout(() => {
+        detenerCamara();
+      }, 1000);
+ 
+    } catch (error: any) {
+      setWorkerError("⚠ Error analizando EPP");
+      await detenerCamara();
+    }
+  };
+ 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-success/10 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl rounded-2xl shadow-xl">
@@ -190,13 +200,11 @@ export default function DetectionWindow() {
             </div>
           </div>
           <CardTitle className="text-2xl">Detección de Entrada</CardTitle>
-          <CardDescription>
-            Análisis de EPP con IA en tiempo real
-          </CardDescription>
+          <CardDescription>Análisis de EPP con YOLO en tiempo real</CardDescription>
         </CardHeader>
-
+ 
         <CardContent className="space-y-4">
-          
+ 
           {/* ERROR */}
           {workerError && (
             <Alert className="bg-red-100 border-red-500 text-red-700">
@@ -204,13 +212,11 @@ export default function DetectionWindow() {
               <AlertDescription>{workerError}</AlertDescription>
             </Alert>
           )}
-
+ 
           {/* FORMULARIO */}
-          {!isAnalyzing && !resultado && (
+          {!isDetecting && (
             <div className="space-y-3">
-              <Label className="text-sm font-semibold">
-                Código del Trabajador
-              </Label>
+              <Label className="text-sm font-semibold">Código del Trabajador</Label>
               <Input
                 value={workerCode}
                 onChange={(e) => setWorkerCode(e.target.value)}
@@ -219,7 +225,7 @@ export default function DetectionWindow() {
                 autoFocus
                 onKeyPress={(e) => e.key === "Enter" && handleStartDetection()}
               />
-
+ 
               <Button
                 onClick={handleStartDetection}
                 size="lg"
@@ -227,30 +233,28 @@ export default function DetectionWindow() {
                 disabled={!workerCode.trim() || !companyId}
               >
                 <Scan className="w-4 h-4 mr-2" />
-                Iniciar Análisis
+                Iniciar Detección
               </Button>
             </div>
           )}
-
-          {/* ESTADO DE ANÁLISIS */}
-          {isAnalyzing && !resultado && (
+ 
+          {/* ANIMACIÓN SCAN */}
+          {isDetecting && (
             <div className="py-8 space-y-4">
-              
-              {/* Estado actual */}
+ 
+              {/* Estado */}
               <div className="flex items-center justify-center gap-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
                 <p className="text-sm font-semibold text-blue-700">
-                  {estadoAnalisis}
+                  Escaneando EPP…
                 </p>
               </div>
-
-              {/* Nombre del trabajador */}
+ 
+              {/* Nombre */}
               {workerInfo && (
-                <p className="text-sm font-semibold text-center">
-                  {workerInfo.nombre}
-                </p>
+                <p className="text-sm font-semibold text-center">{workerInfo}</p>
               )}
-
+ 
               {/* EPP DE LA ZONA */}
               {eppZona.length > 0 && (
                 <div className="border rounded-lg p-3 bg-muted">
@@ -258,7 +262,7 @@ export default function DetectionWindow() {
                     <ShieldCheck className="w-4 h-4 text-primary" />
                     EPP requeridos en esta zona
                   </p>
-
+ 
                   <ul className="list-disc ml-6 text-sm mt-2">
                     {eppZona.map((epp) => (
                       <li key={epp}>{epp}</li>
@@ -266,25 +270,25 @@ export default function DetectionWindow() {
                   </ul>
                 </div>
               )}
-
-              {/* ANIMACIÓN DE ESCANEO */}
+ 
+              {/* ANIMACIÓN CON IMAGEN Y LÍNEA DE ESCANEO */}
               <div className="relative w-full h-80 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 
+                <div className="absolute inset-0
                   bg-[linear-gradient(rgba(59,130,246,0.10)_1px,transparent_1px),
                   linear-gradient(90deg,rgba(59,130,246,0.10)_1px,transparent_1px)]
                   bg-[size:22px_22px]" />
-
+ 
                 <div className="relative w-40 h-[300px] flex items-center justify-center">
                   <img
                     src="/cuerpo_escaneo.png"
                     alt="Escaneo de cuerpo"
                     className="w-full h-full object-contain drop-shadow-lg"
                   />
-
-                  {/* Línea de escaneo animada */}
+ 
+                  {/* Línea de escaneo que baja en 3 segundos y sube */}
                   <div
-                    className="absolute left-0 right-0 h-1 
-                    bg-gradient-to-b from-transparent via-primary to-transparent 
+                    className="absolute left-0 right-0 h-1
+                    bg-gradient-to-b from-transparent via-primary to-transparent
                     shadow-lg"
                     style={{
                       animation: 'scanLineLoop 3s ease-in-out infinite'
@@ -292,92 +296,21 @@ export default function DetectionWindow() {
                   />
                 </div>
               </div>
-
+ 
               <style>{`
                 @keyframes scanLineLoop {
-                  0% { top: 0%; }
-                  100% { top: 100%; }
+                  0% {
+                    top: 0%;
+                  }
+                  100% {
+                    top: 100%;
+                  }
                 }
               `}</style>
+ 
             </div>
           )}
-
-          {/* RESULTADO DEL ANÁLISIS */}
-          {resultado && (
-            <div className="space-y-4">
-              
-              {/* Estado del resultado */}
-              <Alert className={resultado.cumpleEpp 
-                ? "bg-green-100 border-green-500" 
-                : "bg-red-100 border-red-500"
-              }>
-                <div className="flex items-center gap-2">
-                  {resultado.cumpleEpp ? (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-red-600" />
-                  )}
-                  <AlertDescription className={resultado.cumpleEpp 
-                    ? "text-green-700 font-semibold" 
-                    : "text-red-700 font-semibold"
-                  }>
-                    {resultado.mensaje}
-                  </AlertDescription>
-                </div>
-              </Alert>
-
-              {/* Información del trabajador */}
-              {workerInfo && (
-                <div className="border rounded-lg p-3 bg-muted">
-                  <p className="text-sm font-semibold">
-                    👤 {workerInfo.nombre}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Código: {workerInfo.codigo}
-                  </p>
-                </div>
-              )}
-
-              {/* Detalles del fallo */}
-              {!resultado.cumpleEpp && resultado.detallesFallo.length > 0 && (
-                <div className="border border-red-300 rounded-lg p-3 bg-red-50">
-                  <p className="text-sm font-semibold text-red-700 mb-2">
-                    EPP Faltante:
-                  </p>
-                  <ul className="list-disc ml-6 text-sm text-red-600">
-                    {resultado.detallesFallo.map((detalle, idx) => (
-                      <li key={idx}>{detalle}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Foto de evidencia */}
-              {resultado.evidencia?.fotoBase64 && (
-                <div className="border rounded-lg overflow-hidden">
-                  <img 
-                    src={resultado.evidencia.fotoBase64} 
-                    alt="Evidencia"
-                    className="w-full h-auto"
-                  />
-                </div>
-              )}
-
-              {/* Botón para nuevo análisis */}
-              <Button
-                onClick={reiniciarFormulario}
-                variant="outline"
-                className="w-full rounded-xl"
-              >
-                Nuevo Análisis
-              </Button>
-              
-              <p className="text-xs text-center text-muted-foreground">
-                El formulario se reiniciará automáticamente en 5 segundos
-              </p>
-            </div>
-          )}
-
+ 
         </CardContent>
       </Card>
     </div>
