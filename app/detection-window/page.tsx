@@ -129,6 +129,7 @@ export default function DetectionWindow() {
       }
 
       console.log(`✅ Zona encontrada: ${trabajador.zona?.nombreZona} (ID: ${idZona})`);
+      console.log(`✅ Cámara encontrada: ID ${trabajador.camara?.id_camara}`);
 
       // 2. Obtener EPP de la zona
       setEstadoAnalisis("📋 Cargando EPP requeridos...");
@@ -154,6 +155,7 @@ export default function DetectionWindow() {
         id_supervisor_trabajador: trabajador.id_supervisor_trabajador,
         id_inspector: trabajador.id_inspector || null,
         persona: trabajador.persona,
+        camara: trabajador.camara,  // ✅ ESTO FALTABA - pasa la cámara del backend
       });
 
       console.log("📊 Resultado del análisis:", resultadoAnalisis);
