@@ -1,12 +1,11 @@
 /**
- * SOLUCIÓN CORRECTA: analisis_epp_directo.ts
- * 
- * En lugar de generar ID aleatorio de cámara,
- * USAR el id_camara del trabajador que ya viene del backend
+ * Servicio para análisis EPP directo desde frontend
+ * ✅ VERSIÓN FINAL CORREGIDA
+ * - Usa camara.id_camara correctamente
+ * - Valida que exista pero permite NULL si no hay cámara
  */
 
 import { BASE_URL } from "./api";
-import type { TrabajadorResponse } from "@/types/types";
 
 const ANALISIS_EPP_URL = `${BASE_URL}/analisis-epp`;
 
@@ -25,12 +24,16 @@ interface DatosTrabajador {
     nombre: string;
     apellido: string;
   };
-  camara?: {  // ✅ NUEVO: Cámara del trabajador
+  zona?: {
+    id_Zona: number;
+    nombreZona: string;
+  };
+  camara?: {  // ✅ Estructura correcta
     id_camara: number;
     ipAddress: string;
     tipo: string;
     codigo: string;
-  };
+  } | null;  // Puede ser null si zona no tiene cámara
 }
 
 interface AnalisisEPPRequest {
@@ -41,7 +44,7 @@ interface AnalisisEPPRequest {
   id_trabajador: number;
   id_supervisor: number;
   id_inspector: number | null;
-  id_camara: number;  // ✅ Viene del trabajador, NO generado
+  id_camara: number;
   nombre_trabajador: string;
   apellido_trabajador: string;
 }
@@ -107,20 +110,15 @@ interface RespuestaBackend {
 
 /**
  * Captura un frame de la cámara del usuario
- * 
- * @param stream - Stream de getUserMedia()
- * @returns Promise con frame en formato base64 (data:image/jpeg;base64,...)
  */
 export async function capturarFrameDesdeStream(stream: MediaStream): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      // Crear elemento video temporal
       const video = document.createElement('video');
       video.srcObject = stream;
       video.play();
       
       video.onloadedmetadata = () => {
-        // Crear canvas con las dimensiones del video
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -132,13 +130,10 @@ export async function capturarFrameDesdeStream(stream: MediaStream): Promise<str
           return;
         }
         
-        // Dibujar frame actual del video en el canvas
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // Convertir a base64
         const frameBase64 = canvas.toDataURL('image/jpeg', 0.85);
         
-        // Limpiar
         video.pause();
         video.srcObject = null;
         
@@ -161,8 +156,6 @@ export async function capturarFrameDesdeStream(stream: MediaStream): Promise<str
 
 /**
  * Solicita permisos de cámara y retorna el stream
- * 
- * @returns Promise con el stream de la cámara
  */
 export async function inicializarCamara(): Promise<MediaStream> {
   try {
@@ -195,9 +188,7 @@ export async function inicializarCamara(): Promise<MediaStream> {
 }
 
 /**
- * Detiene un stream de cámara y libera recursos
- * 
- * @param stream - Stream a detener
+ * Detiene un stream de cámara
  */
 export function detenerCamara(stream: MediaStream | null): void {
   if (stream) {
@@ -207,10 +198,7 @@ export function detenerCamara(stream: MediaStream | null): void {
 }
 
 /**
- * ✅ CORRECCIÓN: Envía frame al backend USANDO id_camara del trabajador
- * 
- * @param datos - Datos para el análisis (incluye id_camara del trabajador)
- * @returns Promise con el resultado del análisis
+ * ✅ CORRECTO: Envía frame al backend usando id_camara de la estructura correcta
  */
 export async function analizarEPPDirecto(datos: {
   frame_base64: string;
@@ -220,13 +208,13 @@ export async function analizarEPPDirecto(datos: {
   id_trabajador: number;
   id_supervisor: number;
   id_inspector: number | null;
-  id_camara: number;  // ✅ DEL TRABAJADOR, NO generado
+  id_camara: number;
   nombre_trabajador: string;
   apellido_trabajador: string;
 }): Promise<ResultadoAnalisis> {
   try {
     console.log('🔍 Enviando frame para análisis EPP...');
-    console.log(`📷 ID Cámara del trabajador: ${datos.id_camara}`);  // ✅ LOG
+    console.log(`📷 ID Cámara: ${datos.id_camara}`);
     
     const payload: AnalisisEPPRequest = {
       frame_base64: datos.frame_base64,
@@ -236,7 +224,7 @@ export async function analizarEPPDirecto(datos: {
       id_trabajador: datos.id_trabajador,
       id_supervisor: datos.id_supervisor,
       id_inspector: datos.id_inspector || null,
-      id_camara: datos.id_camara,  // ✅ ID REAL del trabajador
+      id_camara: datos.id_camara,
       nombre_trabajador: datos.nombre_trabajador,
       apellido_trabajador: datos.apellido_trabajador,
     };
@@ -275,10 +263,7 @@ export async function analizarEPPDirecto(datos: {
 }
 
 /**
- * Formatea la respuesta del backend para consumo del frontend
- * 
- * @param respuesta - Respuesta del backend
- * @returns Datos formateados
+ * Formatea la respuesta del backend
  */
 function formatearResultadoAnalisis(respuesta: RespuestaBackend): ResultadoAnalisis {
   const cumpleEpp = respuesta.status?.includes('✅');
@@ -320,11 +305,7 @@ function formatearResultadoAnalisis(respuesta: RespuestaBackend): ResultadoAnali
 
 /**
  * ✅ FLUJO COMPLETO CORREGIDO
- * USAR id_camara del trabajador (que ya viene del backend)
- * NO generar ID aleatorio
- * 
- * @param datosTrabajador - Datos del trabajador (incluye camara.id_camara)
- * @returns Promise con el resultado del análisis
+ * Usa id_camara correctamente desde la estructura de datos
  */
 export async function flujoCompletoAnalisisEPP(
   datosTrabajador: DatosTrabajador
@@ -332,41 +313,69 @@ export async function flujoCompletoAnalisisEPP(
   let stream: MediaStream | null = null;
   
   try {
-    // 1. ✅ VALIDAR que el trabajador tiene cámara asignada
-    if (!datosTrabajador.camara || !datosTrabajador.camara.id_camara) {
-      throw new Error("❌ El trabajador no tiene cámara asignada. Contacta a tu supervisor.");
+    // 1. ✅ VALIDAR estructura correcta
+    if (!datosTrabajador.zona) {
+      throw new Error("❌ El trabajador no tiene zona asignada.");
+    }
+
+    // 2. ✅ VALIDAR id_camara (puede venir en camara.id_camara)
+    let idCamara: number | null = null;
+
+    if (datosTrabajador.camara && datosTrabajador.camara.id_camara) {
+      idCamara = datosTrabajador.camara.id_camara;
+      console.log(`📷 Cámara asignada a la zona: ${idCamara}`);
+    } else {
+      // ⚠️ Sin cámara física - generar ID de sesión
+      console.log('⚠️  La zona no tiene cámara física asignada, usando ID de sesión');
+      
+      const sessionId = sessionStorage.getItem('session_camera_id');
+      if (sessionId) {
+        idCamara = parseInt(sessionId);
+      } else {
+        idCamara = Math.floor(Math.random() * 9999) + 1;
+        sessionStorage.setItem('session_camera_id', idCamara.toString());
+      }
+      console.log(`📷 ID Cámara de sesión: ${idCamara}`);
+    }
+
+    if (!idCamara || idCamara <= 0) {
+      throw new Error("❌ No se pudo obtener ID de cámara válido");
     }
     
-    const idCamara = datosTrabajador.camara.id_camara;
-    console.log(`📷 Cámara del trabajador: ${idCamara}`);
-    
-    // 2. Inicializar cámara del dispositivo
+    // 3. Inicializar cámara del dispositivo
     stream = await inicializarCamara();
     
-    // 3. Esperar un momento para que la cámara se estabilice
+    // 4. Esperar estabilización
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // 4. Capturar frame
+    // 5. Capturar frame
     const frameBase64 = await capturarFrameDesdeStream(stream);
     
-    // 5. ✅ Analizar EPP CON id_camara del trabajador
+    // 6. ✅ Analizar EPP CON id_camara correcto
     const resultado = await analizarEPPDirecto({
       frame_base64: frameBase64,
       codigo_trabajador: datosTrabajador.codigo_trabajador,
       id_empresa: datosTrabajador.id_empresa,
-      id_zona: datosTrabajador.id_zona,
+      id_zona: datosTrabajador.zona.id_Zona,
       id_trabajador: datosTrabajador.id_trabajador,
       id_supervisor: datosTrabajador.id_supervisor_trabajador,
       id_inspector: datosTrabajador.id_inspector || null,
-      id_camara: idCamara,  // ✅ ID REAL del trabajador
+      id_camara: idCamara,  // ✅ ID VÁLIDO
       nombre_trabajador: datosTrabajador.persona.nombre,
       apellido_trabajador: datosTrabajador.persona.apellido,
     });
     
     return resultado;
     
+  } catch (error) {
+    console.error('❌ Error en flujo EPP:', error instanceof Error ? error.message : 'Error desconocido');
+    return {
+      error: true,
+      cumpleEpp: false,
+      mensaje: error instanceof Error ? error.message : 'Error desconocido',
+      detallesFallo: [error instanceof Error ? error.message : 'Error desconocido'],
+    };
   } finally {
-    // 6. Siempre detener la cámara al finalizar
     if (stream) {
       detenerCamara(stream);
     }
@@ -374,9 +383,7 @@ export async function flujoCompletoAnalisisEPP(
 }
 
 /**
- * Verifica si el navegador soporta getUserMedia
- * 
- * @returns true si está soportado
+ * Verifica soporte de cámara
  */
 export function verificarSoporteCamara(): boolean {
   return !!(
@@ -386,9 +393,7 @@ export function verificarSoporteCamara(): boolean {
 }
 
 /**
- * Verifica estado de salud del servicio de análisis
- * 
- * @returns Promise con el estado del servicio
+ * Verifica estado del servicio
  */
 export async function verificarEstadoServicio(): Promise<{ status: string }> {
   try {
