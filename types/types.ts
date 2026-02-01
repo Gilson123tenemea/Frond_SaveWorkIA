@@ -42,6 +42,7 @@ export interface Trabajador {
   id_inspector: number | null;
   borrado: boolean;
   persona: Persona;
+  zona?: Zona; // ✅ AGREGADO: Propiedad zona para acceder a id_Zona
   camara?: Camara;
 }
 
