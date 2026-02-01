@@ -1,9 +1,8 @@
 /**
- * SOLUCIÓN FINAL - Análisis EPP sin errores de tipos
+ * SOLUCIÓN FINAL - Busca zona en estructura REAL del backend
  * 
- * Simplificado: No extiende tipos conflictivos
- * Flexible: Acepta cualquier estructura
- * Funcional: Valida en runtime
+ * El backend devuelve: { id_zona: 16, ... }
+ * NO: { zona: { id_Zona: 16 }, ... }
  */
 
 import { BASE_URL } from "./api";
@@ -269,12 +268,14 @@ function formatearResultadoAnalisis(respuesta: RespuestaBackend): ResultadoAnali
 }
 
 /**
- * ✅ FLUJO COMPLETO - SOLUCIÓN DEFINITIVA SIN ERRORES DE TIPOS
+ * ✅ FLUJO COMPLETO - SOLUCIÓN FINAL
  * 
- * Recibe datos directamente del backend y los procesa
+ * Busca id_zona en la estructura CORRECTA del backend
+ * Backend devuelve: { id_zona: 16, ... }
+ * NO: { zona: { id_Zona: 16 }, ... }
  */
 export async function flujoCompletoAnalisisEPP(
-  trabajadorDelBackend: any  // ✅ Sin restricciones de tipos
+  trabajadorDelBackend: any
 ): Promise<ResultadoAnalisis> {
   let stream: MediaStream | null = null;
   
@@ -287,17 +288,25 @@ export async function flujoCompletoAnalisisEPP(
       throw new Error("❌ No hay datos del trabajador");
     }
 
-    // 2. ✅ EXTRAER zona
-    const zona = trabajadorDelBackend.zona;
+    console.log('📋 Estructura recibida:', {
+      codigo: trabajadorDelBackend.codigo_trabajador,
+      id_zona: trabajadorDelBackend.id_zona,
+      id_empresa: trabajadorDelBackend.id_empresa,
+      persona: trabajadorDelBackend.persona?.nombre,
+    });
+
+    // 2. ✅ BUSCAR id_zona EN LA ESTRUCTURA CORRECTA
+    // El backend devuelve id_zona directamente, NO dentro de un objeto zona
+    const idZona = trabajadorDelBackend.id_zona;
     
-    if (!zona || !zona.id_Zona) {
-      console.error('❌ Estructura recibida:', trabajadorDelBackend);
+    if (!idZona) {
+      console.error('❌ Estructura completa:', trabajadorDelBackend);
       throw new Error("❌ El trabajador no tiene zona asignada.");
     }
 
-    console.log(`✅ Zona validada: ${zona.nombreZona} (ID: ${zona.id_Zona})`);
+    console.log(`✅ Zona validada: ID ${idZona}`);
 
-    // 3. ✅ EXTRAER cámara
+    // 3. ✅ EXTRAER cámara (si existe en la estructura)
     let idCamara: number | null = null;
 
     // Intento 1: Cámara en la estructura principal
@@ -339,7 +348,7 @@ export async function flujoCompletoAnalisisEPP(
       frame_base64: frameBase64,
       codigo_trabajador: trabajadorDelBackend.codigo_trabajador,
       id_empresa: trabajadorDelBackend.id_empresa,
-      id_zona: zona.id_Zona,
+      id_zona: idZona,  // ✅ AQUÍ: usar idZona del nivel principal
       id_trabajador: trabajadorDelBackend.id_trabajador,
       id_supervisor: trabajadorDelBackend.id_supervisor_trabajador,
       id_inspector: trabajadorDelBackend.id_inspector || null,
@@ -354,7 +363,7 @@ export async function flujoCompletoAnalisisEPP(
   } catch (error) {
     console.error('❌ Error en flujo EPP:', error instanceof Error ? error.message : 'Error desconocido');
     if (trabajadorDelBackend) {
-      console.error('📥 Datos recibidos:', trabajadorDelBackend);
+      console.error('📥 Estructura completa recibida:', trabajadorDelBackend);
     }
     
     return {
