@@ -53,7 +53,6 @@ export function LoginForm() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  // Estados para recuperación de contraseña
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false)
   const [forgotPasswordStep, setForgotPasswordStep] = useState("request")
   const [isLoadingToken, setIsLoadingToken] = useState(false)
@@ -76,7 +75,6 @@ export function LoginForm() {
     confirmarContraseña: "",
   })
 
-  // Validaciones de contraseña
   const passwordValidations = {
     minLength: passwordForm.nuevaContraseña.length >= 8,
     hasLowercase: /[a-z]/.test(passwordForm.nuevaContraseña),
