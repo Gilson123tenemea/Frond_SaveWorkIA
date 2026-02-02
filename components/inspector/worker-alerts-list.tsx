@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getUser } from "@/lib/auth";
+import { LucideIcon } from "lucide-react";
 
 import {
   obtenerIncumplimientosPorInspector,
@@ -45,9 +46,61 @@ import {
 import { InspectorHistoryDialog } from "./InspectorHistoryDialog";
 
 // ========================================================
+// INTERFACES Y TIPOS
+// ========================================================
+interface EPPConfig {
+  nombre: string;
+  icon: LucideIcon;
+}
+
+interface EPPConfigMap {
+  [key: string]: EPPConfig;
+}
+
+interface Detection {
+  item: string;
+  key: string;
+  icon: LucideIcon;
+  detected: boolean;
+}
+
+interface WorkerAlert {
+  id: number;
+  idEvidencia: number;
+  workerName: string;
+  workerDni: string;
+  camera: string;
+  zoneName: string;
+  violation: string;
+  photoUrl: string;
+  severity: "high" | "medium" | "low";
+  timestamp: string;
+  observations: string[];
+  detections: Detection[];
+  estado: boolean | null;
+  observacionesTexto?: string | null;
+}
+
+interface Zona {
+  id: number;
+  nombre: string;
+}
+
+interface HistoryStats {
+  total: number;
+  revisados: number;
+  pendientes: number;
+  tasa_revisado: number;
+}
+
+interface User {
+  id_inspector?: number;
+}
+
+// ========================================================
 // MAPEO DE EPP CON NOMBRES E ICONOS
 // ========================================================
-const EPP_CONFIG = {
+const EPP_CONFIG: EPPConfigMap = {
   casco: {
     nombre: "Casco",
     icon: HardHat,
@@ -88,57 +141,44 @@ function normalizar(texto: string | null | undefined): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-interface WorkerAlert {
-  id: number;
-  idEvidencia: number;
-  workerName: string;
-  workerDni: string;
-  camera: string;
-  zoneName: string;
-  violation: string;
-  photoUrl: string;
-  severity: "high" | "medium" | "low";
-  timestamp: string;
-  observations: string[];
-  detections: any[];
-  estado: boolean | null;
-  observacionesTexto?: string | null;
-}
-
+// ========================================================
+// COMPONENTE PRINCIPAL
+// ========================================================
 export function WorkerAlertsList() {
-  const user = getUser();
+  const user = getUser() as User | null;
   const idInspector = user?.id_inspector ?? null;
 
+  // ESTADOS
   const [alerts, setAlerts] = useState<WorkerAlert[]>([]);
   const [selectedAlert, setSelectedAlert] = useState<number | null>(null);
-  const [observation, setObservation] = useState("");
+  const [observation, setObservation] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
   const [filter, setFilter] = useState<"todos" | "pendientes" | "revisados">(
     "todos"
   );
 
-  // NUEVOS FILTROS
-  const [zonas, setZonas] = useState<any[]>([]);
+  const [zonas, setZonas] = useState<Zona[]>([]);
   const [zonaSeleccionada, setZonaSeleccionada] = useState<number | null>(null);
   const [fechaDesde, setFechaDesde] = useState<string | null>(null);
   const [fechaHasta, setFechaHasta] = useState<string | null>(null);
 
   // MODAL HISTORIAL
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState<boolean>(false);
   const [historyData, setHistoryData] = useState<any[]>([]);
-  const [historyStats, setHistoryStats] = useState<any>(null);
-  const [historyWorkerName, setHistoryWorkerName] = useState("");
+  const [historyStats, setHistoryStats] = useState<HistoryStats | null>(null);
+  const [historyWorkerName, setHistoryWorkerName] = useState<string>("");
 
   // ===========================================================
   // TRANSFORMAR DATA - SOLO MOSTRAR EPP DE LA ZONA
   // ===========================================================
-  function transformarDatos(data: any[]): WorkerAlert[] {
+  const transformarDatos = useCallback((data: any[]): WorkerAlert[] => {
     return data
       .map((item: any, index: number): WorkerAlert | null => {
         const detalleTexto = item.evidencia.detalle.toLowerCase();
 
         // 🔥 EPP que la ZONA requiere detectar
-        const eppsZonaRequeridos = item.epps_zona || [];
+        const eppsZonaRequeridos: string[] = item.epps_zona || [];
 
         // 🔥 Si la zona no tiene EPP requeridos, no mostrar nada
         if (eppsZonaRequeridos.length === 0) {
@@ -146,9 +186,9 @@ export function WorkerAlertsList() {
         }
 
         // 🔥 Crear detecciones SOLO para los EPP de la zona
-        const detections = eppsZonaRequeridos
-          .map((eppKey: string) => {
-            const config = EPP_CONFIG[eppKey as keyof typeof EPP_CONFIG];
+        const detections: Detection[] = eppsZonaRequeridos
+          .map((eppKey: string): Detection | null => {
+            const config = EPP_CONFIG[eppKey];
 
             if (!config) {
               console.warn(`⚠️ EPP no configurado: ${eppKey}`);
@@ -167,9 +207,9 @@ export function WorkerAlertsList() {
               detected: !esFaltante, // verde si se detectó, rojo si falta
             };
           })
-          .filter(Boolean);
+          .filter((d): d is Detection => d !== null);
 
-        const fails = detections.filter((d: any) => !d.detected).length;
+        const fails = detections.filter((d: Detection) => !d.detected).length;
 
         return {
           id: index + 1,
@@ -191,87 +231,94 @@ export function WorkerAlertsList() {
         };
       })
       .filter((item): item is WorkerAlert => item !== null);
-  }
+  }, []);
 
   // ===========================================================
-  // CARGA INICIAL
-  // ===========================================================
-  useEffect(() => {
-    if (idInspector == null) return;
-
-    async function cargar() {
-      const data = await obtenerIncumplimientosPorInspector(idInspector as number);
-      setAlerts(transformarDatos(data));
-    }
-
-    cargar();
-  }, [idInspector]);
-
-  // ===========================================================
-  // CARGAR ZONAS
+  // CARGAR ZONAS (Al montar el componente)
   // ===========================================================
   useEffect(() => {
     if (!idInspector) return;
 
-    async function cargarZonasInspector() {
-      const data = await obtenerZonasPorInspector(idInspector);
-      setZonas(data);
-    }
+    const cargarZonasInspector = async (): Promise<void> => {
+      try {
+        const data = await obtenerZonasPorInspector(idInspector);
+        setZonas(data);
+      } catch (error) {
+        console.error("❌ Error al cargar zonas:", error);
+      }
+    };
 
     cargarZonasInspector();
   }, [idInspector]);
 
   // ===========================================================
-  // RECARGAR AL CAMBIAR FILTROS
+  // 🔥 USEEFFECT UNIFICADO - CARGA CON FILTROS
   // ===========================================================
   useEffect(() => {
     if (!idInspector) return;
 
-    async function cargarFiltrado() {
-      const data = await obtenerIncumplimientosPorInspector(
-        idInspector as number,
-        fechaDesde || null,
-        fechaHasta || null,
-        zonaSeleccionada ?? undefined
-      );
+    const cargarIncumplimientos = async (): Promise<void> => {
+      try {
+        setLoading(true);
+        console.log("📡 Cargando incumplimientos con filtros:", {
+          idInspector,
+          zonaSeleccionada,
+          fechaDesde,
+          fechaHasta,
+        });
 
-      setAlerts(transformarDatos(data));
-    }
+        const data = await obtenerIncumplimientosPorInspector(
+          idInspector,
+          fechaDesde, // null si no hay valor
+          fechaHasta, // null si no hay valor
+          zonaSeleccionada // undefined si no hay valor
+        );
 
-    cargarFiltrado();
-  }, [zonaSeleccionada, fechaDesde, fechaHasta]);
+        console.log("✅ Datos recibidos:", data);
+        setAlerts(transformarDatos(data));
+      } catch (error) {
+        console.error("❌ Error cargando incumplimientos:", error);
+        setAlerts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarIncumplimientos();
+  }, [idInspector, zonaSeleccionada, fechaDesde, fechaHasta, transformarDatos]);
 
   // ===========================================================
   // VER HISTORIAL COMPLETO
   // ===========================================================
+  const verHistorialCompleto = useCallback(
+    async (alert: WorkerAlert): Promise<void> => {
+      try {
+        const data = await obtenerIncumplimientosPorCedula(alert.workerDni);
 
-  async function verHistorialCompleto(alert: WorkerAlert) {
-    const data = await obtenerIncumplimientosPorCedula(alert.workerDni);
+        const historialArray = data.historial || [];
+        const estadisticas = data.estadisticas || {};
 
-    // 🔥 FIX: Acceder a data.historial (no data directamente)
-    const historialArray = data.historial || [];
-    const estadisticas = data.estadisticas || {};
+        setHistoryStats({
+          total: estadisticas.total || 0,
+          revisados: estadisticas.revisados || 0,
+          pendientes: estadisticas.incumple || 0,
+          tasa_revisado: estadisticas.tasa || 0,
+        });
 
-    // 🔥 MAPEO CORRECTO: usar 'revisados' que viene del backend
-    setHistoryStats({
-      total: estadisticas.total || 0,
-      revisados: estadisticas.revisados || 0,  
-      pendientes: estadisticas.incumple || 0,
-      tasa_revisado: estadisticas.tasa || 0,
-    });
-
-    setHistoryWorkerName(alert.workerName);
-    setHistoryData(historialArray); // 🔥 PASAR DATOS CRUDOS
-    setHistoryOpen(true);
-  }
+        setHistoryWorkerName(alert.workerName);
+        setHistoryData(historialArray);
+        setHistoryOpen(true);
+      } catch (error) {
+        console.error("❌ Error al cargar historial:", error);
+      }
+    },
+    []
+  );
 
   // ===========================================================
   // GUARDAR OBSERVACIÓN
   // ===========================================================
-  // ===========================================================
-  // GUARDAR OBSERVACIÓN (ACTUALIZADO)
-  // ===========================================================
-  async function agregarObservacion() {
+  const agregarObservacion = useCallback(async (): Promise<void> => {
     if (!selectedAlert || observation.trim() === "") return;
 
     const alert = alerts.find((a) => a.id === selectedAlert);
@@ -279,48 +326,60 @@ export function WorkerAlertsList() {
 
     const idEvidencia = alert.idEvidencia;
 
-    const res = await actualizarEvidenciaFallo(idEvidencia, {
-      observaciones: observation,
-    });
+    try {
+      const res = await actualizarEvidenciaFallo(idEvidencia, {
+        observaciones: observation,
+      });
 
-    if (!res.error) {
-      setAlerts((prev) =>
-        prev.map((a) =>
-          a.id === alert.id
-            ? {
-              ...a,
-              observations: [...a.observations, observation],
-              observacionesTexto: observation
-            }
-            : a
-        )
-      );
+      if (!res.error) {
+        setAlerts((prev) =>
+          prev.map((a) =>
+            a.id === alert.id
+              ? {
+                  ...a,
+                  observations: [...a.observations, observation],
+                  observacionesTexto: observation,
+                }
+              : a
+          )
+        );
+      }
+
+      setObservation("");
+      setSelectedAlert(null);
+    } catch (error) {
+      console.error("❌ Error al guardar observación:", error);
     }
-
-    setObservation("");
-    setSelectedAlert(null);
-  }
+  }, [selectedAlert, observation, alerts]);
 
   // ===========================================================
-  // MARCAR REVISADO + EMITIR EVENTO GLOBAL PARA LA CAMPANITA
+  // MARCAR REVISADO + EMITIR EVENTO GLOBAL
   // ===========================================================
-  async function marcarRevisado(alert: WorkerAlert) {
-    const idEvidencia = alert.idEvidencia;
+  const marcarRevisado = useCallback(
+    async (alert: WorkerAlert): Promise<void> => {
+      const idEvidencia = alert.idEvidencia;
 
-    const res = await actualizarEvidenciaFallo(idEvidencia, { estado: false });
+      try {
+        const res = await actualizarEvidenciaFallo(idEvidencia, {
+          estado: false,
+        });
 
-    if (!res.error) {
-      setAlerts((prev) =>
-        prev.map((a) =>
-          a.id === alert.id ? { ...a, estado: false } : a
-        )
-      );
+        if (!res.error) {
+          setAlerts((prev) =>
+            prev.map((a) =>
+              a.id === alert.id ? { ...a, estado: false } : a
+            )
+          );
 
-      console.log("📢 ENVIANDO EVENTO notification-updated");
-
-      window.dispatchEvent(new CustomEvent("notification-updated"));
-    }
-  }
+          console.log("📢 ENVIANDO EVENTO notification-updated");
+          window.dispatchEvent(new CustomEvent("notification-updated"));
+        }
+      } catch (error) {
+        console.error("❌ Error al marcar revisado:", error);
+      }
+    },
+    []
+  );
 
   // ===========================================================
   // FILTROS
@@ -334,7 +393,7 @@ export function WorkerAlertsList() {
   });
 
   // ===========================================================
-  // UI COMPLETA
+  // RENDER
   // ===========================================================
   return (
     <>
@@ -346,7 +405,7 @@ export function WorkerAlertsList() {
           </CardDescription>
 
           {/* FILTROS */}
-          <div className="flex gap-4 items-center mt-4">
+          <div className="flex gap-4 items-center mt-4 flex-wrap">
             <select
               className="border rounded-lg px-3 py-2 text-sm"
               value={zonaSeleccionada ?? ""}
@@ -377,6 +436,10 @@ export function WorkerAlertsList() {
               value={fechaHasta ?? ""}
               onChange={(e) => setFechaHasta(e.target.value || null)}
             />
+
+            {loading && (
+              <span className="text-sm text-muted-foreground">Cargando...</span>
+            )}
           </div>
 
           {/* BOTONES DE FILTRO */}
@@ -405,7 +468,7 @@ export function WorkerAlertsList() {
         </CardHeader>
 
         <CardContent>
-          {filteredAlerts.length === 0 && (
+          {filteredAlerts.length === 0 && !loading && (
             <div className="py-12 text-center">
               <AlertTriangle className="w-12 h-12 mx-auto text-muted-foreground" />
               <p className="text-muted-foreground mt-2">
@@ -414,16 +477,23 @@ export function WorkerAlertsList() {
             </div>
           )}
 
+          {loading && (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">Cargando alertas...</p>
+            </div>
+          )}
+
           <div className="space-y-6">
             {filteredAlerts.map((alert) => (
               <Card
                 key={alert.id}
-                className={`border ${alert.severity === "high"
+                className={`border ${
+                  alert.severity === "high"
                     ? "border-destructive"
                     : alert.severity === "medium"
                       ? "border-yellow-500"
                       : "border-border"
-                  }`}
+                }`}
               >
                 <CardContent className="p-4">
                   <div className="grid gap-4 md:grid-cols-[300px_1fr]">
@@ -431,6 +501,7 @@ export function WorkerAlertsList() {
                     <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
                       <img
                         src={alert.photoUrl}
+                        alt={alert.workerName}
                         className="w-full h-full object-cover"
                       />
 
@@ -471,16 +542,18 @@ export function WorkerAlertsList() {
                           return (
                             <div
                               key={det.item}
-                              className={`flex items-center gap-3 p-2 rounded-lg border ${det.detected
+                              className={`flex items-center gap-3 p-2 rounded-lg border ${
+                                det.detected
                                   ? "bg-green-50 border-green-400"
                                   : "bg-red-50 border-red-400"
-                                }`}
+                              }`}
                             >
                               <Icon
-                                className={`w-4 h-4 ${det.detected
+                                className={`w-4 h-4 ${
+                                  det.detected
                                     ? "text-green-600"
                                     : "text-red-600"
-                                  }`}
+                                }`}
                               />
 
                               <div>
@@ -488,10 +561,11 @@ export function WorkerAlertsList() {
                                   {det.item}
                                 </p>
                                 <p
-                                  className={`text-xs ${det.detected
+                                  className={`text-xs ${
+                                    det.detected
                                       ? "text-green-600"
                                       : "text-red-600"
-                                    }`}
+                                  }`}
                                 >
                                   {det.detected ? "Detectado" : "No detectado"}
                                 </p>
