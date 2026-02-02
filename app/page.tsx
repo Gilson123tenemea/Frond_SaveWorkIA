@@ -415,14 +415,14 @@ export default function Home() {
                 </div>
 
                 <div className="flex gap-4">
-                  <Button
-                    size="lg"
-                    onClick={() => router.push("/contact")}
-                    className="bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 text-white font-semibold px-8 py-6 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+                  <a
+                    href="/downloads/app-release.apk"
+                    download="SaveWorkIA.apk"
+                    className="inline-flex items-center justify-center bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 text-white font-semibold px-8 py-6 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
                   >
                     <Download className="w-5 h-5 mr-2" />
-                    Solicitar Acceso
-                  </Button>
+                    Descargar Aplicación
+                  </a>
 
                   <Button
                     size="lg"
@@ -432,6 +432,8 @@ export default function Home() {
                     Ver Características
                   </Button>
                 </div>
+
+
               </div>
 
               {/* Mobile Mockup - Enhanced */}
