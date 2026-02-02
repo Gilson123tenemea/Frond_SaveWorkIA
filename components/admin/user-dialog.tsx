@@ -98,7 +98,6 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
   }
 
   const validarCorreo = async (correo: string) => {
-    console.log("🔍 Iniciando validación de:", correo)
     
     if (!esCorreoValido(correo)) {
       setCorreoDisponible(false)
@@ -122,9 +121,7 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
       abortRef.current = new AbortController()
 
       try {
-        console.log("📡 Llamando a la API...")
         const resp = await validarCorreoSupervisor(correo, abortRef.current.signal)
-        console.log("✅ Respuesta:", resp)
 
         setValidandoCorreo(false)
 
@@ -147,7 +144,6 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
   }
 
   const handleCorreoChange = (value: string) => {
-    console.log("🎯 handleCorreoChange llamado con:", value)
     
     const correo = value.trim()
     setFormData((prev) => ({ ...prev, correo }))
@@ -292,7 +288,6 @@ export function UserDialog({ open, onOpenChange, onSuccess }: UserDialogProps) {
                 type="email"
                 value={formData.correo}
                 onChange={(e) => {
-                  console.log("🎯 Input onChange:", e.target.value)
                   handleCorreoChange(e.target.value)
                 }}
                 placeholder="Ej: supervisor@empresa.com"

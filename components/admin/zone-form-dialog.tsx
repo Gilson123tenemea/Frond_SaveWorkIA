@@ -233,7 +233,6 @@ export function ZoneFormDialog({
           epps: eppSeleccionados, // ✨ EPPs se crean automáticamente
         });
 
-        console.log(`✅ Zona creada con ${nuevaZona?.total_epps ?? 0} EPPs`);
 
         toast.success("Zona creada correctamente", {
           style: {

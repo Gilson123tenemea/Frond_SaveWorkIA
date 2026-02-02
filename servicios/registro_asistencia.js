@@ -95,7 +95,6 @@ export async function verificarEPP(idCamara, codigoTrabajador, datosTrabajador =
       );
     }
 
-    console.log(`🔍 Verificando EPP: Cámara ${idCamara}, Código ${codigoTrabajador}`);
     console.log("📦 Datos enviados al backend:", {
       id_trabajador: idTrabajador,
       id_empresa: idEmpresa,
@@ -121,8 +120,7 @@ export async function verificarEPP(idCamara, codigoTrabajador, datosTrabajador =
     const url = new URL(`${BASE_URL}/registros-asistencia/verificar-epp/${idCamara}`);
     url.searchParams.append("codigo_trabajador", codigoTrabajador);
 
-    console.log("🚀 URL:", url.toString());
-    console.log("📤 Body:", JSON.stringify(datosVerificacion));
+ 
 
     const response = await fetch(url.toString(), {
       method: "POST",
@@ -139,7 +137,6 @@ export async function verificarEPP(idCamara, codigoTrabajador, datosTrabajador =
     }
 
     const data = await response.json();
-    console.log(`✅ Resultado EPP:`, data);
     return data;
 
   } catch (error) {

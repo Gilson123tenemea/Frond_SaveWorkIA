@@ -203,7 +203,6 @@ export function LiveDetections() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "NUEVO_REPORTE_CREADO") {
-        console.log("🎯 Nuevo reporte detectado, recargando datos...");
         recargarDatos();
       }
     };

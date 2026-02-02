@@ -120,7 +120,6 @@ export function ReportsList() {
       setError(null)
       setSuccess(null)
 
-      console.log("📊 Cargando estadísticas:", { idInspector, empresa: empresa.id_Empresa, fechaDesde, fechaHasta })
 
       // Obtener cumplimientos
       const cumplimientosData = await reportesService.obtenerCumplimientosPorZona(
@@ -130,7 +129,6 @@ export function ReportsList() {
         fechaHasta
       )
       setCumplimientos(cumplimientosData.items || [])
-      console.log("✅ Cumplimientos:", cumplimientosData.items)
 
       // Obtener incumplimientos
       const incumplimientosData = await reportesService.obtenerIncumplimientosPorZona(
@@ -140,7 +138,6 @@ export function ReportsList() {
         fechaHasta
       )
       setIncumplimientos(incumplimientosData.items || [])
-      console.log("❌ Incumplimientos:", incumplimientosData.items)
 
       // Obtener EPP más cumplido
       const eppData = await reportesService.obtenerEPPMasCumplido(
@@ -151,7 +148,6 @@ export function ReportsList() {
         fechaHasta
       )
       setEpp(eppData.items || [])
-      console.log("🛡️ EPP:", eppData.items)
 
       setSuccess("Estadísticas cargadas correctamente")
       setTimeout(() => setSuccess(null), 3000)
@@ -176,7 +172,6 @@ export function ReportsList() {
     try {
       setDownloadingPDF(true)
       setError(null)
-      console.log("📄 Descargando PDF...")
       
       await reportesService.descargarPDFTrabajadoresZona(
         idInspector,
@@ -208,7 +203,6 @@ export function ReportsList() {
     try {
       setDownloadingEXCEL(true)
       setError(null)
-      console.log("📊 Descargando EXCEL...")
       
       await reportesService.descargarEXCELAsistencia(
         idInspector,

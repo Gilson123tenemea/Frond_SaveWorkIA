@@ -65,7 +65,6 @@ export default function ContactPage() {
         publicKey
       )
 
-      console.log('Email enviado exitosamente:', response)
       setIsSubmitted(true)
       
       setTimeout(() => {

@@ -22,8 +22,6 @@ export async function obtenerPersona(idPersona) {
 // ============================
 export async function actualizarFotoPersona(idPersona, fotoBase64) {
   try {
-    console.log("📤 Enviando foto a:", `${PERSONA_URL}/foto/${idPersona}`);
-    console.log("📤 Base64 inicia con:", fotoBase64?.substring(0, 30));
 
     const res = await fetch(`${PERSONA_URL}/foto/${idPersona}`, {
       method: "PUT",

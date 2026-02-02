@@ -7,7 +7,6 @@ const SUPERVISOR_URL = `${BASE_URL}/supervisores`;
 // ============================
 export async function validarCorreoSupervisor(correo, signal) {
   try {
-    console.log("📡 Llamando API validar-correo:", correo) // DEBUG
     
     const res = await fetch(
       `${SUPERVISOR_URL}/validar-correo?correo=${encodeURIComponent(correo)}`,
@@ -21,7 +20,6 @@ export async function validarCorreoSupervisor(correo, signal) {
       }
     )
 
-    console.log("📡 Response status:", res.status) // DEBUG
 
     if (!res.ok) {
       const txt = await res.text()
@@ -30,7 +28,6 @@ export async function validarCorreoSupervisor(correo, signal) {
     }
 
     const data = await res.json()
-    console.log("📦 Response data:", data) // DEBUG
     
     return data // { disponible: true/false }
   } catch (err) {

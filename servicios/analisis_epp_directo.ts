@@ -133,7 +133,6 @@ export async function inicializarCamara(): Promise<MediaStream> {
     };
     
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    console.log('✅ Cámara inicializada');
     return stream;
     
   } catch (error) {
@@ -157,7 +156,6 @@ export async function inicializarCamara(): Promise<MediaStream> {
 export function detenerCamara(stream: MediaStream | null): void {
   if (stream) {
     stream.getTracks().forEach(track => track.stop());
-    console.log('🔴 Cámara detenida');
   }
 }
 
@@ -177,8 +175,7 @@ export async function analizarEPPDirecto(datos: {
   apellido_trabajador: string;
 }): Promise<ResultadoAnalisis> {
   try {
-    console.log('🔍 Enviando frame para análisis EPP...');
-    console.log(`📷 ID Cámara: ${datos.id_camara}`);
+   
     
     const payload = {
       frame_base64: datos.frame_base64,
@@ -193,7 +190,6 @@ export async function analizarEPPDirecto(datos: {
       apellido_trabajador: datos.apellido_trabajador,
     };
     
-    console.log('📦 Payload enviado:', payload);
     
     const response = await fetch(`${ANALISIS_EPP_URL}/verificar`, {
       method: 'POST',
@@ -211,7 +207,6 @@ export async function analizarEPPDirecto(datos: {
     }
     
     const resultado: RespuestaBackend = await response.json();
-    console.log('✅ Análisis completado:', resultado);
     
     return formatearResultadoAnalisis(resultado);
     
@@ -280,20 +275,13 @@ export async function flujoCompletoAnalisisEPP(
   let stream: MediaStream | null = null;
   
   try {
-    console.log('\n🔍 === INICIANDO FLUJO EPP ===');
-    console.log('📥 Datos recibidos del backend');
-    
+  
     // 1. ✅ VALIDAR que tenemos datos
     if (!trabajadorDelBackend) {
       throw new Error("❌ No hay datos del trabajador");
     }
 
-    console.log('📋 Estructura recibida:', {
-      codigo: trabajadorDelBackend.codigo_trabajador,
-      id_zona: trabajadorDelBackend.id_zona,
-      id_empresa: trabajadorDelBackend.id_empresa,
-      persona: trabajadorDelBackend.persona?.nombre,
-    });
+  
 
     // 2. ✅ BUSCAR id_zona EN LA ESTRUCTURA CORRECTA
     // El backend devuelve id_zona directamente, NO dentro de un objeto zona
@@ -304,7 +292,6 @@ export async function flujoCompletoAnalisisEPP(
       throw new Error("❌ El trabajador no tiene zona asignada.");
     }
 
-    console.log(`✅ Zona validada: ID ${idZona}`);
 
     // 3. ✅ EXTRAER id_camara del objeto camara que viene del backend
     //    El backend retorna: { camara: { id_camara: 3, ... } }
@@ -315,19 +302,15 @@ export async function flujoCompletoAnalisisEPP(
       throw new Error("❌ El trabajador no tiene cámara asignada en su zona.");
     }
 
-    console.log(`✅ Cámara validada: ID ${idCamara}`);
     
     // 4. Inicializar cámara del dispositivo
-    console.log('📸 Solicitando acceso a cámara del dispositivo...');
     stream = await inicializarCamara();
     
     // 5. Esperar estabilización
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // 6. Capturar frame
-    console.log('🎬 Capturando frame...');
     const frameBase64 = await capturarFrameDesdeStream(stream);
-    console.log('✅ Frame capturado');
     
     // 7. ✅ Analizar EPP con datos correctos
     const resultado = await analizarEPPDirecto({
@@ -343,7 +326,6 @@ export async function flujoCompletoAnalisisEPP(
       apellido_trabajador: trabajadorDelBackend.persona.apellido,
     });
     
-    console.log('✅ === FLUJO COMPLETADO ===\n');
     return resultado;
     
   } catch (error) {

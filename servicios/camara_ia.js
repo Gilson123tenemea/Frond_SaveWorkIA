@@ -34,7 +34,6 @@ export async function iniciarStreamWebcamIA(idCamara) {
       return null
     }
 
-    console.log(`✅ Stream iniciado para cámara ID: ${idCamara}`)
     return response
   } catch (err) {
     console.error("❌ Error conectando webcam IA:", err)
@@ -63,7 +62,6 @@ export async function detenerStreamWebcamIA(idCamara) {
     }
 
     const data = await response.json()
-    console.log(`✅ Stream detenido para cámara ID: ${idCamara}`)
     return data
   } catch (err) {
     console.error("❌ Error deteniendo webcam IA:", err)
@@ -87,7 +85,6 @@ export async function listarCamarasActivas() {
     }
 
     const data = await response.json()
-    console.log(`✅ Cámaras activas:`, data.camaras_activas)
     return data
   } catch (err) {
     console.error("❌ Error obteniendo cámaras activas:", err)

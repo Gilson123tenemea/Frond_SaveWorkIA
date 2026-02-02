@@ -39,7 +39,6 @@ export function NotificationsPopover({ idInspector }: NotificationsPopoverProps)
     loadNotifications(); // cargar al inicio
 
     const handler = () => {
-      console.log("🔔 Evento recibido → actualización del popover");
       loadNotifications();
     };
 

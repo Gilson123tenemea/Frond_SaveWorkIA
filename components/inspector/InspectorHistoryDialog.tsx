@@ -75,25 +75,19 @@ export function InspectorHistoryDialog({
   stats,
   historial,
 }: any) {
-  
-  // 🔥 DEBUG: Ver qué datos llegan
-  console.log("📦 InspectorHistoryDialog recibió:", { stats, historial });
-
+ 
   // ========================================================
   // TRANSFORMAR DETECCIONES - SOLO EPP DE LA ZONA
   // ========================================================
   function transformarDetecciones(record: any): any[] {
-    console.log("🔍 Transformando record:", record);
     
     const eppsZonaRequeridos = record.epps_zona || [];
     const deteccionesArray = record.detecciones || [];
 
-    console.log("  - epps_zona:", eppsZonaRequeridos);
-    console.log("  - detecciones:", deteccionesArray);
+  
 
     // 🔥 Si no viene epps_zona, retornar vacío (no mostrar nada)
     if (eppsZonaRequeridos.length === 0) {
-      console.log("  ⚠️ epps_zona vacío, retornando array vacío");
       return [];
     }
 
@@ -102,7 +96,6 @@ export function InspectorHistoryDialog({
       normalizar(det)
     );
 
-    console.log("  - detecciones normalizadas:", deteccionesNormalizadas);
 
     // 🔥 Crear detecciones SOLO para los EPP de la zona
     const resultado = eppsZonaRequeridos
@@ -120,7 +113,6 @@ export function InspectorHistoryDialog({
           detNorm.includes(eppKeyNorm)
         );
 
-        console.log(`    📍 ${eppKey} (${eppKeyNorm}): faltante=${esFaltante}`);
 
         return {
           item: config.nombre,
@@ -131,7 +123,6 @@ export function InspectorHistoryDialog({
       })
       .filter((item: any): item is NonNullable<any> => item !== null);
 
-    console.log("  - resultado final:", resultado);
     return resultado;
   }
 

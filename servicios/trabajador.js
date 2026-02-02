@@ -46,7 +46,6 @@ export async function verificarCorreoTrabajador(correo) {
 // 📌 Registrar un nuevo TRABAJADOR
 export async function registrarTrabajador(datosTrabajador) {
   try {
-    console.log("📤 JSON ENVIADO AL BACK:", datosTrabajador);
 
     const response = await fetch(`${TRABAJADOR_URL}/`, {
       method: "POST",

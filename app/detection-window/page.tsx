@@ -67,7 +67,6 @@ export default function DetectionWindow() {
     setEppZona([]);
     setResultado(null);
     setEstadoAnalisis("");
-    console.log("🔄 Formulario reiniciado");
   };
 
   // 🔥 Notificar a la ventana padre sobre nuevo reporte
@@ -80,7 +79,6 @@ export default function DetectionWindow() {
         },
         "*"
       );
-      console.log("📢 Notificación enviada a la ventana padre");
     }
   };
 
@@ -128,9 +126,7 @@ export default function DetectionWindow() {
         return;
       }
 
-      console.log(`✅ Zona encontrada: ${trabajador.zona?.nombreZona} (ID: ${idZona})`);
-      console.log(`✅ Cámara encontrada: ID ${trabajador.camara?.id_camara}`);
-
+  
       // 2. Obtener EPP de la zona
       setEstadoAnalisis("📋 Cargando EPP requeridos...");
       const epps = await obtenerEppPorZona(idZona) as EppZona[];
@@ -158,7 +154,6 @@ export default function DetectionWindow() {
         camara: trabajador.camara,  // ✅ ESTO FALTABA - pasa la cámara del backend
       });
 
-      console.log("📊 Resultado del análisis:", resultadoAnalisis);
 
       if (resultadoAnalisis.error) {
         setWorkerError(resultadoAnalisis.mensaje);

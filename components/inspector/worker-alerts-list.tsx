@@ -274,10 +274,8 @@ export function WorkerAlertsList() {
           zonaSeleccionada // undefined si no hay valor
         );
 
-        console.log("✅ Datos recibidos:", data);
         setAlerts(transformarDatos(data));
       } catch (error) {
-        console.error("❌ Error cargando incumplimientos:", error);
         setAlerts([]);
       } finally {
         setLoading(false);
@@ -371,7 +369,6 @@ export function WorkerAlertsList() {
             )
           );
 
-          console.log("📢 ENVIANDO EVENTO notification-updated");
           window.dispatchEvent(new CustomEvent("notification-updated"));
         }
       } catch (error) {
