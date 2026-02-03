@@ -141,21 +141,6 @@ export function SupervisorStats() {
                           </span>
                         </div>
 
-                        {cameraVideoOpen === cam.id_camara && (
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <div className="aspect-video bg-black rounded-md overflow-hidden">
-                              <img 
-                                src={cam.ipAddress} 
-                                alt={`Video de ${cam.codigo}`} 
-                                className="w-full h-full object-contain" 
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Transmisión en vivo
-                            </p>
-                          </div>
-                        )}
-
                         <Button
                           size="sm"
                           variant={cameraVideoOpen === cam.id_camara ? "default" : "outline"}
