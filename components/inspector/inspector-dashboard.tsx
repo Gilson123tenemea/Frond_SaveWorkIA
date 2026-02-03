@@ -118,22 +118,6 @@ export function InspectorStats({ inspectorId }: InspectorStatsProps) {
           </p>
         </CardContent>
       </Card>
-
-      {/* Cumplimientos */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Cumplimientos</CardTitle>
-          <CheckCircle2 className="w-4 h-4 text-green-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">
-            {data.cumplimientos}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            EPP cumplidos
-          </p>
-        </CardContent>
-      </Card>
     </div>
   )
 }
