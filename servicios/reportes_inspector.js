@@ -1,269 +1,250 @@
 // src/servicios/reportes_inspector.js
 
-import { BASE_URL } from './api';
+import { BASE_URL } from "./api";
+import jsPDF from "jspdf";
 
 /**
  * Servicio para obtener datos de estadísticas y reportes de inspectores
  */
-
 class ReportesInspectorService {
-  /**
-   * Obtiene la empresa asignada a un inspector
-   * @param {number} id_inspector - ID del inspector
-   * @returns {Promise<{id_Empresa: number, nombreEmpresa: string}>}
-   */
+
+  // ===============================
+  // EMPRESA POR INSPECTOR
+  // ===============================
   async obtenerEmpresaPorInspector(id_inspector) {
-    try {
-      const response = await fetch(
-        `${BASE_URL}/reportes/inspector/${id_inspector}/empresa`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: Inspector no encontrado`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error al obtener empresa:', error);
-      throw error;
+    const response = await fetch(
+      `${BASE_URL}/reportes/inspector/${id_inspector}/empresa`
+    );
+
+    if (!response.ok) {
+      throw new Error("Inspector no encontrado");
     }
+
+    return await response.json();
   }
 
-  /**
-   * Obtiene las zonas asignadas a un inspector
-   * @param {number} id_inspector - ID del inspector
-   * @returns {Promise<{id_inspector: number, total_zonas: number, zonas: Array}>}
-   */
+  // ===============================
+  // ZONAS POR INSPECTOR
+  // ===============================
   async obtenerZonasPorInspector(id_inspector) {
-    try {
-      const response = await fetch(
-        `${BASE_URL}/reportes/inspector/${id_inspector}/zonas`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: No se pudieron obtener las zonas`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error al obtener zonas:', error);
-      throw error;
+    const response = await fetch(
+      `${BASE_URL}/reportes/inspector/${id_inspector}/zonas`
+    );
+
+    if (!response.ok) {
+      throw new Error("No se pudieron obtener las zonas");
     }
+
+    return await response.json();
   }
 
-  /**
-   * Obtiene estadísticas de incumplimientos por zona
-   * @param {number} id_inspector - ID del inspector
-   * @param {number} id_empresa - ID de la empresa
-   * @param {string} fecha_desde - Fecha inicio (YYYY-MM-DD)
-   * @param {string} fecha_hasta - Fecha fin (YYYY-MM-DD)
-   * @returns {Promise<{total: number, items: Array}>}
-   */
+  // ===============================
+  // INCUMPLIMIENTOS POR ZONA
+  // ===============================
   async obtenerIncumplimientosPorZona(
     id_inspector,
     id_empresa,
-    fecha_desde = null,
-    fecha_hasta = null
+    fecha_desde,
+    fecha_hasta
   ) {
-    try {
-      const params = new URLSearchParams({
-        id_inspector,
-        id_empresa,
-      });
+    const params = new URLSearchParams({
+      id_inspector,
+      id_empresa,
+      fecha_desde,
+      fecha_hasta,
+    });
 
-      if (fecha_desde) params.append('fecha_desde', fecha_desde);
-      if (fecha_hasta) params.append('fecha_hasta', fecha_hasta);
+    const response = await fetch(
+      `${BASE_URL}/reportes/estadisticas/zonas-incumplimiento?${params}`
+    );
 
-      const response = await fetch(
-        `${BASE_URL}/reportes/estadisticas/zonas-incumplimiento?${params}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: No se pudieron obtener los incumplimientos`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error al obtener incumplimientos:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error("No se pudieron obtener los incumplimientos");
     }
+
+    return await response.json();
   }
 
-  /**
-   * Obtiene estadísticas de cumplimientos por zona
-   * @param {number} id_inspector - ID del inspector
-   * @param {number} id_empresa - ID de la empresa
-   * @param {string} fecha_desde - Fecha inicio (YYYY-MM-DD)
-   * @param {string} fecha_hasta - Fecha fin (YYYY-MM-DD)
-   * @returns {Promise<{total: number, items: Array}>}
-   */
+  // ===============================
+  // CUMPLIMIENTOS POR ZONA
+  // ===============================
   async obtenerCumplimientosPorZona(
     id_inspector,
     id_empresa,
-    fecha_desde = null,
-    fecha_hasta = null
+    fecha_desde,
+    fecha_hasta
   ) {
-    try {
-      const params = new URLSearchParams({
-        id_inspector,
-        id_empresa,
-      });
+    const params = new URLSearchParams({
+      id_inspector,
+      id_empresa,
+      fecha_desde,
+      fecha_hasta,
+    });
 
-      if (fecha_desde) params.append('fecha_desde', fecha_desde);
-      if (fecha_hasta) params.append('fecha_hasta', fecha_hasta);
+    const response = await fetch(
+      `${BASE_URL}/reportes/estadisticas/zonas-cumplimiento?${params}`
+    );
 
-      const response = await fetch(
-        `${BASE_URL}/reportes/estadisticas/zonas-cumplimiento?${params}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: No se pudieron obtener los cumplimientos`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error al obtener cumplimientos:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error("No se pudieron obtener los cumplimientos");
     }
+
+    return await response.json();
   }
 
-  /**
-   * Obtiene estadísticas de EPP más cumplido (gráfico pastel)
-   * @param {number} id_empresa - ID de la empresa
-   * @param {number} id_inspector - ID del inspector (opcional)
-   * @param {number} id_zona - ID de la zona (opcional)
-   * @param {string} fecha_desde - Fecha inicio (YYYY-MM-DD)
-   * @param {string} fecha_hasta - Fecha fin (YYYY-MM-DD)
-   * @returns {Promise<{total: number, items: Array}>}
-   */
+  // ===============================
+  // EPP MÁS CUMPLIDO (PASTEL)
+  // ===============================
   async obtenerEPPMasCumplido(
     id_empresa,
-    id_inspector = null,
-    id_zona = null,
-    fecha_desde = null,
-    fecha_hasta = null
+    id_inspector,
+    id_zona,
+    fecha_desde,
+    fecha_hasta
   ) {
-    try {
-      const params = new URLSearchParams({
-        id_empresa,
-      });
+    const params = new URLSearchParams({ id_empresa });
 
-      if (id_inspector) params.append('id_inspector', id_inspector);
-      if (id_zona) params.append('id_zona', id_zona);
-      if (fecha_desde) params.append('fecha_desde', fecha_desde);
-      if (fecha_hasta) params.append('fecha_hasta', fecha_hasta);
+    if (id_inspector) params.append("id_inspector", id_inspector);
+    if (id_zona) params.append("id_zona", id_zona);
+    if (fecha_desde) params.append("fecha_desde", fecha_desde);
+    if (fecha_hasta) params.append("fecha_hasta", fecha_hasta);
 
-      const response = await fetch(
-        `${BASE_URL}/reportes/estadisticas/epp-pastel?${params}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: No se pudieron obtener los datos de EPP`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error al obtener EPP:', error);
-      throw error;
+    const response = await fetch(
+      `${BASE_URL}/reportes/estadisticas/epp-pastel?${params}`
+    );
+
+    if (!response.ok) {
+      throw new Error("No se pudieron obtener los datos de EPP");
     }
+
+    return await response.json();
   }
 
-  /**
-   * Descarga PDF de trabajadores por zona
-   * @param {number} id_inspector - ID del inspector
-   * @param {number} id_zona - ID de la zona
-   * @param {string} fecha_desde - Fecha inicio (YYYY-MM-DD)
-   * @param {string} fecha_hasta - Fecha fin (YYYY-MM-DD)
-   * @returns {Promise<Blob>}
-   */
+  // ===============================
+  // ✅ PDF TRABAJADORES POR ZONA
+  // ===============================
   async descargarPDFTrabajadoresZona(
     id_inspector,
     id_zona,
     fecha_desde,
     fecha_hasta
   ) {
-    try {
-      const params = new URLSearchParams({
-        id_inspector,
-        id_zona,
-        fecha_desde,
-        fecha_hasta,
-      });
+    const params = new URLSearchParams({
+      id_inspector,
+      id_zona,
+      fecha_desde,
+      fecha_hasta,
+    });
 
-      const response = await fetch(
-        `${BASE_URL}/reportes/pdf/trabajadores-zona?${params}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: No se pudo descargar el PDF`);
-      }
-      
-      const blob = await response.blob();
-      
-      // Crear descarga automática
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reporte_trabajadores_${id_zona}_${fecha_desde}_${fecha_hasta}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      return blob;
-    } catch (error) {
-      console.error('Error al descargar PDF:', error);
-      throw error;
+    const response = await fetch(
+      `${BASE_URL}/reportes/pdf/trabajadores-zona?${params}`
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || "No hay registros para generar el PDF");
     }
+
+    // 🔥 BACKEND DEVUELVE JSON
+    const data = await response.json();
+
+    // 🧾 GENERAR PDF
+    const pdf = new jsPDF();
+    let y = 10;
+
+    pdf.setFontSize(16);
+    pdf.text("Reporte de Incumplimientos por Zona", 10, y);
+    y += 10;
+
+    pdf.setFontSize(11);
+    pdf.text(`Zona ID: ${id_zona}`, 10, y);
+    y += 6;
+    pdf.text(`Desde: ${fecha_desde}  Hasta: ${fecha_hasta}`, 10, y);
+    y += 10;
+
+    data.forEach((item, index) => {
+      pdf.setFontSize(12);
+      pdf.text(
+        `${index + 1}. ${item.trabajador.nombre} ${item.trabajador.apellido}`,
+        10,
+        y
+      );
+      y += 6;
+
+      pdf.setFontSize(10);
+      pdf.text(`Cédula: ${item.trabajador.cedula}`, 10, y);
+      y += 5;
+
+      pdf.text(`Zona: ${item.camara.zona}`, 10, y);
+      y += 5;
+
+      pdf.text(
+        `Incumple: ${item.detecciones.join(", ")}`,
+        10,
+        y
+      );
+      y += 6;
+
+      // 📸 Imagen
+      if (item.evidencia?.foto_base64) {
+        pdf.addImage(
+          `data:image/jpeg;base64,${item.evidencia.foto_base64}`,
+          "JPEG",
+          10,
+          y,
+          60,
+          40
+        );
+        y += 45;
+      }
+
+      y += 5;
+
+      if (y > 260) {
+        pdf.addPage();
+        y = 10;
+      }
+    });
+
+    pdf.save(
+      `reporte_trabajadores_zona_${id_zona}_${fecha_desde}_${fecha_hasta}.pdf`
+    );
   }
 
-  /**
-   * Descarga EXCEL de asistencia por zona
-   * @param {number} id_inspector - ID del inspector
-   * @param {number} id_zona - ID de la zona
-   * @param {string} fecha_desde - Fecha inicio (YYYY-MM-DD)
-   * @param {string} fecha_hasta - Fecha fin (YYYY-MM-DD)
-   * @returns {Promise<Blob>}
-   */
+  // ===============================
+  // EXCEL ASISTENCIA
+  // ===============================
   async descargarEXCELAsistencia(
     id_inspector,
     id_zona,
     fecha_desde,
     fecha_hasta
   ) {
-    try {
-      const params = new URLSearchParams({
-        id_inspector,
-        id_zona,
-        fecha_desde,
-        fecha_hasta,
-      });
+    const params = new URLSearchParams({
+      id_inspector,
+      id_zona,
+      fecha_desde,
+      fecha_hasta,
+    });
 
-      const response = await fetch(
-        `${BASE_URL}/reportes/excel/asistencia?${params}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: No se pudo descargar el EXCEL`);
-      }
-      
-      const blob = await response.blob();
-      
-      // Crear descarga automática
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `asistencia_${id_zona}_${fecha_desde}_${fecha_hasta}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      return blob;
-    } catch (error) {
-      console.error('Error al descargar EXCEL:', error);
-      throw error;
+    const response = await fetch(
+      `${BASE_URL}/reportes/excel/asistencia?${params}`
+    );
+
+    if (!response.ok) {
+      throw new Error("No se pudo descargar el EXCEL");
     }
+
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `asistencia_zona_${id_zona}_${fecha_desde}_${fecha_hasta}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   }
 }
 
