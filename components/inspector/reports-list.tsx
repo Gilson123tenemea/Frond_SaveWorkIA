@@ -62,6 +62,7 @@ export function ReportsList() {
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [downloadingEXCEL, setDownloadingEXCEL] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
   // ============================================
@@ -118,6 +119,7 @@ export function ReportsList() {
     try {
       setLoadingStats(true)
       setError(null)
+      setWarning(null)
       setSuccess(null)
 
 
@@ -172,6 +174,7 @@ export function ReportsList() {
     try {
       setDownloadingPDF(true)
       setError(null)
+      setWarning(null)
       
       await reportesService.descargarPDFTrabajadoresZona(
         idInspector,
@@ -182,9 +185,13 @@ export function ReportsList() {
       
       setSuccess("PDF descargado correctamente")
       setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Error desconocido"
-      setError(`Error al descargar PDF: ${errorMsg}`)
+    } catch (err: any) {
+      // Si es 404 → advertencia, no error
+      if (err?.code === "NO_DATA") {
+        setWarning(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : "Error desconocido al descargar PDF")
+      }
       console.error("Error en descargarPDF:", err)
     } finally {
       setDownloadingPDF(false)
@@ -203,6 +210,7 @@ export function ReportsList() {
     try {
       setDownloadingEXCEL(true)
       setError(null)
+      setWarning(null)
       
       await reportesService.descargarEXCELAsistencia(
         idInspector,
@@ -213,9 +221,13 @@ export function ReportsList() {
       
       setSuccess("EXCEL descargado correctamente")
       setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Error desconocido"
-      setError(`Error al descargar EXCEL: ${errorMsg}`)
+    } catch (err: any) {
+      // Si es 404 → advertencia, no error
+      if (err?.code === "NO_DATA") {
+        setWarning(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : "Error desconocido al descargar EXCEL")
+      }
       console.error("Error en descargarEXCEL:", err)
     } finally {
       setDownloadingEXCEL(false)
@@ -282,6 +294,14 @@ export function ReportsList() {
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm flex items-start gap-2">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {/* Mensaje de Advertencia (naranja) - cuando no hay datos */}
+          {warning && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>{warning}</span>
             </div>
           )}
 

@@ -193,11 +193,18 @@ class ReportesInspectorService {
       const response = await fetch(
         `${BASE_URL}/reportes/pdf/trabajadores-zona?${params}`
       );
+
+      // 404 = no hay datos, no es un error técnico
+      if (response.status === 404) {
+        const error = new Error("No hay datos disponibles en esta zona para el rango de fechas seleccionado");
+        error.code = "NO_DATA";
+        throw error;
+      }
       
       if (!response.ok) {
         throw new Error(`Error ${response.status}: No se pudo descargar el PDF`);
       }
-      
+        
       const blob = await response.blob();
       
       // Crear descarga automática
@@ -242,6 +249,13 @@ class ReportesInspectorService {
       const response = await fetch(
         `${BASE_URL}/reportes/excel/asistencia?${params}`
       );
+
+      // 404 = no hay datos, no es un error técnico
+      if (response.status === 404) {
+        const error = new Error("No hay datos disponibles en esta zona para el rango de fechas seleccionado");
+        error.code = "NO_DATA";
+        throw error;
+      }
       
       if (!response.ok) {
         throw new Error(`Error ${response.status}: No se pudo descargar el EXCEL`);
